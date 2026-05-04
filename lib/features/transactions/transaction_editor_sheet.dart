@@ -34,7 +34,9 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amount;
   LedgerTxType _type = LedgerTxType.debt;
-  late final TextEditingController _note = TextEditingController(text: widget.initialNote ?? '');
+  late final TextEditingController _note = TextEditingController(
+    text: widget.initialNote ?? '',
+  );
   bool _busy = false;
 
   @override
@@ -42,8 +44,9 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
     super.initState();
     if (widget.initialType != null) _type = widget.initialType!;
     if (widget.initialAmountMinor != null) {
-      final major = widget.initialAmountMinor! / 100;
-      _amount = TextEditingController(text: major.toStringAsFixed(2));
+      _amount = TextEditingController(
+        text: widget.initialAmountMinor!.toString(),
+      );
     } else {
       _amount = TextEditingController();
     }
@@ -72,7 +75,9 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -86,36 +91,45 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 style: TextStyle(color: AppTheme.mutedFg, fontSize: 13),
               ),
               const SizedBox(height: 12),
-              SegmentedButton<LedgerTxType>(
-                segments: const [
-                  ButtonSegment(
-                    value: LedgerTxType.debt,
-                    label: Text('Debt'),
-                    tooltip: 'Increases balance (you owe more)',
+              Row(
+                children: [
+                  Expanded(
+                    child: _TxTypeCard(
+                      selected: _type == LedgerTxType.debt,
+                      title: 'Debt',
+                      caption: 'Increases amount owed',
+                      color: AppTheme.ledgerDebt,
+                      icon: Icons.trending_up_rounded,
+                      onTap: () => setState(() => _type = LedgerTxType.debt),
+                    ),
                   ),
-                  ButtonSegment(
-                    value: LedgerTxType.payment,
-                    label: Text('Payment'),
-                    tooltip: 'Decreases balance',
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _TxTypeCard(
+                      selected: _type == LedgerTxType.payment,
+                      title: 'Payment',
+                      caption: 'Reduces balance owed',
+                      color: AppTheme.ledgerPayment,
+                      icon: Icons.payments_rounded,
+                      onTap: () => setState(() => _type = LedgerTxType.payment),
+                    ),
                   ),
                 ],
-                selected: {_type},
-                onSelectionChanged: (s) => setState(() => _type = s.first),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _amount,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
-                ],
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
                   labelText: 'Amount',
-                  hintText: '0.00',
+                  hintText: '100',
+                  helperText: 'Enter whole DZD values only.',
                 ),
                 validator: (v) {
                   final minor = MoneyFormat.parseMinorUnits(v ?? '');
-                  if (minor == null || minor <= 0) return 'Enter a positive amount';
+                  if (minor == null || minor <= 0)
+                    return 'Enter a positive amount';
                   return null;
                 },
               ),
@@ -131,13 +145,17 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                     ? null
                     : () async {
                         if (!_formKey.currentState!.validate()) return;
-                        final minor = MoneyFormat.parseMinorUnits(_amount.text)!;
+                        final minor = MoneyFormat.parseMinorUnits(
+                          _amount.text,
+                        )!;
                         setState(() => _busy = true);
                         try {
                           await widget.onSubmit(
                             minor,
                             _type,
-                            _note.text.trim().isEmpty ? null : _note.text.trim(),
+                            _note.text.trim().isEmpty
+                                ? null
+                                : _note.text.trim(),
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);
@@ -150,6 +168,77 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TxTypeCard extends StatelessWidget {
+  const _TxTypeCard({
+    required this.selected,
+    required this.title,
+    required this.caption,
+    required this.color,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final String title;
+  final String caption;
+  final Color color;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Material(
+      color: selected ? color.withValues(alpha: 0.22) : AppTheme.inputFill,
+      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(
+              color: selected
+                  ? color
+                  : AppTheme.mutedFg.withValues(alpha: 0.25),
+              width: selected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: text.titleSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                caption,
+                style: text.bodySmall?.copyWith(
+                  color: AppTheme.mutedFg,
+                  height: 1.25,
+                ),
               ),
             ],
           ),

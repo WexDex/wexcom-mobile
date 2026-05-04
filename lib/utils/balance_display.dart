@@ -10,7 +10,7 @@ String balanceSemanticsLine(int balanceMinor) {
 }
 
 Color balanceColor(int balanceMinor) {
-  if (balanceMinor < 0) return AppTheme.receivableAccent;
-  if (balanceMinor > 0) return AppTheme.destructive;
+  if (balanceMinor < 0) return AppTheme.balanceReceivable;
+  if (balanceMinor > 0) return AppTheme.ledgerDebt;
   return AppTheme.mutedFg;
 }

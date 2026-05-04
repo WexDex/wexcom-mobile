@@ -3,12 +3,14 @@ import 'package:intl/intl.dart';
 final class MoneyFormat {
   MoneyFormat._();
 
-  /// Parses user decimal input into minor units ([fractionDigits] fractional digits).
-  static int? parseMinorUnits(String raw, {int fractionDigits = 2}) {
+  /// Parses user input into whole minor units.
+  ///
+  /// For DZD / whole-unit currencies this stores the integer amount directly.
+  static int? parseMinorUnits(String raw, {int fractionDigits = 0}) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
 
-    final normalized = trimmed.replaceAll(',', '.');
+    final normalized = trimmed.replaceAll(' ', '').replaceAll(',', '.');
     final match = RegExp(r'^-?\d+(?:\.\d*)?$').firstMatch(normalized);
     if (match == null) return null;
 
@@ -45,14 +47,48 @@ final class MoneyFormat {
     return r;
   }
 
-  static String formatMinor(int minorUnits, String currencyCode, {int fractionDigits = 2}) {
-    final major = minorUnits / _pow10(fractionDigits);
-    final fmt = NumberFormat.currency(
-      locale: 'en_US',
-      name: currencyCode,
-      symbol: currencyCode,
-      decimalDigits: fractionDigits,
-    );
-    return fmt.format(major);
+  static String _grouped(int value) {
+    final digits = value.toString();
+    if (digits.length <= 3) return digits;
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < digits.length; i++) {
+      final positionFromRight = digits.length - i - 1;
+      buffer.write(digits[i]);
+      if (positionFromRight > 0 && positionFromRight % 3 == 0) {
+        buffer.write(' ');
+      }
+    }
+    return buffer.toString();
+  }
+
+  /// Plain amount with thousands separators and optional fraction digits.
+  static String formatMinor(
+    int minorUnits,
+    String currencyCode, {
+    int fractionDigits = 0,
+  }) {
+    final negative = minorUnits < 0;
+    final abs = minorUnits.abs();
+    final denom = _pow10(fractionDigits);
+    final whole = fractionDigits == 0 ? abs : abs ~/ denom;
+    final wholeStr = _grouped(whole);
+    final sign = negative ? '-' : '';
+
+    if (fractionDigits == 0) {
+      return '$sign$wholeStr $currencyCode';
+    }
+
+    final frac = abs % denom;
+    final fracStr = frac.toString().padLeft(fractionDigits, '0');
+    return '$sign$wholeStr.$fracStr $currencyCode';
+  }
+
+  static String formatDateTime(DateTime utc) {
+    return DateFormat.yMMMd().add_jm().format(utc.toLocal());
+  }
+
+  static String formatDate(DateTime utc) {
+    return DateFormat.yMMMd().format(utc.toLocal());
   }
 }

@@ -9,8 +9,18 @@ abstract final class AppTheme {
   static const Color surface = Color(0xFF0F172A);
   static const Color inputFill = Color(0xFF1E293B);
   static const Color mutedFg = Color(0xFF94A3B8);
-  static const Color receivableAccent = Color(0xFF38BDF8); // sky-400-ish for “they owe you”
+  static const Color receivableAccent = Color(0xFF38BDF8);
+  /// They owe you — positive cashflow feel.
+  static const Color balanceReceivable = Color(0xFF22C55E);
+  /// Ledger: new debt / you owe direction.
+  static const Color ledgerDebt = Color(0xFFEF4444);
+  /// Ledger: payment received.
+  static const Color ledgerPayment = Color(0xFF4ADE80);
+  /// Cancelled / voided transaction highlight.
+  static const Color ledgerCancel = Color(0xFFEAB308);
+  static const Color ledgerCancelSurface = Color(0xFF422006);
   static const double radius = 10;
+  static const double radiusLg = 14;
 
   static ThemeData dark() {
     final scheme = ColorScheme.dark(
@@ -75,6 +85,18 @@ abstract final class AppTheme {
         iconColor: mutedFg,
         textColor: appFg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: inputFill,
+        deleteIconColor: mutedFg,
+        disabledColor: inputFill.withValues(alpha: 0.5),
+        selectedColor: receivableAccent.withValues(alpha: 0.22),
+        secondarySelectedColor: receivableAccent.withValues(alpha: 0.22),
+        labelStyle: TextStyle(color: appFg, fontSize: 13),
+        secondaryLabelStyle: TextStyle(color: appFg, fontSize: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
+        side: BorderSide(color: scheme.outline.withValues(alpha: 0.5)),
       ),
     );
   }

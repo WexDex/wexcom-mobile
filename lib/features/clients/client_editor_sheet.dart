@@ -11,7 +11,8 @@ class ClientEditorSheet extends StatefulWidget {
     this.submitLabel = 'Save',
   });
 
-  final Future<void> Function(String fullName, String? phone, String? note) onSaved;
+  final Future<void> Function(String fullName, String? phone, String? note)
+  onSaved;
   final String initialName;
   final String? initialPhone;
   final String? initialNote;
@@ -24,9 +25,15 @@ class ClientEditorSheet extends StatefulWidget {
 
 class _ClientEditorSheetState extends State<ClientEditorSheet> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _name = TextEditingController(text: widget.initialName);
-  late final TextEditingController _phone = TextEditingController(text: widget.initialPhone ?? '');
-  late final TextEditingController _note = TextEditingController(text: widget.initialNote ?? '');
+  late final TextEditingController _name = TextEditingController(
+    text: widget.initialName,
+  );
+  late final TextEditingController _phone = TextEditingController(
+    text: widget.initialPhone ?? '',
+  );
+  late final TextEditingController _note = TextEditingController(
+    text: widget.initialNote ?? '',
+  );
   bool _busy = false;
 
   @override
@@ -53,7 +60,9 @@ class _ClientEditorSheetState extends State<ClientEditorSheet> {
                   Expanded(
                     child: Text(
                       widget.title,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -66,7 +75,10 @@ class _ClientEditorSheetState extends State<ClientEditorSheet> {
               TextFormField(
                 controller: _name,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(labelText: 'Full name'),
+                decoration: const InputDecoration(
+                  labelText: 'Full name',
+                  hintText: 'e.g. Ahmed Ben Ali',
+                ),
                 validator: (v) {
                   final t = v?.trim() ?? '';
                   if (t.isEmpty) return 'Enter a name';
@@ -77,13 +89,22 @@ class _ClientEditorSheetState extends State<ClientEditorSheet> {
               TextFormField(
                 controller: _phone,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Phone (optional)',
+                  hintText: '+213 123 456 789',
+                  helperText: 'Add a contact number for client follow-up.',
+                ),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _note,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Note (optional)',
+                  hintText: 'A note, address, or account reference',
+                  helperText:
+                      'Use this field for client details or special terms.',
+                ),
               ),
               const SizedBox(height: 20),
               FilledButton(
@@ -95,8 +116,12 @@ class _ClientEditorSheetState extends State<ClientEditorSheet> {
                         try {
                           await widget.onSaved(
                             _name.text.trim(),
-                            _phone.text.trim().isEmpty ? null : _phone.text.trim(),
-                            _note.text.trim().isEmpty ? null : _note.text.trim(),
+                            _phone.text.trim().isEmpty
+                                ? null
+                                : _phone.text.trim(),
+                            _note.text.trim().isEmpty
+                                ? null
+                                : _note.text.trim(),
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);
