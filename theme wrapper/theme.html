@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Theme — STS Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="sts-theme.css" />
+  </head>
+  <body>
+    <div class="page-wrap">
+      <header class="top">
+        <div>
+          <h1>Theme reference</h1>
+          <p class="lede">
+            Standalone palette for Slay the Spire Combat Planner — design tokens,
+            app shell, and combat UI (from <span class="code">globals.css</span>).
+          </p>
+        </div>
+        <div class="toolbar">
+          <button type="button" class="btn-toggle" id="toggleDark" aria-pressed="false">
+            Preview: design tokens (light)
+          </button>
+        </div>
+      </header>
+
+      <section>
+        <h2>App shell</h2>
+        <p class="section-desc">
+          Root layout uses <span class="code">Inter</span>, <span class="code">bg-slate-950</span>
+          (<span class="code">#020617</span>), and <span class="code">text-slate-100</span>.
+        </p>
+        <div class="flex-gap">
+          <div
+            class="swatch"
+            style="
+              border: none;
+              min-width: 120px;
+              background: #020617;
+              color: #f1f5f9;
+              padding: 16px;
+              border-radius: 12px;
+            "
+          >
+            <strong style="display: block; font-size: 0.75rem; margin-bottom: 8px"
+              >Background</strong
+            >
+            slate-950
+          </div>
+          <div
+            class="swatch"
+            style="
+              border: none;
+              min-width: 120px;
+              background: #0f172a;
+              color: #e2e8f0;
+              padding: 16px;
+              border-radius: 12px;
+            "
+          >
+            <strong style="display: block; font-size: 0.75rem; margin-bottom: 8px"
+              >Surface</strong
+            >
+            slate-900-ish
+          </div>
+          <div
+            class="swatch"
+            style="
+              border: none;
+              min-width: 120px;
+              background: #f1f5f9;
+              color: #020617;
+              padding: 16px;
+              border-radius: 12px;
+            "
+          >
+            <strong style="display: block; font-size: 0.75rem; margin-bottom: 8px"
+              >Foreground</strong
+            >
+            slate-100
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Design tokens (CSS variables)</h2>
+        <p class="section-desc">
+          Toggle “Preview” to compare light <span class="code">:root</span> vs
+          <span class="code">.dark</span> token values used across the app.
+        </p>
+        <div class="token-strip light" id="tokenLight">
+          <p class="token-strip-title">Light tokens</p>
+          <div class="grid-swatches">
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--background)"></div>
+              <div class="swatch-meta"><strong>background</strong> --background</div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--foreground)"></div>
+              <div class="swatch-meta"><strong>foreground</strong> --foreground</div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--primary)"></div>
+              <div class="swatch-meta"><strong>primary</strong> --primary</div>
+            </div>
+            <div class="swatch">
+              <div
+                class="swatch-color"
+                style="background: var(--primary-foreground)"
+              ></div>
+              <div class="swatch-meta">
+                <strong>on primary</strong> --primary-foreground
+              </div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--secondary)"></div>
+              <div class="swatch-meta"><strong>secondary</strong> --secondary</div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--muted)"></div>
+              <div class="swatch-meta"><strong>muted</strong> --muted</div>
+            </div>
+            <div class="swatch">
+              <div
+                class="swatch-color"
+                style="background: var(--muted-foreground)"
+              ></div>
+              <div class="swatch-meta">
+                <strong>muted fg</strong> --muted-foreground
+              </div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--accent)"></div>
+              <div class="swatch-meta"><strong>accent</strong> --accent</div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--destructive)"></div>
+              <div class="swatch-meta">
+                <strong>destructive</strong> --destructive
+              </div>
+            </div>
+            <div class="swatch">
+              <div
+                class="swatch-color"
+                style="background: var(--input-background)"
+              ></div>
+              <div class="swatch-meta">
+                <strong>input bg</strong> --input-background
+              </div>
+            </div>
+            <div class="swatch">
+              <div
+                class="swatch-color"
+                style="background: var(--border); border: 1px solid #ccc"
+              ></div>
+              <div class="swatch-meta"><strong>border</strong> --border</div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--chart-1)"></div>
+              <div class="swatch-meta"><strong>chart-1</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--chart-2)"></div>
+              <div class="swatch-meta"><strong>chart-2</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--chart-3)"></div>
+              <div class="swatch-meta"><strong>chart-3</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="token-strip dark-only" id="tokenDark" style="margin-top: 12px">
+          <p class="token-strip-title">Dark tokens (.dark)</p>
+          <div class="grid-swatches">
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--background)"></div>
+              <div class="swatch-meta"><strong>background</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--foreground)"></div>
+              <div class="swatch-meta"><strong>foreground</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--primary)"></div>
+              <div class="swatch-meta"><strong>primary</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--secondary)"></div>
+              <div class="swatch-meta"><strong>secondary</strong></div>
+            </div>
+            <div class="swatch">
+              <div class="swatch-color" style="background: var(--destructive)"></div>
+              <div class="swatch-meta"><strong>destructive</strong></div>
+            </div>
+            <div class="swatch">
+              <div
+                class="swatch-color"
+                style="background: var(--input-background)"
+              ></div>
+              <div class="swatch-meta"><strong>input bg</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Combat UI — bars & panels</h2>
+        <p class="section-desc">Matches <span class="code">.top-bar</span>, <span class="code">.panel-card</span>, metrics chips.</p>
+        <div class="top-bar">
+          <div>
+            <div class="top-label">Top bar</div>
+            <div class="top-value">Subtitle / value (#b2b7ff)</div>
+          </div>
+          <div class="top-metrics">
+            <span>Floor 12</span>
+            <span>Energy ⚡ 3</span>
+          </div>
+        </div>
+        <div class="panel-card">
+          <h3>Panel card</h3>
+          <p class="muted" style="margin: 0 0 12px">
+            Muted text (#8a8fb8) for secondary copy inside panels.
+          </p>
+          <div class="button-row">
+            <button type="button">Combat action</button>
+            <button type="button" class="active">Selected</button>
+            <button type="button" class="combat-btn btn-primary-solid">Primary</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Buttons</h2>
+        <p class="section-desc">
+          Default combat buttons use indigo translucent fills;
+          <span class="code">.btn-mini.*</span> mirrors Tailwind utility colors from
+          globals.
+        </p>
+        <div class="panel-card" style="margin-bottom: 14px">
+          <h3>Semantic / token</h3>
+          <div class="button-row">
+            <button type="button" class="btn-primary-solid">Primary</button>
+            <button type="button" class="btn-secondary-solid">Secondary</button>
+            <button type="button" class="btn-destructive">Destructive</button>
+            <button type="button" disabled>Disabled</button>
+          </div>
+        </div>
+        <div class="panel-card">
+          <h3>btn-mini variants</h3>
+          <div class="button-row">
+            <button type="button" class="btn-mini green">green</button>
+            <button type="button" class="btn-mini blue">blue</button>
+            <button type="button" class="btn-mini red">red</button>
+            <button type="button" class="btn-mini gray">gray</button>
+            <button type="button" class="btn-mini purple">purple</button>
+            <button type="button" class="btn-mini orange">orange</button>
+            <button type="button" class="btn-mini cyan">cyan</button>
+            <button type="button" class="btn-mini pink">pink</button>
+            <button type="button" class="btn-mini yellow">yellow</button>
+            <button type="button" class="btn-mini lime">lime</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Form controls</h2>
+        <p class="section-desc"><span class="code">input</span>, <span class="code">select</span>, <span class="code">textarea</span> styles from globals.</p>
+        <div class="panel-card flex-gap" style="flex-direction: column; align-items: stretch">
+          <label class="field">
+            Label (color #d1d4ff)
+            <input class="field-input" type="text" placeholder="Text input" value="Sample value" />
+          </label>
+          <label class="field">
+            Select
+            <select class="field-input">
+              <option>Ironclad</option>
+              <option>Silent</option>
+              <option>Defect</option>
+              <option>Watcher</option>
+            </select>
+          </label>
+          <div class="manual-log-box">
+            <label class="field" style="max-width: none">
+              Textarea
+              <textarea placeholder="Manual log…">Multi-line text with dark panel fill.</textarea>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Game cards (STSCard)</h2>
+        <p class="section-desc">
+          Stat/effect glyphs are Lucide in the Next.js app (<span class="code">inferGalleryCardEffects</span> /
+          <span class="code">galleryStsGlyphs.ts</span>). On <span class="code">/theme-wrapper</span>
+          <strong>Examples</strong>, live <span class="code">STSCard</span> previews from
+          <span class="code">STS_CARDS_DB.json</span> render above this embedded document — this section skips duplicate shells.
+          The same tab includes the <strong>Effect &amp; icon catalog</strong> legend (Lucide, matching the card design gallery),
+          and <strong>Decision Timeline</strong> checkpoint node mocks (<span class="code">.dtl-*</span>) directly below cards on Examples.
+          Exported zip: <span class="code">.sts-card*</span> chrome is in <span class="code">sts-theme.css</span>; DOM + modifiers are in
+          <span class="code">theme_docs.html</span>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Pills, intent & cards</h2>
+        <div class="panel-card">
+          <div class="button-row" style="margin-bottom: 12px">
+            <span class="status-pill">Status · buff</span>
+            <span class="intent-pill">Intent chip</span>
+          </div>
+          <div class="intent-row">Intent row (default)</div>
+          <div class="intent-row current">Intent row (current — purple border)</div>
+          <div class="flex-gap" style="margin-top: 14px">
+            <div class="card-item">
+              <div class="card-title">Strike</div>
+              <div class="small-text">Attack · deal damage</div>
+            </div>
+            <div class="log-item">Log line — rgba panel, #dadaff text</div>
+          </div>
+          <div class="zone-slot" style="margin-top: 12px">Zone slot (dashed border)</div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Combined examples</h2>
+        <p class="section-desc">
+          Small compositions — how bars, panels, pills, buttons, and forms read together (similar
+          to real combat / tool flows).
+        </p>
+
+        <div class="composite-grid">
+          <div class="example-block">
+            <h4>Turn strip — metrics + statuses + actions</h4>
+            <div class="top-bar" style="margin-bottom: 12px">
+              <div>
+                <div class="top-label">Act 2 · elites</div>
+                <div class="top-value">Hallway fight</div>
+              </div>
+              <div class="top-metrics">
+                <span>Turn 4</span>
+                <span>⚡ 3</span>
+              </div>
+            </div>
+            <div class="row-tight" style="margin-bottom: 12px">
+              <span class="status-pill">Vulnerable ×2</span>
+              <span class="status-pill">Weak</span>
+              <span class="intent-pill">Intent: Attack 14</span>
+            </div>
+            <div class="button-row">
+              <button type="button">End turn</button>
+              <button type="button" class="btn-primary-solid">Confirm</button>
+            </div>
+          </div>
+
+          <div class="example-block">
+            <h4>Enemy block — header + intents + targets</h4>
+            <div class="enemy-card">
+              <div class="enemy-header">
+                <strong>Jaw Worm</strong>
+                <span class="muted" style="font-size: 0.88rem">HP 34 / 42</span>
+              </div>
+              <div class="intent-row current" style="margin-bottom: 8px">
+                <span class="muted" style="font-size: 0.8rem">This turn</span>
+                <div style="margin-top: 6px">
+                  <span class="intent-pill">Chomp 11</span>
+                  <span class="intent-pill">Buff</span>
+                </div>
+              </div>
+              <p class="muted" style="margin: 0 0 8px; font-size: 0.85rem">Target</p>
+              <div class="button-row">
+                <button type="button" class="active combat-btn">Enemy A</button>
+                <button type="button" class="combat-btn">Enemy B</button>
+                <button type="button" class="combat-btn" disabled>Dead</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="composite-grid two-col" style="margin-top: 20px">
+          <div class="example-block">
+            <h4>Hand + sidebar — cards + rolling log</h4>
+            <div class="panel-card" style="padding: 14px">
+              <div class="hand-strip">
+                <div class="card-item" style="border-color: rgba(152, 130, 255, 0.55)">
+                  <span
+                    class="semantic-chip"
+                    style="
+                      margin-bottom: 8px;
+                      font-size: 0.72rem;
+                      padding: 4px 8px;
+                      border-color: rgb(239 68 68 / 0.5);
+                      background: rgb(239 68 68 / 0.2);
+                      color: #f87171;
+                    "
+                    >Attack</span
+                  >
+                  <div class="card-title">Bash</div>
+                  <div class="small-text">Selected</div>
+                </div>
+                <div class="card-item">
+                  <div class="card-title">Defend</div>
+                  <div class="small-text">Skill</div>
+                </div>
+                <div class="split-log">
+                  <span class="muted" style="font-size: 0.75rem">Recent</span>
+                  <div class="mini-log-stack">
+                    <div class="log-item" style="font-size: 0.82rem">Played Bash → Vulnerable +2</div>
+                    <div class="log-item" style="font-size: 0.82rem">Enemy attacks for 8 (blocked 5)</div>
+                  </div>
+                </div>
+              </div>
+              <div class="button-row" style="margin-top: 14px">
+                <button type="button" class="btn-mini blue">Play</button>
+                <button type="button" class="btn-mini gray">Undo</button>
+                <button type="button" class="btn-destructive" style="padding: 8px 14px; border-radius: 14px; font-size: 0.8rem">Discard</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="example-block">
+            <h4>Inline form — field + primary + mini actions</h4>
+            <div class="panel-card" style="padding: 14px">
+              <div class="inline-form-row">
+                <label class="field">
+                  Floor seed (optional)
+                  <input class="field-input" type="text" placeholder="e.g. AS4E2F" />
+                </label>
+                <div class="button-row" style="flex-shrink: 0">
+                  <button type="button" class="btn-mini green">Save</button>
+                  <button type="button" class="btn-mini orange">Reset</button>
+                </div>
+              </div>
+              <p class="muted" style="margin: 12px 0 0; font-size: 0.8rem">
+                Hint text uses <span class="code">.muted</span> under the row.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="example-block" style="margin-top: 20px">
+          <h4>Zones row — draw / discard / exhaust (dashed)</h4>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+              gap: 12px;
+            "
+          >
+            <div class="zone-slot">
+              <strong style="color: #c7c9f0">Draw</strong>
+              <div style="margin-top: 8px; font-size: 0.85rem">12 cards</div>
+            </div>
+            <div class="zone-slot">
+              <strong style="color: #c7c9f0">Discard</strong>
+              <div style="margin-top: 8px; font-size: 0.85rem">3 cards</div>
+            </div>
+            <div class="zone-slot">
+              <strong style="color: #c7c9f0">Exhaust</strong>
+              <div style="margin-top: 8px; font-size: 0.85rem">Empty</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Decision Timeline tool</h2>
+        <p class="section-desc">
+          Header actions, summary sidebar, and checkpoint chrome from
+          <span class="code">app/decision-timeline/page.tsx</span>,
+          <span class="code">decision-timeline-summary.tsx</span>, and
+          <span class="code">DecisionTimelineFlow.tsx</span> — cyan pin vs violet graph selection,
+          combat-phase tint stripes (<span class="code">decisionTimelinePhaseUi.ts</span>).
+        </p>
+
+        <div class="dtl-toolbar-demo">
+          <button type="button" class="dtl-btn dtl-btn--apply">Apply to planner</button>
+          <button type="button" class="dtl-btn dtl-btn--fork">
+            <span class="dtl-btn-fork-inner">
+              <span class="dtl-fork-icon" aria-hidden="true">⎇</span>
+              <span>
+                <span class="dtl-fork-title">Fork new checkpoint</span>
+                <span class="dtl-fork-sub">Under <strong style="font-weight: 700">START · elites</strong></span>
+                <span class="dtl-fork-meta">Parent source: <em>active pin (cyan)</em></span>
+              </span>
+            </span>
+          </button>
+          <button type="button" class="dtl-btn dtl-btn--path">Force active path</button>
+          <button type="button" class="dtl-btn dtl-btn--json">Export JSON</button>
+        </div>
+
+        <div class="dtl-demo-layout">
+          <aside class="dtl-summary-panel">
+            <p class="dtl-summary-label">Summary</p>
+            <p class="dtl-summary-desc">
+              Nodes under START and the active pin path (top → bottom), matching the left rail.
+            </p>
+            <p class="dtl-path-heading">Active path</p>
+            <div class="dtl-path-rows">
+              <div class="dtl-path-row">
+                <div class="dtl-path-rail">
+                  <span class="dtl-dot dtl-dot--start" title="START"></span>
+                  <span class="dtl-path-line" aria-hidden="true"></span>
+                </div>
+                <div class="dtl-path-text">
+                  <strong>START</strong>
+                </div>
+              </div>
+              <div class="dtl-path-row">
+                <div class="dtl-path-rail">
+                  <span class="dtl-dot dtl-dot--mid"></span>
+                  <span class="dtl-path-line" aria-hidden="true"></span>
+                </div>
+                <div class="dtl-path-text">
+                  <strong>T4 · Before elites</strong>
+                </div>
+              </div>
+              <div class="dtl-path-row">
+                <div class="dtl-path-rail">
+                  <span class="dtl-dot dtl-dot--pin"></span>
+                </div>
+                <div class="dtl-path-text dtl-path-text--pin">
+                  <strong>T5 · Split jaw worm</strong>
+                  <span class="dtl-pin-badge">Active pin</span>
+                </div>
+              </div>
+            </div>
+            <div class="dtl-warning-callout">
+              Nothing branches from START yet — fork or link a checkpoint under START.
+            </div>
+            <p class="dtl-connected-heading">Connected under START</p>
+            <ul class="dtl-tree-list">
+              <li style="--dtl-accent: #f59e0b"><span class="dtl-tree-start">START</span></li>
+              <li style="--dtl-accent: #34d399">T4 · Before elites</li>
+              <li style="--dtl-accent: #fb7185">T5 · Split jaw worm</li>
+            </ul>
+          </aside>
+
+          <div class="dtl-branch-mock-wrap">
+            <div class="dtl-start-card-mock">
+              <h5>START</h5>
+              <p>t-root · abc123…</p>
+            </div>
+            <div class="dtl-branch-card dtl-branch-card--selected">
+              <div class="dtl-phase-strip dtl-phase-strip--main" aria-hidden="true"></div>
+              <div class="dtl-drag-rail" aria-hidden="true">Drag row</div>
+              <div class="dtl-toolbar-float-mock" aria-label="Floating toolbar mock">
+                <span class="dtl-tool-icon" title="Rename">✎</span>
+                <span class="dtl-tool-icon" title="Planner">▦</span>
+                <span class="dtl-tool-icon" title="Accent">◐</span>
+                <span class="dtl-tool-icon" title="Link">⛓</span>
+              </div>
+              <div class="dtl-branch-inner">
+                <p class="muted" style="margin: 0 0 6px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em">Planner slug</p>
+                <div class="dtl-turn-slug" title="T5.2">
+                  <span class="t-letter">T</span><span class="t-main">5</span><span class="t-dot">.</span><span class="t-alt">2</span>
+                </div>
+                <p class="muted" style="margin: 10px 0 0; font-size: 10px; line-height: 1.45">
+                  <strong style="color: #e9d5ff">Violet ring</strong> — graph-selected fork parent;
+                  <strong style="color: #67e8f9">Cyan glow</strong> — active planner pin on-path.
+                </p>
+                <div class="dtl-phase-pills">
+                  <span class="dtl-phase-pill dtl-phase-pill--draw">Draw · start</span>
+                  <span class="dtl-phase-pill dtl-phase-pill--main">Main · player</span>
+                  <span class="dtl-phase-pill dtl-phase-pill--enemy">Enemy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p class="section-desc" style="margin-top: 18px">
+          Enemy-phase checkpoint shell uses the rose gradient strip —
+          swap <span class="code">dtl-phase-strip--enemy</span> on the mock card to preview.
+        </p>
+        <div class="example-block" style="max-width: 300px">
+          <h4>Enemy-phase strip sample</h4>
+          <div class="dtl-branch-card" style="max-width: none">
+            <div class="dtl-phase-strip dtl-phase-strip--enemy" aria-hidden="true"></div>
+            <div class="dtl-branch-inner">
+              <div class="dtl-turn-slug">
+                <span class="t-letter">T</span><span class="t-main" style="color: #fb7185">3</span>
+              </div>
+              <p class="muted" style="margin: 8px 0 0; font-size: 10px">Rose / orange phase accent from <span class="code">plannerPhaseStripClass('enemy')</span>.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Turn maker</h2>
+        <p class="section-desc">
+          Entity naming, action-type selector chips, stepped numeric inputs, and row chrome from
+          <span class="code">app/turn-maker/TurnMakerEditor.tsx</span>
+          (<span class="code">ACTION_TYPE_THEME</span>,
+          <span class="code">ENTITY_NAME_INPUT_CLASSES</span>,
+          <span class="code">TEXT_LINE_CLASSES</span>). Skill intents use emerald styling (Tailwind
+          <span class="code">emerald-*</span>), matching in-app card-type accents.
+        </p>
+
+        <div class="tm-grid-demo">
+          <div>
+            <label class="tm-field-label" for="tm-demo-entity">Enemy display name</label>
+            <input id="tm-demo-entity" class="tm-entity-input" type="text" value="Jaw Worm" readonly />
+            <span class="tm-field-hint">Fuchsia ring / slate gradient shell — mirrors ENTITY_NAME_INPUT_CLASSES.</span>
+          </div>
+          <div>
+            <label class="tm-field-label" for="tm-demo-line">Effect line</label>
+            <input id="tm-demo-line" class="tm-text-line" type="text" value="Deal 11 damage." readonly />
+          </div>
+          <div>
+            <p class="tm-action-row-label">Intent action type (selected vs idle)</p>
+            <div class="tm-intent-chips">
+              <span class="tm-chip tm-chip--attack"><span class="tm-chip-glyph" aria-hidden="true">⚔</span>Attack</span>
+              <span class="tm-chip tm-chip--multi tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">✳</span>Multi-hit</span>
+              <span class="tm-chip tm-chip--block tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">🛡</span>Block</span>
+              <span class="tm-chip tm-chip--debuff tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">☠</span>Debuff</span>
+              <span class="tm-chip tm-chip--buff tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">✚</span>Buff</span>
+              <span class="tm-chip tm-chip--status tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">◎</span>Status</span>
+              <span class="tm-chip tm-chip--flee tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">↪</span>Escape</span>
+              <span class="tm-chip tm-chip--stun tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">✶</span>Stunned</span>
+              <span class="tm-chip tm-chip--none tm-chip--inactive"><span class="tm-chip-glyph" aria-hidden="true">∅</span>No action</span>
+            </div>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end">
+            <div>
+              <p class="tm-action-row-label" style="margin-top: 0">Damage stepper</p>
+              <div class="tm-step-shell">
+                <span class="tm-step-btn" aria-hidden="true">−</span>
+                <input class="tm-step-val" type="text" value="11" readonly aria-label="Sample value" />
+                <span class="tm-step-btn" aria-hidden="true">+</span>
+              </div>
+            </div>
+            <div class="tm-row-actions">
+              <span class="tm-mini-btn">📋 Copy JSON</span>
+              <span class="tm-mini-btn">⬆ Apply</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Activity log (logger)</h2>
+        <p class="section-desc">
+          Row chrome from <span class="code">app/components/activity-log/activity-log-rows.tsx</span>; colours and emoji
+          icons from <span class="code">ACTIVITY_LOG_COLORS</span> and
+          <span class="code">ACTIVITY_LOG_ICONS</span> in <span class="code">app/constants/colors.ts</span>.
+          <strong>Turn-start</strong> rows use an amber left spine + inset ring (<span class="code">TURN_START_LOG_CHROME</span>).
+        </p>
+
+        <h3 style="font-size: 0.85rem; margin: 20px 0 10px; color: #94a3b8; font-weight: 600">Minimal density</h3>
+        <div class="alog-panel">
+          <div class="alog-min alog-min--damage">
+            <span class="alog-min-glyph" aria-hidden="true">⚔️</span>
+            <div class="alog-min-body">
+              <div class="alog-min-head">
+                <p class="alog-min-title">Enemy attacks for 14</p>
+                <time class="alog-min-time">10:42:01 AM</time>
+              </div>
+              <p class="alog-min-meta">Blocked 5 · HP 32→27</p>
+            </div>
+          </div>
+          <div class="alog-min alog-min--card-action">
+            <span class="alog-min-glyph" aria-hidden="true">🎴</span>
+            <div class="alog-min-body">
+              <div class="alog-min-head">
+                <p class="alog-min-title">Played Bash</p>
+                <time class="alog-min-time">10:42:03 AM</time>
+              </div>
+              <p class="alog-min-meta">
+                <span style="color: #f87171">Bash</span><span style="color: #475569">, </span><span style="color: #60a5fa">Defend</span>
+              </p>
+            </div>
+          </div>
+          <div class="alog-min alog-min--turn-start">
+            <span class="alog-min-glyph" aria-hidden="true">🚩</span>
+            <div class="alog-min-body">
+              <div class="alog-min-head">
+                <p class="alog-min-title">Turn 4 — started</p>
+                <time class="alog-min-time">10:42:05 AM</time>
+              </div>
+              <p class="alog-min-meta-type">turn start</p>
+            </div>
+          </div>
+          <div class="alog-min alog-min--system">
+            <span class="alog-min-glyph" aria-hidden="true">⚙️</span>
+            <div class="alog-min-body">
+              <div class="alog-min-head">
+                <p class="alog-min-title">Planner snapshot restored</p>
+                <time class="alog-min-time">10:42:08 AM</time>
+              </div>
+              <p class="alog-min-meta">Imported from JSON</p>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Detailed density</h3>
+        <div class="alog-panel" style="padding: 6px 0">
+          <div class="alog-det">
+            <div class="alog-det-rail">
+              <span class="alog-det-icon alog-det-icon--damage" aria-hidden="true">⚔️</span>
+            </div>
+            <div class="alog-det-card alog-det-card--damage">
+              <div class="alog-det-head">
+                <p class="alog-det-title">Heavy slash incoming</p>
+                <div class="alog-det-meta">
+                  <span class="alog-badge alog-badge--damage">damage</span>
+                  <time class="alog-det-time">10:43:12 AM</time>
+                </div>
+              </div>
+              <div class="alog-det-section">
+                <p class="alog-det-section-label">Cards</p>
+                <div class="alog-card-chips">
+                  <span class="alog-card-chip alog-card-chip--attack"
+                    ><span>Bash</span><span class="alog-card-chip-type">(Attack)</span></span
+                  >
+                  <span class="alog-card-chip alog-card-chip--skill"
+                    ><span>Defend</span><span class="alog-card-chip-type">(Skill)</span></span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="alog-det">
+            <div class="alog-det-rail">
+              <span class="alog-det-icon alog-det-icon--turn-start" aria-hidden="true">🚩</span>
+            </div>
+            <div class="alog-det-card" style="border-color: rgb(251 191 36 / 0.4); background: linear-gradient(to right, rgb(245 158 11 / 0.14), rgb(6 182 212 / 0.08))">
+              <div class="alog-det-head">
+                <p class="alog-det-title" style="color: #fef3c7">Turn 5 — started</p>
+                <div class="alog-det-meta">
+                  <span class="alog-badge" style="background: rgb(245 158 11 / 0.45); color: #fffbeb">turn start</span>
+                  <time class="alog-det-time">10:43:20 AM</time>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Logger blocks</h3>
+        <p class="section-desc" style="margin-bottom: 12px">
+          Context key/value cells, before/after deltas, and details panels — same shells as detailed / expanded rows (
+          <span class="code">ActivityLogContextRows</span>, delta strip, details box).
+        </p>
+        <div class="panel-card" style="padding: 16px">
+          <div class="alog-block-grid two-col">
+            <dl class="alog-block-ctx">
+              <dt>Planner slot</dt>
+              <dd>5</dd>
+            </dl>
+            <dl class="alog-block-ctx">
+              <dt>Phase</dt>
+              <dd>Enemy</dd>
+            </dl>
+          </div>
+          <div class="alog-block-delta-row" style="margin-top: 14px">
+            <div class="alog-block-delta">
+              <span class="alog-block-delta-label">Before</span>
+              <pre class="alog-block-delta-pre">block=12 hp=48</pre>
+            </div>
+            <span class="alog-block-arrow" aria-hidden="true">→</span>
+            <div class="alog-block-delta">
+              <span class="alog-block-delta-label">After</span>
+              <pre class="alog-block-delta-pre alog-block-delta-pre--accent">block=0 hp=40</pre>
+            </div>
+          </div>
+          <div class="alog-block-details" style="margin-top: 14px">
+            <p class="alog-block-details-label">Details</p>
+            <p class="alog-block-details-body">
+              Full-width narrative line; on hover the live log can expand line-clamp — static mock only here.
+            </p>
+          </div>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Expanded entry shell</h3>
+        <article class="alog-expanded alog-expanded--buff">
+          <div class="alog-expanded-head">
+            <span class="alog-expanded-icon-wrap" aria-hidden="true">✨</span>
+            <div style="min-width: 0; flex: 1">
+              <h4 class="alog-expanded-title">Gained Strength</h4>
+              <div class="alog-expanded-sub">
+                <span class="alog-badge" style="background: rgb(16 185 129 / 0.4); color: #6ee7b7">buff</span>
+                <span class="alog-expanded-target-pill">Enemy · Jaw Worm</span>
+                <time class="alog-expanded-time">10:44:02 AM</time>
+              </div>
+            </div>
+          </div>
+          <div class="alog-block-details" style="border-width: 1px; background: rgb(2 6 23 / 0.35)">
+            <p class="alog-block-details-label">Details</p>
+            <p class="alog-block-details-body" style="color: #cbd5e1">
+              <span class="code">ActivityLogRowExpanded</span> — large icon tile, title, badges, optional target pill,
+              then cards / context / deltas below.
+            </p>
+          </div>
+        </article>
+
+        <article class="alog-expanded alog-expanded--turn-start" style="margin-top: 16px">
+          <div class="alog-expanded-head">
+            <span class="alog-expanded-icon-wrap" aria-hidden="true">🚩</span>
+            <div style="min-width: 0; flex: 1">
+              <h4 class="alog-expanded-title" style="color: #fef3c7">Turn 6 — started</h4>
+              <div class="alog-expanded-sub">
+                <span class="alog-badge" style="background: rgb(245 158 11 / 0.5); color: #451a03">turn start</span>
+                <time class="alog-expanded-time">10:44:30 AM</time>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section>
+        <h2>Glyphs &amp; icons</h2>
+        <p class="section-desc">
+          Logger icons = <span class="code">ACTIVITY_LOG_ICONS</span>. Enemy-intent glyphs =
+          <span class="code">ENEMY_INTENT_ACTION_GLYPH</span> (<span class="code">enemyIntentGlyphs.ts</span>), reused in Turn Maker and
+          <span class="code">IntentIncomingChips.tsx</span>. Interactive chrome elsewhere uses
+          <strong>Lucide</strong> SVG icons (<span class="code">lucide-react</span>) — density mocked below with bordered squares.
+        </p>
+
+        <h3 style="font-size: 0.85rem; margin: 16px 0 10px; color: #94a3b8; font-weight: 600">Activity log icons</h3>
+        <div class="glyph-ref-grid">
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">⚔️</span><div class="glyph-ref-body"><p class="glyph-ref-label">damage</p><p class="glyph-ref-meta">ACTIVITY_LOG_ICONS</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">❤️</span><div class="glyph-ref-body"><p class="glyph-ref-label">heal</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">🛡️</span><div class="glyph-ref-body"><p class="glyph-ref-label">block</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">💔</span><div class="glyph-ref-body"><p class="glyph-ref-label">block-lost</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">⚡</span><div class="glyph-ref-body"><p class="glyph-ref-label">energy</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">✨</span><div class="glyph-ref-body"><p class="glyph-ref-label">buff</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">💀</span><div class="glyph-ref-body"><p class="glyph-ref-label">debuff</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">🎴</span><div class="glyph-ref-body"><p class="glyph-ref-label">card-action</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">➡️</span><div class="glyph-ref-body"><p class="glyph-ref-label">action</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">📊</span><div class="glyph-ref-body"><p class="glyph-ref-label">state-change</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">⚙️</span><div class="glyph-ref-body"><p class="glyph-ref-label">system</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">🚩</span><div class="glyph-ref-body"><p class="glyph-ref-label">turn-start</p><p class="glyph-ref-meta">logger</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">ℹ️</span><div class="glyph-ref-body"><p class="glyph-ref-label">info</p><p class="glyph-ref-meta">logger</p></div></div>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Enemy intent glyphs</h3>
+        <div class="glyph-ref-grid">
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">⚔️</span><div class="glyph-ref-body"><p class="glyph-ref-label">attack</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">⚔️×</span><div class="glyph-ref-body"><p class="glyph-ref-label">multi_attack</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">🛡️</span><div class="glyph-ref-body"><p class="glyph-ref-label">block</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">❗</span><div class="glyph-ref-body"><p class="glyph-ref-label">debuff</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">📈</span><div class="glyph-ref-body"><p class="glyph-ref-label">buff</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">◎</span><div class="glyph-ref-body"><p class="glyph-ref-label">status</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">🏃</span><div class="glyph-ref-body"><p class="glyph-ref-label">cowardly</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">💫</span><div class="glyph-ref-body"><p class="glyph-ref-label">stunned</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+          <div class="glyph-ref-cell"><span class="glyph-ref-char" aria-hidden="true">—</span><div class="glyph-ref-body"><p class="glyph-ref-label">no_action</p><p class="glyph-ref-meta">INTENT_GLYPH</p></div></div>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Intent incoming chips</h3>
+        <p class="section-desc" style="margin-bottom: 10px">
+          Shell: <span class="code">border-white/12 bg-black/30</span> — inline timeline / branch previews.
+        </p>
+        <div class="panel-card" style="padding: 14px">
+          <p class="muted" style="margin: 0 0 10px; font-size: 11px">Incoming sequence</p>
+          <span style="display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px">
+            <span class="alog-intent-chip"><span class="alog-intent-glyph" aria-hidden="true">⚔️</span><span class="alog-intent-val">11</span></span>
+            <span class="alog-intent-sep" aria-hidden="true">·</span>
+            <span class="alog-intent-chip"><span class="alog-intent-glyph" aria-hidden="true">⚔️×</span><span class="alog-intent-val">6×2</span></span>
+            <span class="alog-intent-sep" aria-hidden="true">·</span>
+            <span class="alog-intent-chip"><span class="alog-intent-glyph" aria-hidden="true">🛡️</span><span class="alog-intent-val">8</span></span>
+            <span class="alog-intent-sep" aria-hidden="true">·</span>
+            <span class="alog-intent-chip"><span class="alog-intent-glyph" aria-hidden="true">❗</span><span class="alog-intent-val">Weak</span></span>
+          </span>
+        </div>
+
+        <h3 style="font-size: 0.85rem; margin: 22px 0 10px; color: #94a3b8; font-weight: 600">Lucide-style icon buttons (density mock)</h3>
+        <div class="alog-icon-btn-row">
+          <span class="alog-icon-btn-mock" title="LayoutDashboard">▦</span>
+          <span class="alog-icon-btn-mock" title="Pencil">✎</span>
+          <span class="alog-icon-btn-mock" title="Link2">⛓</span>
+          <span class="alog-icon-btn-mock" title="Trash2">🗑</span>
+        </div>
+        <p class="glyph-ref-note">
+          Replace glyphs above with real <span class="code">&lt;svg&gt;</span> from Lucide in React. Sizes ~36×36 tap targets
+          match floating toolbar buttons on Decision Timeline branch cards.
+        </p>
+      </section>
+
+      <section>
+        <h2>Semantic colors (game data)</h2>
+        <p class="section-desc">
+          Approximate Tailwind pairings from <span class="code">app/constants/colors.ts</span>
+          — effects, card types, activity log.
+        </p>
+        <h3 style="font-size: 0.85rem; margin: 0 0 8px; color: #94a3b8">Card types</h3>
+        <div class="semantic-grid" style="margin-bottom: 20px">
+          <span class="semantic-chip" style="border-color: rgb(239 68 68 / 0.5); background: rgb(239 68 68 / 0.2); color: #f87171">Attack</span>
+          <span class="semantic-chip" style="border-color: rgb(59 130 246 / 0.5); background: rgb(59 130 246 / 0.2); color: #60a5fa">Skill</span>
+          <span class="semantic-chip" style="border-color: rgb(168 85 247 / 0.5); background: rgb(168 85 247 / 0.2); color: #c084fc">Power</span>
+          <span class="semantic-chip" style="border-color: rgb(107 114 128 / 0.5); background: rgb(107 114 128 / 0.2); color: #9ca3af">Status</span>
+          <span class="semantic-chip" style="border-color: rgb(185 28 28 / 0.5); background: rgb(185 28 28 / 0.2); color: #fca5a5">Curse</span>
+        </div>
+        <h3 style="font-size: 0.85rem; margin: 0 0 8px; color: #94a3b8">Effect highlights</h3>
+        <div class="semantic-grid">
+          <span class="semantic-chip" style="border-color: rgb(168 85 247 / 0.45); background: rgb(168 85 247 / 0.2); color: #c4b5fd">weak</span>
+          <span class="semantic-chip" style="border-color: rgb(239 68 68 / 0.45); background: rgb(239 68 68 / 0.2); color: #fca5a5">vulnerable</span>
+          <span class="semantic-chip" style="border-color: rgb(249 115 22 / 0.45); background: rgb(249 115 22 / 0.2); color: #fdba74">strength</span>
+          <span class="semantic-chip" style="border-color: rgb(59 130 246 / 0.45); background: rgb(59 130 246 / 0.2); color: #93c5fd">block</span>
+          <span class="semantic-chip" style="border-color: rgb(234 179 8 / 0.45); background: rgb(234 179 8 / 0.2); color: #fde047">energy</span>
+          <span class="semantic-chip" style="border-color: rgb(20 184 166 / 0.45); background: rgb(20 184 166 / 0.2); color: #5eead4">intangible</span>
+        </div>
+      </section>
+
+      <section class="typo-sample">
+        <h2>Typography</h2>
+        <p class="section-desc">Inter, weights 400 / 500 / 600 / 700 as in the Next font setup.</p>
+        <h3>Heading sample</h3>
+        <p>Body — slate-400 secondary tone on slate-950.</p>
+        <p style="margin-top: 8px; font-weight: 500; color: #e2e8f0">Medium weight line.</p>
+      </section>
+    </div>
+
+    <script>
+      (function () {
+        var btn = document.getElementById("toggleDark");
+        var root = document.documentElement;
+        function sync() {
+          var dark = root.classList.contains("dark");
+          btn.setAttribute("aria-pressed", dark ? "true" : "false");
+          btn.textContent = dark
+            ? "Preview: design tokens (dark)"
+            : "Preview: design tokens (light)";
+        }
+        btn.addEventListener("click", function () {
+          root.classList.toggle("dark");
+          sync();
+        });
+        sync();
+      })();
+    </script>
+  </body>
+</html>
