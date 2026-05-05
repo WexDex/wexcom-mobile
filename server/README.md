@@ -35,6 +35,7 @@ copy .env.example .env
 WEXCOM_USER=wexcom
 WEXCOM_PASS=yourStrongPassword
 WEXCOM_PORT=8787
+WEXCOM_TUNNEL_HOST=localhost
 ```
 
 3. Start with:
@@ -45,6 +46,21 @@ run.bat
 
 `run.bat` auto-loads `.env` if present.
 If port `8787` is busy, set `WEXCOM_PORT=8788` (or any free port).
+
+### Access from different networks (Cloudflare tunnel)
+
+Use a second terminal in `server/` while `run.bat` is running:
+
+```bat
+run_tunnel.bat
+```
+
+This starts a Cloudflare quick tunnel to:
+
+- `http://%WEXCOM_TUNNEL_HOST%:%WEXCOM_PORT%` (defaults to `http://localhost:8787`)
+
+When tunnel starts, it prints a public HTTPS URL (example: `https://xxxxx.trycloudflare.com`).
+Open that URL from other devices/networks and authenticate with your Basic Auth credentials.
 
 ### Example: run server from `server/`
 

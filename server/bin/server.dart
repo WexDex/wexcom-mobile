@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:args/args.dart';
@@ -79,9 +80,36 @@ Future<void> main(List<String> args) async {
     'Listening on http://${boundServer.address.host}:${boundServer.port}',
   );
 
-  ProcessSignal.sigint.watch().listen((_) async {
-    await boundServer.close(force: true);
-    store.close();
-    exit(0);
-  });
+  final shutdownDone = Completer<void>();
+  var shuttingDown = false;
+  final signalSubs = <StreamSubscription<ProcessSignal>>[];
+
+  Future<void> shutdown(String reason) async {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    stdout.writeln('Shutting down server ($reason)...');
+    try {
+      await boundServer.close(force: true);
+    } finally {
+      store.close();
+      for (final sub in signalSubs) {
+        await sub.cancel();
+      }
+      if (!shutdownDone.isCompleted) {
+        shutdownDone.complete();
+      }
+    }
+  }
+
+  signalSubs.add(
+    ProcessSignal.sigint.watch().listen((_) {
+      shutdown('SIGINT');
+    }),
+  );
+  signalSubs.add(
+    ProcessSignal.sigterm.watch().listen((_) {
+      shutdown('SIGTERM');
+    }),
+  );
+  await shutdownDone.future;
 }

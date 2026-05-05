@@ -14,6 +14,9 @@ Handler buildServerHandler({
   required String authPassword,
 }) {
   final router = Router()
+    ..get('/', (Request request) {
+      return _html(_adminHomeHtml());
+    })
     ..get('/status', (Request request) {
       final info = store.status();
       final clientSha = request.url.queryParameters['clientSha256'];
@@ -113,4 +116,94 @@ Response _json(
 
 Response _jsonError(int statusCode, String message) {
   return _json({'ok': false, 'error': message}, statusCode: statusCode);
+}
+
+Response _html(String html, {int statusCode = 200}) {
+  return shelf.Response(
+    statusCode,
+    body: html,
+    headers: const {'content-type': 'text/html; charset=utf-8'},
+  );
+}
+
+String _adminHomeHtml() {
+  return '''
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wexcom Server Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #fafafa; color: #111; }
+    h1 { margin-top: 0; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; max-width: 760px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    input { padding: 8px; border: 1px solid #bbb; border-radius: 6px; min-width: 260px; }
+    button, a.button { padding: 8px 12px; border: 0; border-radius: 6px; background: #1d4ed8; color: #fff; text-decoration: none; cursor: pointer; }
+    a.button { display: inline-block; }
+    .muted { color: #666; font-size: 14px; }
+    code { background: #eee; padding: 2px 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Wexcom Sync Server Admin</h1>
+  <p class="muted">Quick buttons to inspect server routes.</p>
+
+  <div class="card">
+    <h3>Health & Overview</h3>
+    <div class="row">
+      <a class="button" href="/status" target="_blank" rel="noreferrer">GET /status</a>
+      <a class="button" href="/all" target="_blank" rel="noreferrer">GET /all</a>
+      <a class="button" href="/download/latest" target="_blank" rel="noreferrer">GET /download/latest</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Lookup by Client ID</h3>
+    <div class="row">
+      <input id="clientId" placeholder="source client id (example: 12345)" />
+      <button type="button" onclick="openClient()">Open /client/&lt;id&gt;</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Download by Snapshot ID</h3>
+    <div class="row">
+      <input id="snapshotId" placeholder="snapshot id (or use latest above)" />
+      <button type="button" onclick="openSnapshot()">Open /download/&lt;id&gt;</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Status hash check</h3>
+    <p class="muted">Check if your local payload hash matches server latest hash.</p>
+    <div class="row">
+      <input id="clientSha" placeholder="client sha256 hex" />
+      <button type="button" onclick="openStatusWithHash()">Open /status?clientSha256=...</button>
+    </div>
+  </div>
+
+  <p class="muted">All routes are protected by Basic Auth.</p>
+
+  <script>
+    function openClient() {
+      const id = document.getElementById('clientId').value.trim();
+      if (!id) return;
+      window.open('/client/' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
+    }
+    function openSnapshot() {
+      const id = document.getElementById('snapshotId').value.trim();
+      if (!id) return;
+      window.open('/download/' + encodeURIComponent(id), '_blank', 'noopener,noreferrer');
+    }
+    function openStatusWithHash() {
+      const sha = document.getElementById('clientSha').value.trim();
+      if (!sha) return;
+      window.open('/status?clientSha256=' + encodeURIComponent(sha), '_blank', 'noopener,noreferrer');
+    }
+  </script>
+</body>
+</html>
+''';
 }
