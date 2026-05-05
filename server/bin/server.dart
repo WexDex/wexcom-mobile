@@ -106,10 +106,13 @@ Future<void> main(List<String> args) async {
       shutdown('SIGINT');
     }),
   );
-  signalSubs.add(
-    ProcessSignal.sigterm.watch().listen((_) {
-      shutdown('SIGTERM');
-    }),
-  );
+  // SIGTERM is not supported on Windows (errno 50: "The request is not supported").
+  if (!Platform.isWindows) {
+    signalSubs.add(
+      ProcessSignal.sigterm.watch().listen((_) {
+        shutdown('SIGTERM');
+      }),
+    );
+  }
   await shutdownDone.future;
 }

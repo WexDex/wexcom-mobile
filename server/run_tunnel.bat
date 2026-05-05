@@ -12,7 +12,14 @@ if exist ".env" (
 )
 
 if "%WEXCOM_PORT%"=="" set WEXCOM_PORT=8787
-if "%WEXCOM_TUNNEL_HOST%"=="" set WEXCOM_TUNNEL_HOST=localhost
+if "%WEXCOM_TUNNEL_HOST%"=="" set WEXCOM_TUNNEL_HOST=127.0.0.1
+
+powershell -NoProfile -Command "$ok=$false;try{$c=New-Object Net.Sockets.TcpClient;$a=$c.BeginConnect('%WEXCOM_TUNNEL_HOST%',[int]%WEXCOM_PORT%,$null,$null);$ok=$a.AsyncWaitHandle.WaitOne(1500,$false);if($ok){$c.EndConnect($a)};$c.Close()}catch{};if($ok){exit 0}else{exit 1}" >nul 2>&1
+if errorlevel 1 (
+  echo Origin http://%WEXCOM_TUNNEL_HOST%:%WEXCOM_PORT% is not reachable.
+  echo Start the sync server first ^(run.bat^), then retry this tunnel script.
+  exit /b 2
+)
 
 where cloudflared >nul 2>&1
 if errorlevel 1 (
