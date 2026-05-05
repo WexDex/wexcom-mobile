@@ -119,6 +119,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 }
                 final grouped = _groupByDate(rows);
                 final keys = grouped.keys.toList();
+                var runningIndex = 0;
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                   itemCount: keys.length,
@@ -136,25 +137,29 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           ),
                         ),
                         ...items.map(
-                          (row) => _TxCard(
-                            row: row,
-                            currencyCode: code,
-                            tagsAsync: ref.watch(
-                              transactionTagsProvider(row.transaction.id),
-                            ),
-                            onEdit: () =>
-                                _openEditor(context, editing: row.transaction),
-                            onMarkPaid: () async {
-                              await ref
-                                  .read(ledgerRepositoryProvider)
-                                  .markDebtAsPaid(row.transaction.id);
-                            },
-                            onSettleFullDebt: () async {
-                              await ref
-                                  .read(ledgerRepositoryProvider)
-                                  .settleFullDebt(row.transaction.clientId);
-                            },
-                          ),
+                          (row) {
+                            runningIndex += 1;
+                            return _TxCard(
+                              index: runningIndex,
+                              row: row,
+                              currencyCode: code,
+                              tagsAsync: ref.watch(
+                                transactionTagsProvider(row.transaction.id),
+                              ),
+                              onEdit: () =>
+                                  _openEditor(context, editing: row.transaction),
+                              onMarkPaid: () async {
+                                await ref
+                                    .read(ledgerRepositoryProvider)
+                                    .markDebtAsPaid(row.transaction.id);
+                              },
+                              onSettleFullDebt: () async {
+                                await ref
+                                    .read(ledgerRepositoryProvider)
+                                    .settleFullDebt(row.transaction.clientId);
+                              },
+                            );
+                          },
                         ),
                       ],
                     );
@@ -354,6 +359,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
 class _TxCard extends StatelessWidget {
   const _TxCard({
+    required this.index,
     required this.row,
     required this.currencyCode,
     required this.tagsAsync,
@@ -362,6 +368,7 @@ class _TxCard extends StatelessWidget {
     required this.onSettleFullDebt,
   });
 
+  final int index;
   final LedgerTransactionWithClient row;
   final String currencyCode;
   final AsyncValue<List<Tag>> tagsAsync;
@@ -390,7 +397,7 @@ class _TxCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                row.clientName,
+                '#$index  ${row.clientName}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(

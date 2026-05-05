@@ -57,6 +57,20 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
   late DateTime _effectiveAt =
       (widget.initialEffectiveAt ?? DateTime.now()).toLocal();
 
+  DateTime _selectedDateWithCurrentTime(DateTime dateOnlyLocal) {
+    final now = DateTime.now();
+    return DateTime(
+      dateOnlyLocal.year,
+      dateOnlyLocal.month,
+      dateOnlyLocal.day,
+      now.hour,
+      now.minute,
+      now.second,
+      now.millisecond,
+      now.microsecond,
+    );
+  }
+
   void _onAmountChanged() {
     if (!mounted) return;
     setState(() {});
@@ -191,7 +205,9 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                     lastDate: DateTime(now.year + 1, 12, 31),
                   );
                   if (picked != null && mounted) {
-                    setState(() => _effectiveAt = picked);
+                    setState(
+                      () => _effectiveAt = _selectedDateWithCurrentTime(picked),
+                    );
                   }
                 },
               ),
@@ -286,11 +302,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                                 ? null
                                 : _note.text.trim(),
                             _selectedTagIds.toList(growable: false),
-                            DateTime(
-                              _effectiveAt.year,
-                              _effectiveAt.month,
-                              _effectiveAt.day,
-                            ).toUtc(),
+                            _effectiveAt.toUtc(),
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);

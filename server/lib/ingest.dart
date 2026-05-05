@@ -79,6 +79,7 @@ class ParsedTag {
 
 class ParsedTransaction {
   const ParsedTransaction({
+    required this.sourceTransactionId,
     required this.amountMinor,
     required this.currencyCode,
     required this.txType,
@@ -89,6 +90,7 @@ class ParsedTransaction {
     required this.tags,
   });
 
+  final String? sourceTransactionId;
   final int amountMinor;
   final String? currencyCode;
   final int txType;
@@ -100,6 +102,7 @@ class ParsedTransaction {
 
   Map<String, dynamic> toJsonMap() {
     return {
+      'sourceTransactionId': sourceTransactionId,
       'amountMinor': amountMinor,
       'currencyCode': currencyCode,
       'txType': txType,
@@ -189,6 +192,7 @@ ParsedTransaction _parseTransaction(Map<String, dynamic> map) {
             .toList()
       : const <ParsedTag>[];
   return ParsedTransaction(
+    sourceTransactionId: map['sourceTransactionId']?.toString(),
     amountMinor: amountMinor,
     currencyCode: map['currencyCode']?.toString(),
     txType: txType,

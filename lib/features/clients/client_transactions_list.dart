@@ -400,6 +400,7 @@ class _ClientTransactionsListState extends ConsumerState<ClientTransactionsList>
             itemBuilder: (context, i) {
               final t = filtered[i];
               return _LedgerTransactionTile(
+                    indexLabel: '${i + 1}',
                 tx: t,
                 currencyCode: widget.currencyCode,
                 onTap: t.txStatus == LedgerTxStatus.active.index
@@ -439,12 +440,14 @@ Color _tagColor(String hex) {
 
 class _LedgerTransactionTile extends ConsumerWidget {
   const _LedgerTransactionTile({
+    required this.indexLabel,
     required this.tx,
     required this.currencyCode,
     this.onTap,
     this.onCancel,
   });
 
+  final String indexLabel;
   final LedgerTransaction tx;
   final String currencyCode;
   final VoidCallback? onTap;
@@ -499,6 +502,29 @@ class _LedgerTransactionTile extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.outline.withValues(alpha: 0.45),
+                            ),
+                          ),
+                          child: Text(
+                            '#$indexLabel',
+                            style: text.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.mutedFg,
+                            ),
+                          ),
+                        ),
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,

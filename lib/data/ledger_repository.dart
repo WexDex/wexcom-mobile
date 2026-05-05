@@ -270,6 +270,7 @@ class LedgerRepository {
               )
               .toList();
           return {
+            'sourceTransactionId': tx.id,
             'amountMinor': tx.amountMinor,
             'currencyCode': tx.currencyCode,
             'txType': tx.txType,
@@ -976,6 +977,8 @@ class LedgerRepository {
 
     await _db.transaction(() async {
       final existingClients = await (_db.select(_db.clients)).get();
+      final existingAllTxs = await (_db.select(_db.ledgerTransactions)).get();
+      final existingTxIdsGlobal = <String>{for (final tx in existingAllTxs) tx.id};
       final existingByKey = <String, Client>{
         for (final c in existingClients) _clientMatchKey(c.fullName, c.phone): c,
       };
@@ -1018,6 +1021,12 @@ class LedgerRepository {
           }
           if (resolution == ImportConflictResolution.erase) {
             erasedClients += 1;
+            final existingTxRows = await (_db.select(_db.ledgerTransactions)
+                  ..where((t) => t.clientId.equals(existing.id)))
+                .get();
+            for (final row in existingTxRows) {
+              existingTxIdsGlobal.remove(row.id);
+            }
             final existingTxCount = await (_db.selectOnly(_db.ledgerTransactions)
                   ..addColumns([_db.ledgerTransactions.id.count()])
                   ..where(_db.ledgerTransactions.clientId.equals(existing.id)))
@@ -1055,11 +1064,13 @@ class LedgerRepository {
         }
 
         final txFingerprintSet = <String>{};
+        final existingTxIdsForTarget = <String>{};
         if (existing != null && resolution == ImportConflictResolution.mix) {
           final existingTxs = await (_db.select(_db.ledgerTransactions)
                 ..where((t) => t.clientId.equals(existing.id)))
               .get();
           for (final tx in existingTxs) {
+            existingTxIdsForTarget.add(tx.id);
             txFingerprintSet.add(
               _txFingerprint(
                 amountMinor: tx.amountMinor,
@@ -1098,6 +1109,15 @@ class LedgerRepository {
         }
 
         for (final tx in imported.transactions) {
+          final sourceTxId = tx.sourceTransactionId?.trim();
+          final normalizedSourceTxId =
+              sourceTxId == null || sourceTxId.isEmpty ? null : sourceTxId;
+          if (resolution == ImportConflictResolution.mix &&
+              normalizedSourceTxId != null &&
+              existingTxIdsForTarget.contains(normalizedSourceTxId)) {
+            skippedDuplicateTransactions += 1;
+            continue;
+          }
           final fp = _txFingerprint(
             amountMinor: tx.amountMinor,
             txType: tx.txType,
@@ -1112,7 +1132,10 @@ class LedgerRepository {
             continue;
           }
 
-          final txId = _uuid.v4();
+          var txId = normalizedSourceTxId ?? _uuid.v4();
+          if (existingTxIdsGlobal.contains(txId)) {
+            txId = _uuid.v4();
+          }
           await _db.into(_db.ledgerTransactions).insert(
                 LedgerTransactionsCompanion.insert(
                   id: txId,
@@ -1148,6 +1171,8 @@ class LedgerRepository {
                   mode: InsertMode.insertOrIgnore,
                 );
           }
+          existingTxIdsGlobal.add(txId);
+          existingTxIdsForTarget.add(txId);
           addedTransactions += 1;
         }
 
@@ -1294,6 +1319,7 @@ class _ImportedTagPayload {
 
 class _ImportedTransactionPayload {
   const _ImportedTransactionPayload({
+    required this.sourceTransactionId,
     required this.amountMinor,
     required this.txType,
     required this.txStatus,
@@ -1304,6 +1330,7 @@ class _ImportedTransactionPayload {
     required this.tags,
   });
 
+  final String? sourceTransactionId;
   final int amountMinor;
   final int txType;
   final int txStatus;
@@ -1338,6 +1365,7 @@ class _ImportedTransactionPayload {
             .toList()
         : const <_ImportedTagPayload>[];
     return _ImportedTransactionPayload(
+      sourceTransactionId: map['sourceTransactionId']?.toString(),
       amountMinor: amountMinor,
       txType: txType,
       txStatus: txStatus,

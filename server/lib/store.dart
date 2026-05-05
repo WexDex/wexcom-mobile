@@ -257,6 +257,7 @@ class ServerStore {
         [txId],
       );
       return {
+        'sourceTransactionId': tx['tx_id'],
         'amountMinor': tx['amount_minor'],
         'currencyCode': tx['currency_code'],
         'txType': tx['tx_type'],
@@ -354,7 +355,10 @@ class ServerStore {
 
       for (var i = 0; i < client.transactions.length; i++) {
         final tx = client.transactions[i];
-        final txId = '${client.sourceClientId}:$i:${tx.createdAtIso}';
+        final txId = (tx.sourceTransactionId != null &&
+                tx.sourceTransactionId!.trim().isNotEmpty)
+            ? tx.sourceTransactionId!.trim()
+            : '${client.sourceClientId}:$i:${tx.createdAtIso}';
         _db.execute(
           '''
           INSERT INTO mirror_transactions (
