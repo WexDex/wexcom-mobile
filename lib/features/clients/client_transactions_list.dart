@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 
 import '../../data/db/app_database.dart';
@@ -32,9 +30,11 @@ class _ClientTransactionsListState extends State<ClientTransactionsList> {
   DateTime? _rangeStart;
   DateTime? _rangeEnd;
 
-  bool _inDateRange(DateTime utc) {
+  DateTime _issuedAt(LedgerTransaction tx) => tx.effectiveAt ?? tx.createdAt;
+
+  bool _inDateRange(DateTime issuedUtc) {
     if (_rangeStart == null || _rangeEnd == null) return true;
-    final local = utc.toLocal();
+    final local = issuedUtc.toLocal();
     final d = DateTime(local.year, local.month, local.day);
     final a = DateTime(_rangeStart!.year, _rangeStart!.month, _rangeStart!.day);
     final b = DateTime(_rangeEnd!.year, _rangeEnd!.month, _rangeEnd!.day);
@@ -43,7 +43,7 @@ class _ClientTransactionsListState extends State<ClientTransactionsList> {
 
   Iterable<LedgerTransaction> get _filtered sync* {
     for (final t in widget.transactions) {
-      if (!_inDateRange(t.createdAt)) continue;
+      if (!_inDateRange(_issuedAt(t))) continue;
       final active = t.txStatus == LedgerTxStatus.active.index;
       final type = LedgerTxType.fromInt(t.txType);
       switch (_kind) {
@@ -327,9 +327,24 @@ class _LedgerTransactionTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      MoneyFormat.formatDateTime(tx.createdAt),
-                      style: text.bodySmall?.copyWith(color: AppTheme.mutedFg),
+                      'Issued ${MoneyFormat.formatDateTime(tx.effectiveAt ?? tx.createdAt)}',
+                      style: text.bodySmall?.copyWith(
+                        color: active
+                            ? typeColor.withValues(alpha: 0.95)
+                            : AppTheme.mutedFg,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                    if (tx.effectiveAt != null &&
+                        tx.effectiveAt!.toUtc() != tx.createdAt.toUtc())
+                      Text(
+                        'Created ${MoneyFormat.formatDateTime(tx.createdAt)}',
+                        style: text.bodySmall?.copyWith(
+                          color: AppTheme.mutedFg.withValues(alpha: 0.72),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Text(
                       'Balance ${MoneyFormat.formatMinor(tx.postedBalanceBeforeMinor, currencyCode)} → ${MoneyFormat.formatMinor(tx.postedBalanceAfterMinor, currencyCode)}',

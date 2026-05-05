@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
 
 typedef TransactionSubmit =
-    Future<void> Function(int amountMinor, LedgerTxType type, String? note);
+    Future<void> Function(
+      int amountMinor,
+      LedgerTxType type,
+      String? note,
+      List<String> tagIds,
+      DateTime effectiveAt,
+    );
 
 class TransactionEditorSheet extends StatefulWidget {
   const TransactionEditorSheet({
@@ -17,6 +24,10 @@ class TransactionEditorSheet extends StatefulWidget {
     this.initialAmountMinor,
     this.initialType,
     this.initialNote,
+    this.availableTags = const [],
+    this.initialTagIds = const [],
+    this.currentBalanceMinor,
+    this.initialEffectiveAt,
   });
 
   final String title;
@@ -25,6 +36,10 @@ class TransactionEditorSheet extends StatefulWidget {
   final int? initialAmountMinor;
   final LedgerTxType? initialType;
   final String? initialNote;
+  final List<Tag> availableTags;
+  final List<String> initialTagIds;
+  final int? currentBalanceMinor;
+  final DateTime? initialEffectiveAt;
 
   @override
   State<TransactionEditorSheet> createState() => _TransactionEditorSheetState();
@@ -38,6 +53,14 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
     text: widget.initialNote ?? '',
   );
   bool _busy = false;
+  late Set<String> _selectedTagIds = widget.initialTagIds.toSet();
+  late DateTime _effectiveAt =
+      (widget.initialEffectiveAt ?? DateTime.now()).toLocal();
+
+  void _onAmountChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -50,10 +73,12 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
     } else {
       _amount = TextEditingController();
     }
+    _amount.addListener(_onAmountChanged);
   }
 
   @override
   void dispose() {
+    _amount.removeListener(_onAmountChanged);
     _amount.dispose();
     _note.dispose();
     super.dispose();
@@ -61,9 +86,26 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final parsedAmount = MoneyFormat.parseMinorUnits(_amount.text) ?? 0;
+    final before = widget.currentBalanceMinor;
+    final after = before == null
+        ? null
+        : LedgerMath.apply(before, _type, parsedAmount);
+
+    final typeTint = _type == LedgerTxType.debt
+        ? AppTheme.ledgerDebt
+        : AppTheme.ledgerPayment;
     return SafeArea(
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: BoxDecoration(
+          color: typeTint.withValues(alpha: 0.08),
+          border: Border(
+            top: BorderSide(color: typeTint.withValues(alpha: 0.35), width: 1.2),
+          ),
+        ),
         child: Form(
           key: _formKey,
           child: Column(
@@ -134,11 +176,98 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 },
               ),
               const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Transaction date'),
+                subtitle: Text(MoneyFormat.formatDate(_effectiveAt)),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  final now = DateTime.now();
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: _effectiveAt,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(now.year + 1, 12, 31),
+                  );
+                  if (picked != null && mounted) {
+                    setState(() => _effectiveAt = picked);
+                  }
+                },
+              ),
+              if (before != null && after != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(AppTheme.radius),
+                    border: Border.all(
+                      color: AppTheme.mutedFg.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Before: ${MoneyFormat.formatMinor(before, widget.currencyCode)}',
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'After: ${MoneyFormat.formatMinor(after, widget.currencyCode)}',
+                          style: TextStyle(
+                            color: _type == LedgerTxType.debt
+                                ? AppTheme.ledgerDebt
+                                : AppTheme.ledgerPayment,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _note,
                 maxLines: 2,
                 decoration: const InputDecoration(labelText: 'Note (optional)'),
               ),
+              if (widget.availableTags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: widget.availableTags.map((tag) {
+                    final selected = _selectedTagIds.contains(tag.id);
+                    final color = _parseTagColor(tag.colorHex);
+                    return FilterChip(
+                      selected: selected,
+                      selectedColor: color.withValues(alpha: 0.28),
+                      checkmarkColor: color,
+                      shape: const StadiumBorder(),
+                      side: BorderSide(
+                        color: selected
+                            ? color
+                            : AppTheme.mutedFg.withValues(alpha: 0.24),
+                      ),
+                      label: Text(tag.name),
+                      onSelected: (value) {
+                        setState(() {
+                          if (value) {
+                            _selectedTagIds.add(tag.id);
+                          } else {
+                            _selectedTagIds.remove(tag.id);
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: _busy
@@ -156,6 +285,12 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                             _note.text.trim().isEmpty
                                 ? null
                                 : _note.text.trim(),
+                            _selectedTagIds.toList(growable: false),
+                            DateTime(
+                              _effectiveAt.year,
+                              _effectiveAt.month,
+                              _effectiveAt.day,
+                            ).toUtc(),
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);
@@ -175,6 +310,14 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
       ),
     );
   }
+}
+
+Color _parseTagColor(String hex) {
+  final normalized = hex.replaceAll('#', '').trim();
+  if (normalized.length != 6) return AppTheme.receivableAccent;
+  final value = int.tryParse(normalized, radix: 16);
+  if (value == null) return AppTheme.receivableAccent;
+  return Color(0xFF000000 | value);
 }
 
 class _TxTypeCard extends StatelessWidget {

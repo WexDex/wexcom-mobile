@@ -1,5 +1,3 @@
-import 'dart:ui' show FontFeature;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +11,14 @@ import '../../utils/money.dart';
 import '../transactions/transaction_editor_sheet.dart';
 import 'client_editor_sheet.dart';
 import 'client_transactions_list.dart';
+
+Color _tagColor(String hex) {
+  final cleaned = hex.replaceAll('#', '');
+  if (cleaned.length != 6) return AppTheme.receivableAccent;
+  final value = int.tryParse(cleaned, radix: 16);
+  if (value == null) return AppTheme.receivableAccent;
+  return Color(0xFF000000 | value);
+}
 
 class ClientDetailScreen extends ConsumerWidget {
   const ClientDetailScreen({super.key, required this.clientId});
@@ -35,6 +41,7 @@ class ClientDetailScreen extends ConsumerWidget {
         }
         final archived = client.archivedAt != null;
         final code = currencyAsync.valueOrNull ?? 'DZD';
+        final clientTagsAsync = ref.watch(clientTagsProvider(client.id));
 
         return Scaffold(
           appBar: AppBar(
@@ -45,6 +52,10 @@ class ClientDetailScreen extends ConsumerWidget {
                   final repo = ref.read(ledgerRepositoryProvider);
                   switch (value) {
                     case 'edit':
+                      final clientTags = await ref
+                          .read(clientTagsProvider(client.id).future);
+                      final availableTags = await ref
+                          .read(clientScopeTagsProvider.future);
                       await showModalBottomSheet<void>(
                         context: context,
                         isScrollControlled: true,
@@ -64,13 +75,16 @@ class ClientDetailScreen extends ConsumerWidget {
                             initialName: client.fullName,
                             initialPhone: client.phone,
                             initialNote: client.note,
-                            onSaved: (fullName, phone, note) async {
+                            availableTags: availableTags,
+                            initialTagIds: clientTags.map((e) => e.id).toList(),
+                            onSaved: (fullName, phone, note, tagIds) async {
                               await repo.updateClient(
                                 id: client.id,
                                 fullName: fullName,
                                 phone: phone,
                                 note: note,
                               );
+                              await repo.setClientTags(client.id, tagIds);
                               if (context.mounted) Navigator.pop(ctx);
                             },
                           ),
@@ -140,6 +154,30 @@ class ClientDetailScreen extends ConsumerWidget {
                                   ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: (archived
+                                      ? AppTheme.ledgerCancel
+                                      : AppTheme.ledgerPayment)
+                                  .withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              archived ? 'ARCHIVED' : 'ACTIVE',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(
+                                    color: archived
+                                        ? AppTheme.ledgerCancel
+                                        : AppTheme.ledgerPayment,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -198,6 +236,41 @@ class ClientDetailScreen extends ConsumerWidget {
                           ),
                         ),
                       ],
+                      ...clientTagsAsync.when(
+                        data: (tags) {
+                          if (tags.isEmpty) return const <Widget>[];
+                          return [
+                            const SizedBox(height: 10),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              children: tags
+                                  .map(
+                                    (t) => Chip(
+                                      label: Text(t.name),
+                                      avatar: CircleAvatar(
+                                        radius: 4,
+                                        backgroundColor: _tagColor(t.colorHex),
+                                      ),
+                                      backgroundColor: _tagColor(
+                                        t.colorHex,
+                                      ).withValues(alpha: 0.18),
+                                      side: BorderSide(
+                                        color: _tagColor(
+                                          t.colorHex,
+                                        ).withValues(alpha: 0.75),
+                                      ),
+                                      shape: const StadiumBorder(),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ];
+                        },
+                        loading: () => const <Widget>[],
+                        error: (_, __) => const <Widget>[],
+                      ),
                     ],
                   ),
                 ),
@@ -217,7 +290,7 @@ class ClientDetailScreen extends ConsumerWidget {
                     txsAsync.when(
                       data: (txs) {
                         final lastActivity = txs.isNotEmpty
-                            ? ' • Last: ${MoneyFormat.formatDate(txs.first.createdAt)}'
+                            ? ' • Last: ${MoneyFormat.formatDate(txs.first.effectiveAt ?? txs.first.createdAt)}'
                             : '';
                         return Text(
                           '(${txs.length})$lastActivity',
@@ -254,6 +327,7 @@ class ClientDetailScreen extends ConsumerWidget {
             onPressed: archived
                 ? null
                 : () async {
+                    final txTags = await ref.read(transactionScopeTagsProvider.future);
                     await showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
@@ -270,7 +344,16 @@ class ClientDetailScreen extends ConsumerWidget {
                         child: TransactionEditorSheet(
                           title: 'New transaction',
                           currencyCode: code,
-                          onSubmit: (amountMinor, type, note) async {
+                          currentBalanceMinor: client.balanceMinor,
+                          availableTags: txTags,
+                          onSubmit:
+                              (
+                                amountMinor,
+                                type,
+                                note,
+                                tagIds,
+                                effectiveAt,
+                              ) async {
                             await ref
                                 .read(ledgerRepositoryProvider)
                                 .insertTransaction(
@@ -279,6 +362,8 @@ class ClientDetailScreen extends ConsumerWidget {
                                   type: type,
                                   currencyCode: code,
                                   note: note,
+                                  tagIds: tagIds,
+                                  effectiveAt: effectiveAt,
                                 );
                             if (context.mounted) Navigator.pop(ctx);
                           },
@@ -307,6 +392,8 @@ class ClientDetailScreen extends ConsumerWidget {
     WidgetRef ref,
     LedgerTransaction t,
   ) async {
+    final txTags = await ref.read(transactionScopeTagsProvider.future);
+    final selectedTags = await ref.read(transactionTagsProvider(t.id).future);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -324,7 +411,11 @@ class ClientDetailScreen extends ConsumerWidget {
           initialAmountMinor: t.amountMinor,
           initialType: LedgerTxType.fromInt(t.txType),
           initialNote: t.note,
-          onSubmit: (amountMinor, type, note) async {
+          currentBalanceMinor: t.postedBalanceBeforeMinor,
+          initialEffectiveAt: t.effectiveAt ?? t.createdAt,
+          availableTags: txTags,
+          initialTagIds: selectedTags.map((e) => e.id).toList(),
+          onSubmit: (amountMinor, type, note, tagIds, effectiveAt) async {
             await ref
                 .read(ledgerRepositoryProvider)
                 .updateTransaction(
@@ -332,6 +423,8 @@ class ClientDetailScreen extends ConsumerWidget {
                   amountMinor: amountMinor,
                   type: type,
                   note: note,
+                  tagIds: tagIds,
+                  effectiveAt: effectiveAt,
                 );
             if (context.mounted) Navigator.pop(ctx);
           },
