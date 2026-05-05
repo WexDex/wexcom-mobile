@@ -294,6 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _openImportDialog() async {
     ImportPreview? preview;
+    ImportApplyResult? importReport;
     final resolutionByKey = <String, ImportConflictResolution>{};
     var analyzing = false;
     var importing = false;
@@ -312,7 +313,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Import adds data to current database. Source: $sourceLabel',
+                    'Import center',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Import adds data to the current database. Source: $sourceLabel',
+                    style: TextStyle(color: AppTheme.mutedFg),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -375,6 +384,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  if (preview != null) ...[
+                    _ImportSummaryBox(
+                      preview: preview!,
+                      resolutionByKey: resolutionByKey,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  if (importReport != null) ...[
+                    _ImportReportBox(report: importReport!),
+                    const SizedBox(height: 10),
+                  ],
                   TextField(
                     controller: _importPayloadController,
                     minLines: 8,
@@ -386,15 +406,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  if (preview != null) ...[
-                    Text(
-                      'Preview: ${preview!.totalClients} clients, ${preview!.newClients} new, ${preview!.conflicts.length} conflicts',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppTheme.mutedFg,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
                   if (preview != null && preview!.conflicts.isNotEmpty)
                     ...preview!.conflicts.map(
                       (conflict) => Padding(
@@ -491,9 +502,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           actions: [
             TextButton(
               onPressed: importing ? null : () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: const Text('Close'),
             ),
-            OutlinedButton(
+            FilledButton.tonalIcon(
               onPressed: analyzing || importing
                   ? null
                   : () async {
@@ -510,7 +521,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             () => ImportConflictResolution.mix,
                           );
                         }
-                        setLocalState(() => preview = p);
+                        setLocalState(() {
+                          preview = p;
+                          importReport = null;
+                        });
                       } catch (e) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -520,15 +534,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         setLocalState(() => analyzing = false);
                       }
                     },
-              child: analyzing
+              icon: const Icon(Icons.analytics_outlined),
+              label: analyzing
                   ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Analyze'),
+                  : const Text('Analyze conflicts'),
             ),
-            FilledButton(
+            FilledButton.icon(
               onPressed: importing
                   ? null
                   : () async {
@@ -546,14 +561,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ref.invalidate(archivedClientsProvider);
                         ref.invalidate(allTransactionsProvider(null));
                         if (!mounted) return;
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Imported: +${result.addedClients} clients, ${result.updatedClients} conflicts handled, +${result.addedTransactions} transactions, ${result.skippedDuplicateTransactions} duplicates skipped.',
-                            ),
-                          ),
-                        );
+                        setLocalState(() => importReport = result);
                       } catch (e) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -565,14 +573,144 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         }
                       }
                     },
-              child: importing
+              icon: const Icon(Icons.download_done_outlined),
+              label: importing
                   ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text('Import'),
+                  : const Text('Run import'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportSummaryBox extends StatelessWidget {
+  const _ImportSummaryBox({
+    required this.preview,
+    required this.resolutionByKey,
+  });
+
+  final ImportPreview preview;
+  final Map<String, ImportConflictResolution> resolutionByKey;
+
+  @override
+  Widget build(BuildContext context) {
+    var mix = 0;
+    var erase = 0;
+    var ignore = 0;
+    for (final c in preview.conflicts) {
+      switch (resolutionByKey[c.importClientKey] ?? ImportConflictResolution.mix) {
+        case ImportConflictResolution.mix:
+          mix += 1;
+        case ImportConflictResolution.erase:
+          erase += 1;
+        case ImportConflictResolution.ignore:
+          ignore += 1;
+      }
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.receivableAccent.withValues(alpha: 0.35)),
+        color: AppTheme.receivableAccent.withValues(alpha: 0.08),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _MiniStatChip(label: 'Clients in file', value: '${preview.totalClients}'),
+          _MiniStatChip(label: 'New clients', value: '${preview.newClients}'),
+          _MiniStatChip(label: 'Conflicts', value: '${preview.conflicts.length}'),
+          _MiniStatChip(label: 'Mix', value: '$mix'),
+          _MiniStatChip(label: 'Erase', value: '$erase'),
+          _MiniStatChip(label: 'Ignore', value: '$ignore'),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImportReportBox extends StatelessWidget {
+  const _ImportReportBox({required this.report});
+
+  final ImportApplyResult report;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.ledgerPayment.withValues(alpha: 0.45)),
+        color: AppTheme.ledgerPayment.withValues(alpha: 0.08),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Post-import report',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniStatChip(label: 'Clients added', value: '${report.addedClients}'),
+              _MiniStatChip(label: 'Clients changed', value: '${report.updatedClients}'),
+              _MiniStatChip(label: 'Mixed', value: '${report.mixedClients}'),
+              _MiniStatChip(label: 'Erased+replaced', value: '${report.erasedClients}'),
+              _MiniStatChip(label: 'Clients ignored', value: '${report.skippedClients}'),
+              _MiniStatChip(label: 'Tx added', value: '${report.addedTransactions}'),
+              _MiniStatChip(label: 'Tx removed', value: '${report.removedTransactions}'),
+              _MiniStatChip(
+                label: 'Tx duplicates skipped',
+                value: '${report.skippedDuplicateTransactions}',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStatChip extends StatelessWidget {
+  const _MiniStatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.8),
+        ),
+        color: AppTheme.surface,
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: Theme.of(context).textTheme.labelMedium,
+          children: [
+            TextSpan(
+              text: '$value ',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            TextSpan(text: label),
           ],
         ),
       ),

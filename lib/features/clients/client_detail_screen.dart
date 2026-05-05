@@ -52,10 +52,12 @@ class ClientDetailScreen extends ConsumerWidget {
                   final repo = ref.read(ledgerRepositoryProvider);
                   switch (value) {
                     case 'edit':
-                      final clientTags = await ref
-                          .read(clientTagsProvider(client.id).future);
-                      final availableTags = await ref
-                          .read(clientScopeTagsProvider.future);
+                      final clientTags = await ref.read(
+                        clientTagsProvider(client.id).future,
+                      );
+                      final availableTags = await ref.read(
+                        clientScopeTagsProvider.future,
+                      );
                       await showModalBottomSheet<void>(
                         context: context,
                         isScrollControlled: true,
@@ -161,10 +163,11 @@ class ClientDetailScreen extends ConsumerWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: (archived
-                                      ? AppTheme.ledgerCancel
-                                      : AppTheme.ledgerPayment)
-                                  .withValues(alpha: 0.16),
+                              color:
+                                  (archived
+                                          ? AppTheme.ledgerCancel
+                                          : AppTheme.ledgerPayment)
+                                      .withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
@@ -327,7 +330,9 @@ class ClientDetailScreen extends ConsumerWidget {
             onPressed: archived
                 ? null
                 : () async {
-                    final txTags = await ref.read(transactionScopeTagsProvider.future);
+                    final txTags = await ref.read(
+                      transactionScopeTagsProvider.future,
+                    );
                     await showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
@@ -354,19 +359,19 @@ class ClientDetailScreen extends ConsumerWidget {
                                 tagIds,
                                 effectiveAt,
                               ) async {
-                            await ref
-                                .read(ledgerRepositoryProvider)
-                                .insertTransaction(
-                                  clientId: client.id,
-                                  amountMinor: amountMinor,
-                                  type: type,
-                                  currencyCode: code,
-                                  note: note,
-                                  tagIds: tagIds,
-                                  effectiveAt: effectiveAt,
-                                );
-                            if (context.mounted) Navigator.pop(ctx);
-                          },
+                                await ref
+                                    .read(ledgerRepositoryProvider)
+                                    .insertTransaction(
+                                      clientId: client.id,
+                                      amountMinor: amountMinor,
+                                      type: type,
+                                      currencyCode: code,
+                                      note: note,
+                                      tagIds: tagIds,
+                                      effectiveAt: effectiveAt,
+                                    );
+                                if (context.mounted) Navigator.pop(ctx);
+                              },
                         ),
                       ),
                     );

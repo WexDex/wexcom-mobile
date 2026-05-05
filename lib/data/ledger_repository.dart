@@ -82,15 +82,21 @@ class ImportApplyResult {
   const ImportApplyResult({
     required this.addedClients,
     required this.updatedClients,
+    required this.mixedClients,
+    required this.erasedClients,
     required this.skippedClients,
     required this.addedTransactions,
+    required this.removedTransactions,
     required this.skippedDuplicateTransactions,
   });
 
   final int addedClients;
   final int updatedClients;
+  final int mixedClients;
+  final int erasedClients;
   final int skippedClients;
   final int addedTransactions;
+  final int removedTransactions;
   final int skippedDuplicateTransactions;
 }
 
@@ -861,8 +867,11 @@ class LedgerRepository {
     final importedClients = _parseImportClients(rawJson);
     var addedClients = 0;
     var updatedClients = 0;
+    var mixedClients = 0;
+    var erasedClients = 0;
     var skippedClients = 0;
     var addedTransactions = 0;
+    var removedTransactions = 0;
     var skippedDuplicateTransactions = 0;
 
     await _db.transaction(() async {
@@ -904,7 +913,17 @@ class LedgerRepository {
           addedClients += 1;
         } else {
           targetClientId = existing.id;
+          if (resolution == ImportConflictResolution.mix) {
+            mixedClients += 1;
+          }
           if (resolution == ImportConflictResolution.erase) {
+            erasedClients += 1;
+            final existingTxCount = await (_db.selectOnly(_db.ledgerTransactions)
+                  ..addColumns([_db.ledgerTransactions.id.count()])
+                  ..where(_db.ledgerTransactions.clientId.equals(existing.id)))
+                .map((row) => row.read(_db.ledgerTransactions.id.count()) ?? 0)
+                .getSingle();
+            removedTransactions += existingTxCount;
             await (_db.delete(_db.transactionTags)
                   ..where(
                     (tt) => tt.transactionId.isInQuery(
@@ -1039,8 +1058,11 @@ class LedgerRepository {
     return ImportApplyResult(
       addedClients: addedClients,
       updatedClients: updatedClients,
+      mixedClients: mixedClients,
+      erasedClients: erasedClients,
       skippedClients: skippedClients,
       addedTransactions: addedTransactions,
+      removedTransactions: removedTransactions,
       skippedDuplicateTransactions: skippedDuplicateTransactions,
     );
   }
