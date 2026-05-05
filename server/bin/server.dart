@@ -49,11 +49,38 @@ Future<void> main(List<String> args) async {
     authPassword: pass,
   );
 
-  final server = await shelf_io.serve(app, host, port);
-  stdout.writeln('Listening on http://${server.address.host}:${server.port}');
+  // Try the requested port first, then fall back to subsequent ports if Windows
+  // reports the address is already in use (errno 10048).
+  const maxBindAttempts = 10;
+  var bindPort = port;
+  HttpServer? server;
+  for (var attempt = 1; attempt <= maxBindAttempts; attempt++) {
+    try {
+      server = await shelf_io.serve(app, host, bindPort);
+      break;
+    } on SocketException catch (e) {
+      final isPortInUse = e.osError?.errorCode == 10048;
+      if (!isPortInUse || attempt == maxBindAttempts) {
+        rethrow;
+      }
+      stdout.writeln(
+        'Port $bindPort is in use, trying ${bindPort + 1}...',
+      );
+      bindPort += 1;
+    }
+  }
+  if (server == null) {
+    stderr.writeln('Failed to bind server after $maxBindAttempts attempts.');
+    exitCode = 1;
+    return;
+  }
+  final boundServer = server;
+  stdout.writeln(
+    'Listening on http://${boundServer.address.host}:${boundServer.port}',
+  );
 
   ProcessSignal.sigint.watch().listen((_) async {
-    await server.close(force: true);
+    await boundServer.close(force: true);
     store.close();
     exit(0);
   });

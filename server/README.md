@@ -21,6 +21,65 @@ to back up/sync exported data through HTTP.
 
 From `server/`:
 
+### Use a `.env` file (recommended)
+
+1. Copy template:
+
+```powershell
+copy .env.example .env
+```
+
+2. Edit `.env` and set strong values:
+
+```env
+WEXCOM_USER=wexcom
+WEXCOM_PASS=yourStrongPassword
+WEXCOM_PORT=8787
+```
+
+3. Start with:
+
+```bat
+run.bat
+```
+
+`run.bat` auto-loads `.env` if present.
+If port `8787` is busy, set `WEXCOM_PORT=8788` (or any free port).
+
+### Example: run server from `server/`
+
+#### PowerShell (copy/paste)
+
+```powershell
+cd E:\Projects\wexcom-mobile\server
+$env:WEXCOM_USER = "wexcom"
+$env:WEXCOM_PASS = "MyStrongPass123!"
+dart pub get
+dart run bin/server.dart --host 0.0.0.0 --port 8787 --db ".\wexcom-server.sqlite"
+```
+
+Expected output:
+
+```text
+Listening on http://0.0.0.0:8787
+```
+
+Quick test from another terminal:
+
+```powershell
+curl.exe -u wexcom:MyStrongPass123! http://localhost:8787/status
+```
+
+#### CMD (copy/paste)
+
+```bat
+cd /d E:\Projects\wexcom-mobile\server
+set WEXCOM_USER=wexcom
+set WEXCOM_PASS=MyStrongPass123!
+dart pub get
+dart run bin/server.dart --host 0.0.0.0 --port 8787 --db ".\wexcom-server.sqlite"
+```
+
 ### Option 1: run manually (recommended first run)
 
 #### CMD
@@ -47,7 +106,7 @@ dart run bin/server.dart --host 0.0.0.0 --port 8787 --db ".\wexcom-server.sqlite
 run.bat
 ```
 
-`run.bat` defaults `WEXCOM_USER` to `wexcom` and fails if `WEXCOM_PASS` is not set.
+`run.bat` loads `.env` (if present), defaults `WEXCOM_USER` to `wexcom`, and fails if `WEXCOM_PASS` is not set.
 
 ## Server CLI flags
 
