@@ -1,6 +1,10 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
@@ -47,6 +51,16 @@ class ClientDetailScreen extends ConsumerWidget {
           appBar: AppBar(
             title: Text(client.fullName),
             actions: [
+              IconButton(
+                tooltip: 'Export client summary PDF',
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                onPressed: () => _exportClientSummaryPdf(
+                  context,
+                  client: client,
+                  currencyCode: code,
+                  txCount: txsAsync.valueOrNull?.length ?? 0,
+                ),
+              ),
               PopupMenuButton<String>(
                 onSelected: (value) async {
                   final repo = ref.read(ledgerRepositoryProvider);
@@ -233,21 +247,36 @@ class ClientDetailScreen extends ConsumerWidget {
                       ),
                       if (client.phone != null && client.phone!.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.phone_outlined,
-                              size: 18,
-                              color: AppTheme.mutedFg,
+                        InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => _callClient(
+                            context,
+                            phoneNumber: client.phone!,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 2),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.phone_outlined,
+                                  size: 18,
+                                  color: AppTheme.ledgerPayment,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    client.phone!,
+                                    style: TextStyle(color: AppTheme.ledgerPayment),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.open_in_new,
+                                  size: 16,
+                                  color: AppTheme.mutedFg,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                client.phone!,
-                                style: TextStyle(color: AppTheme.mutedFg),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ],
                       if (client.note != null && client.note!.isNotEmpty) ...[
@@ -542,5 +571,79 @@ class ClientDetailScreen extends ConsumerWidget {
     if (ok == true && context.mounted) {
       await ref.read(ledgerRepositoryProvider).settleFullDebt(clientId);
     }
+  }
+
+  Future<void> _callClient(
+    BuildContext context, {
+    required String phoneNumber,
+  }) async {
+    final uri = Uri(scheme: 'tel', path: phoneNumber);
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await Clipboard.setData(ClipboardData(text: phoneNumber));
+    if (!context.mounted) return;
+    final message = launched
+        ? 'Opening phone app. Number copied: $phoneNumber'
+        : 'Could not open phone app. Number copied: $phoneNumber';
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _exportClientSummaryPdf(
+    BuildContext context, {
+    required Client client,
+    required String currencyCode,
+    required int txCount,
+  }) async {
+    final pdf = pw.Document();
+    final now = DateTime.now();
+    final balanceText = MoneyFormat.formatMinor(client.balanceMinor, currencyCode);
+    final createdText = MoneyFormat.formatDate(client.createdAt);
+    final lastText = MoneyFormat.formatDate(client.lastInteractionAt ?? client.createdAt);
+    final statusText = client.archivedAt == null ? 'Active' : 'Archived';
+    pdf.addPage(
+      pw.Page(
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'Client Summary',
+              style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Text('Generated: ${MoneyFormat.formatDate(now)}'),
+            pw.SizedBox(height: 14),
+            pw.Text('Name: ${client.fullName}'),
+            pw.Text('Status: $statusText'),
+            pw.Text('Phone: ${client.phone ?? '-'}'),
+            pw.SizedBox(height: 8),
+            pw.Text('Current balance: $balanceText'),
+            pw.Text('Balance meaning: ${balanceSemanticsLine(client.balanceMinor)}'),
+            pw.SizedBox(height: 8),
+            pw.Text('Created date: $createdText'),
+            pw.Text('Last activity date: $lastText'),
+            pw.Text('Transactions count: $txCount'),
+          ],
+        ),
+      ),
+    );
+    final bytes = await pdf.save();
+    if (!context.mounted) return;
+    final location = await getSaveLocation(
+      suggestedName:
+          'client_${client.fullName.replaceAll(' ', '_')}_summary_${DateTime.now().millisecondsSinceEpoch}.pdf',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'pdf', extensions: ['pdf']),
+      ],
+    );
+    if (location == null) return;
+    final file = XFile.fromData(
+      Uint8List.fromList(bytes),
+      mimeType: 'application/pdf',
+      name: 'client_summary.pdf',
+    );
+    await file.saveTo(location.path);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Client summary PDF exported')),
+    );
   }
 }
