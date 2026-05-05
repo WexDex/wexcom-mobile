@@ -36,6 +36,9 @@ WEXCOM_USER=wexcom
 WEXCOM_PASS=yourStrongPassword
 WEXCOM_PORT=8787
 WEXCOM_TUNNEL_HOST=localhost
+WEXCOM_TUNNEL_MODE=named
+WEXCOM_TUNNEL_NAME=wexcom
+WEXCOM_TUNNEL_DOMAIN=wexcom.wexdex.online
 ```
 
 3. Start with:
@@ -55,12 +58,18 @@ Use a second terminal in `server/` while `run.bat` is running:
 run_tunnel.bat
 ```
 
-This starts a Cloudflare quick tunnel to:
+By default, `run_tunnel.bat` now uses a named tunnel and expects:
 
-- `http://%WEXCOM_TUNNEL_HOST%:%WEXCOM_PORT%` (defaults to `http://localhost:8787`)
+- local origin: `http://%WEXCOM_TUNNEL_HOST%:%WEXCOM_PORT%` (defaults to `http://localhost:8787`)
+- hostname: `https://%WEXCOM_TUNNEL_DOMAIN%` (defaults to `https://wexcom.wexdex.online`)
 
-When tunnel starts, it prints a public HTTPS URL (example: `https://xxxxx.trycloudflare.com`).
-Open that URL from other devices/networks and authenticate with your Basic Auth credentials.
+To force temporary quick tunnels, set:
+
+```env
+WEXCOM_TUNNEL_MODE=quick
+```
+
+Then `run_tunnel.bat` falls back to random `*.trycloudflare.com` URLs.
 
 ### Example: run server from `server/`
 
@@ -319,18 +328,55 @@ Tip: if the server is running and writing often, close long-running edit session
 
 ## Optional: expose server over Cloudflare Tunnel
 
-### Temporary URL
+### Named hostname (`wexcom.wexdex.online`) - recommended
+
+1. Add `wexdex.online` to Cloudflare.
+2. At Hostinger, replace nameservers with the two nameservers shown by Cloudflare.
+3. Wait until Cloudflare marks the zone as **Active**.
+
+Then run:
+
+```powershell
+cloudflared tunnel login
+cloudflared tunnel create wexcom
+cloudflared tunnel route dns wexcom wexcom.wexdex.online
+cloudflared tunnel run --url http://localhost:8787 wexcom
+```
+
+Or run the one-shot helper:
+
+```bat
+setup_domain_tunnel.bat
+```
+
+Expected public endpoints:
+
+- `https://wexcom.wexdex.online/status`
+- `https://wexcom.wexdex.online/api`
+
+You can also use the batch helper:
+
+```bat
+run_tunnel.bat
+```
+
+Optional config template:
+
+- Copy `server/cloudflared.config.example.yml` to `%USERPROFILE%\.cloudflared\config.yml`
+- Adjust hostname/service if needed.
+
+### Temporary URL (fallback)
 
 ```powershell
 cloudflared tunnel --url http://localhost:8787
 ```
 
-### Stable hostname
+### Named tunnel commands (reference)
 
 ```powershell
 cloudflared tunnel login
 cloudflared tunnel create wexcom
-cloudflared tunnel route dns wexcom sync.yourdomain.com
+cloudflared tunnel route dns wexcom wexcom.wexdex.online
 cloudflared tunnel run --url http://localhost:8787 wexcom
 ```
 
