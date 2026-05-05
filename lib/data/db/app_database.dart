@@ -103,6 +103,16 @@ class AppSettings extends Table {
   BoolColumn get contactsAutofillEnabled => boolean().withDefault(const Constant(true))();
   IntColumn get overdueAlertDays => integer().withDefault(const Constant(10))();
   TextColumn get profileName => text().nullable()();
+  BoolColumn get syncEnabled => boolean().withDefault(const Constant(false))();
+  TextColumn get syncServerUrl => text().nullable()();
+  TextColumn get syncUsername => text().nullable()();
+  TextColumn get syncPassword => text().nullable()();
+  IntColumn get syncIntervalHours => integer().withDefault(const Constant(24))();
+  BoolColumn get syncPeriodicEnabled => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get lastUploadAt => dateTime().nullable()();
+  TextColumn get lastUploadSha256 => text().nullable()();
+  DateTimeColumn get lastDownloadAt => dateTime().nullable()();
+  DateTimeColumn get lastServerOkAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -123,7 +133,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -193,6 +203,18 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 4) {
             await _insertDefaultTags();
+          }
+          if (from < 5) {
+            await m.addColumn(appSettings, appSettings.syncEnabled);
+            await m.addColumn(appSettings, appSettings.syncServerUrl);
+            await m.addColumn(appSettings, appSettings.syncUsername);
+            await m.addColumn(appSettings, appSettings.syncPassword);
+            await m.addColumn(appSettings, appSettings.syncIntervalHours);
+            await m.addColumn(appSettings, appSettings.syncPeriodicEnabled);
+            await m.addColumn(appSettings, appSettings.lastUploadAt);
+            await m.addColumn(appSettings, appSettings.lastUploadSha256);
+            await m.addColumn(appSettings, appSettings.lastDownloadAt);
+            await m.addColumn(appSettings, appSettings.lastServerOkAt);
           }
         },
       );

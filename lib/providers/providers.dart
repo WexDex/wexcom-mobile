@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db/app_database.dart';
 import '../data/ledger_repository.dart';
 import '../services/contacts_service.dart';
+import '../services/sync_service.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -41,6 +42,35 @@ final overdueAlertDaysProvider = FutureProvider<int>((ref) async {
 
 final contactsServiceProvider = Provider<ContactsService>((ref) {
   return ContactsService();
+});
+
+final syncSettingsProvider = StreamProvider<SyncSettingsData>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchSyncSettings();
+});
+
+final syncServiceProvider = Provider<SyncService?>((ref) {
+  final settings = ref.watch(syncSettingsProvider).valueOrNull;
+  if (settings == null) return null;
+  final config = SyncConnectionConfig(
+    serverUrl: settings.serverUrl ?? '',
+    username: settings.username ?? '',
+    password: settings.password ?? '',
+  );
+  if (!config.isValid) return null;
+  return SyncService(config);
+});
+
+final serverStatusProvider = StreamProvider.autoDispose<ServerStatus>((ref) async* {
+  while (true) {
+    final service = ref.read(syncServiceProvider);
+    if (service == null) {
+      throw Exception('Sync server is not configured.');
+    }
+    final localSha = await ref.read(ledgerRepositoryProvider).currentExportSha256();
+    final status = await service.getStatus(localSha256: localSha);
+    yield status;
+    await Future<void>.delayed(const Duration(seconds: 30));
+  }
 });
 
 final activeClientsProvider = StreamProvider.autoDispose<List<Client>>((ref) {

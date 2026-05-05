@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -100,6 +101,34 @@ class ImportApplyResult {
   final int skippedDuplicateTransactions;
 }
 
+enum SingleClientImportMode { mix, replace }
+
+class SyncSettingsData {
+  const SyncSettingsData({
+    required this.enabled,
+    required this.serverUrl,
+    required this.username,
+    required this.password,
+    required this.intervalHours,
+    required this.periodicEnabled,
+    required this.lastUploadAt,
+    required this.lastUploadSha256,
+    required this.lastDownloadAt,
+    required this.lastServerOkAt,
+  });
+
+  final bool enabled;
+  final String? serverUrl;
+  final String? username;
+  final String? password;
+  final int intervalHours;
+  final bool periodicEnabled;
+  final DateTime? lastUploadAt;
+  final String? lastUploadSha256;
+  final DateTime? lastDownloadAt;
+  final DateTime? lastServerOkAt;
+}
+
 class LedgerRepository {
   LedgerRepository(this._db);
 
@@ -165,7 +194,25 @@ class LedgerRepository {
   }
 
   Future<String> exportAllClientsWithTransactionsJson() async {
+    final payload = await _buildExportPayload();
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  Future<String> exportSingleClientJson(String clientId) async {
+    final payload = await _buildExportPayload(clientId: clientId);
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  Future<String> currentExportSha256() async {
+    final raw = await exportAllClientsWithTransactionsJson();
+    return sha256.convert(utf8.encode(raw)).toString();
+  }
+
+  Future<Map<String, dynamic>> _buildExportPayload({String? clientId}) async {
     final clients = await (_db.select(_db.clients)
+          ..where(
+            (c) => clientId == null ? const Constant(true) : c.id.equals(clientId),
+          )
           ..orderBy([(c) => OrderingTerm.asc(c.fullName)]))
         .get();
     final allTags = await (_db.select(_db.tags)).get();
@@ -194,7 +241,7 @@ class LedgerRepository {
       txsByClient.putIfAbsent(tx.clientId, () => []).add(tx);
     }
 
-    final payload = {
+    return {
       'version': 1,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'clients': clients.map((client) {
@@ -247,7 +294,6 @@ class LedgerRepository {
         };
       }).toList(),
     };
-    return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
   Future<ImportPreview> previewImport(String rawJson) async {
@@ -699,6 +745,60 @@ class LedgerRepository {
         );
   }
 
+  Future<SyncSettingsData> syncSettings() async {
+    final row = await _db.select(_db.appSettings).getSingleOrNull();
+    return _mapSyncSettings(row);
+  }
+
+  Stream<SyncSettingsData> watchSyncSettings() {
+    return _db.select(_db.appSettings).watchSingleOrNull().map(_mapSyncSettings);
+  }
+
+  Future<void> saveSyncSettings({
+    required bool enabled,
+    String? serverUrl,
+    String? username,
+    String? password,
+    required int intervalHours,
+    required bool periodicEnabled,
+  }) async {
+    final normalizedInterval = intervalHours <= 0 ? 24 : intervalHours;
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(
+            syncEnabled: Value(enabled),
+            syncServerUrl: Value(_normalizeNullable(serverUrl)),
+            syncUsername: Value(_normalizeNullable(username)),
+            syncPassword: Value(_normalizeNullable(password)),
+            syncIntervalHours: Value(normalizedInterval),
+            syncPeriodicEnabled: Value(periodicEnabled),
+          ),
+        );
+  }
+
+  Future<void> updateSyncUploadMeta({
+    required DateTime uploadedAt,
+    required String sha256Hex,
+  }) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(
+            lastUploadAt: Value(uploadedAt.toUtc()),
+            lastUploadSha256: Value(sha256Hex),
+          ),
+        );
+  }
+
+  Future<void> updateSyncDownloadMeta(DateTime downloadedAt) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(lastDownloadAt: Value(downloadedAt.toUtc())),
+        );
+  }
+
+  Future<void> updateSyncServerOkMeta(DateTime checkedAt) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(lastServerOkAt: Value(checkedAt.toUtc())),
+        );
+  }
+
   Future<LifetimeTotals> lifetimeTotals() async {
     final txs = await (_db.select(_db.ledgerTransactions)
           ..where((t) => t.txStatus.equals(LedgerTxStatus.active.index)))
@@ -1067,6 +1167,24 @@ class LedgerRepository {
     );
   }
 
+  Future<ImportApplyResult> importSingleClient(
+    String rawJson, {
+    required SingleClientImportMode mode,
+  }) async {
+    final preview = await previewImport(rawJson);
+    final resolutions = <String, ImportConflictResolution>{};
+    final resolution = mode == SingleClientImportMode.replace
+        ? ImportConflictResolution.erase
+        : ImportConflictResolution.mix;
+    for (final conflict in preview.conflicts) {
+      resolutions[conflict.importClientKey] = resolution;
+    }
+    return importFromJson(
+      rawJson,
+      conflictResolutionsByImportKey: resolutions,
+    );
+  }
+
   Future<String> _upsertTagByName({
     required String name,
     required String scope,
@@ -1090,6 +1208,27 @@ class LedgerRepository {
           ),
         );
     return id;
+  }
+
+  SyncSettingsData _mapSyncSettings(AppSetting? row) {
+    return SyncSettingsData(
+      enabled: row?.syncEnabled ?? false,
+      serverUrl: row?.syncServerUrl,
+      username: row?.syncUsername,
+      password: row?.syncPassword,
+      intervalHours: row?.syncIntervalHours ?? 24,
+      periodicEnabled: row?.syncPeriodicEnabled ?? false,
+      lastUploadAt: row?.lastUploadAt,
+      lastUploadSha256: row?.lastUploadSha256,
+      lastDownloadAt: row?.lastDownloadAt,
+      lastServerOkAt: row?.lastServerOkAt,
+    );
+  }
+
+  String? _normalizeNullable(String? input) {
+    final trimmed = input?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed;
   }
 
   String _clientMatchKey(String fullName, String? phone) {

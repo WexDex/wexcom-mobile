@@ -3424,6 +3424,126 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _syncEnabledMeta = const VerificationMeta(
+    'syncEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> syncEnabled = GeneratedColumn<bool>(
+    'sync_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sync_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _syncServerUrlMeta = const VerificationMeta(
+    'syncServerUrl',
+  );
+  @override
+  late final GeneratedColumn<String> syncServerUrl = GeneratedColumn<String>(
+    'sync_server_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncUsernameMeta = const VerificationMeta(
+    'syncUsername',
+  );
+  @override
+  late final GeneratedColumn<String> syncUsername = GeneratedColumn<String>(
+    'sync_username',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncPasswordMeta = const VerificationMeta(
+    'syncPassword',
+  );
+  @override
+  late final GeneratedColumn<String> syncPassword = GeneratedColumn<String>(
+    'sync_password',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncIntervalHoursMeta = const VerificationMeta(
+    'syncIntervalHours',
+  );
+  @override
+  late final GeneratedColumn<int> syncIntervalHours = GeneratedColumn<int>(
+    'sync_interval_hours',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(24),
+  );
+  static const VerificationMeta _syncPeriodicEnabledMeta =
+      const VerificationMeta('syncPeriodicEnabled');
+  @override
+  late final GeneratedColumn<bool> syncPeriodicEnabled = GeneratedColumn<bool>(
+    'sync_periodic_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("sync_periodic_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _lastUploadAtMeta = const VerificationMeta(
+    'lastUploadAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastUploadAt = GeneratedColumn<DateTime>(
+    'last_upload_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastUploadSha256Meta = const VerificationMeta(
+    'lastUploadSha256',
+  );
+  @override
+  late final GeneratedColumn<String> lastUploadSha256 = GeneratedColumn<String>(
+    'last_upload_sha256',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastDownloadAtMeta = const VerificationMeta(
+    'lastDownloadAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastDownloadAt =
+      GeneratedColumn<DateTime>(
+        'last_download_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _lastServerOkAtMeta = const VerificationMeta(
+    'lastServerOkAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastServerOkAt =
+      GeneratedColumn<DateTime>(
+        'last_server_ok_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3431,6 +3551,16 @@ class $AppSettingsTable extends AppSettings
     contactsAutofillEnabled,
     overdueAlertDays,
     profileName,
+    syncEnabled,
+    syncServerUrl,
+    syncUsername,
+    syncPassword,
+    syncIntervalHours,
+    syncPeriodicEnabled,
+    lastUploadAt,
+    lastUploadSha256,
+    lastDownloadAt,
+    lastServerOkAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3483,6 +3613,96 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('sync_enabled')) {
+      context.handle(
+        _syncEnabledMeta,
+        syncEnabled.isAcceptableOrUnknown(
+          data['sync_enabled']!,
+          _syncEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_server_url')) {
+      context.handle(
+        _syncServerUrlMeta,
+        syncServerUrl.isAcceptableOrUnknown(
+          data['sync_server_url']!,
+          _syncServerUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_username')) {
+      context.handle(
+        _syncUsernameMeta,
+        syncUsername.isAcceptableOrUnknown(
+          data['sync_username']!,
+          _syncUsernameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_password')) {
+      context.handle(
+        _syncPasswordMeta,
+        syncPassword.isAcceptableOrUnknown(
+          data['sync_password']!,
+          _syncPasswordMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_interval_hours')) {
+      context.handle(
+        _syncIntervalHoursMeta,
+        syncIntervalHours.isAcceptableOrUnknown(
+          data['sync_interval_hours']!,
+          _syncIntervalHoursMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sync_periodic_enabled')) {
+      context.handle(
+        _syncPeriodicEnabledMeta,
+        syncPeriodicEnabled.isAcceptableOrUnknown(
+          data['sync_periodic_enabled']!,
+          _syncPeriodicEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_upload_at')) {
+      context.handle(
+        _lastUploadAtMeta,
+        lastUploadAt.isAcceptableOrUnknown(
+          data['last_upload_at']!,
+          _lastUploadAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_upload_sha256')) {
+      context.handle(
+        _lastUploadSha256Meta,
+        lastUploadSha256.isAcceptableOrUnknown(
+          data['last_upload_sha256']!,
+          _lastUploadSha256Meta,
+        ),
+      );
+    }
+    if (data.containsKey('last_download_at')) {
+      context.handle(
+        _lastDownloadAtMeta,
+        lastDownloadAt.isAcceptableOrUnknown(
+          data['last_download_at']!,
+          _lastDownloadAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_server_ok_at')) {
+      context.handle(
+        _lastServerOkAtMeta,
+        lastServerOkAt.isAcceptableOrUnknown(
+          data['last_server_ok_at']!,
+          _lastServerOkAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3512,6 +3732,46 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}profile_name'],
       ),
+      syncEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sync_enabled'],
+      )!,
+      syncServerUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_server_url'],
+      ),
+      syncUsername: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_username'],
+      ),
+      syncPassword: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_password'],
+      ),
+      syncIntervalHours: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_interval_hours'],
+      )!,
+      syncPeriodicEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}sync_periodic_enabled'],
+      )!,
+      lastUploadAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_upload_at'],
+      ),
+      lastUploadSha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_upload_sha256'],
+      ),
+      lastDownloadAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_download_at'],
+      ),
+      lastServerOkAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_server_ok_at'],
+      ),
     );
   }
 
@@ -3527,12 +3787,32 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool contactsAutofillEnabled;
   final int overdueAlertDays;
   final String? profileName;
+  final bool syncEnabled;
+  final String? syncServerUrl;
+  final String? syncUsername;
+  final String? syncPassword;
+  final int syncIntervalHours;
+  final bool syncPeriodicEnabled;
+  final DateTime? lastUploadAt;
+  final String? lastUploadSha256;
+  final DateTime? lastDownloadAt;
+  final DateTime? lastServerOkAt;
   const AppSetting({
     required this.id,
     required this.defaultCurrencyCode,
     required this.contactsAutofillEnabled,
     required this.overdueAlertDays,
     this.profileName,
+    required this.syncEnabled,
+    this.syncServerUrl,
+    this.syncUsername,
+    this.syncPassword,
+    required this.syncIntervalHours,
+    required this.syncPeriodicEnabled,
+    this.lastUploadAt,
+    this.lastUploadSha256,
+    this.lastDownloadAt,
+    this.lastServerOkAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3543,6 +3823,30 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['overdue_alert_days'] = Variable<int>(overdueAlertDays);
     if (!nullToAbsent || profileName != null) {
       map['profile_name'] = Variable<String>(profileName);
+    }
+    map['sync_enabled'] = Variable<bool>(syncEnabled);
+    if (!nullToAbsent || syncServerUrl != null) {
+      map['sync_server_url'] = Variable<String>(syncServerUrl);
+    }
+    if (!nullToAbsent || syncUsername != null) {
+      map['sync_username'] = Variable<String>(syncUsername);
+    }
+    if (!nullToAbsent || syncPassword != null) {
+      map['sync_password'] = Variable<String>(syncPassword);
+    }
+    map['sync_interval_hours'] = Variable<int>(syncIntervalHours);
+    map['sync_periodic_enabled'] = Variable<bool>(syncPeriodicEnabled);
+    if (!nullToAbsent || lastUploadAt != null) {
+      map['last_upload_at'] = Variable<DateTime>(lastUploadAt);
+    }
+    if (!nullToAbsent || lastUploadSha256 != null) {
+      map['last_upload_sha256'] = Variable<String>(lastUploadSha256);
+    }
+    if (!nullToAbsent || lastDownloadAt != null) {
+      map['last_download_at'] = Variable<DateTime>(lastDownloadAt);
+    }
+    if (!nullToAbsent || lastServerOkAt != null) {
+      map['last_server_ok_at'] = Variable<DateTime>(lastServerOkAt);
     }
     return map;
   }
@@ -3556,6 +3860,30 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       profileName: profileName == null && nullToAbsent
           ? const Value.absent()
           : Value(profileName),
+      syncEnabled: Value(syncEnabled),
+      syncServerUrl: syncServerUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncServerUrl),
+      syncUsername: syncUsername == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncUsername),
+      syncPassword: syncPassword == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncPassword),
+      syncIntervalHours: Value(syncIntervalHours),
+      syncPeriodicEnabled: Value(syncPeriodicEnabled),
+      lastUploadAt: lastUploadAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUploadAt),
+      lastUploadSha256: lastUploadSha256 == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastUploadSha256),
+      lastDownloadAt: lastDownloadAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastDownloadAt),
+      lastServerOkAt: lastServerOkAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastServerOkAt),
     );
   }
 
@@ -3574,6 +3902,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       overdueAlertDays: serializer.fromJson<int>(json['overdueAlertDays']),
       profileName: serializer.fromJson<String?>(json['profileName']),
+      syncEnabled: serializer.fromJson<bool>(json['syncEnabled']),
+      syncServerUrl: serializer.fromJson<String?>(json['syncServerUrl']),
+      syncUsername: serializer.fromJson<String?>(json['syncUsername']),
+      syncPassword: serializer.fromJson<String?>(json['syncPassword']),
+      syncIntervalHours: serializer.fromJson<int>(json['syncIntervalHours']),
+      syncPeriodicEnabled: serializer.fromJson<bool>(
+        json['syncPeriodicEnabled'],
+      ),
+      lastUploadAt: serializer.fromJson<DateTime?>(json['lastUploadAt']),
+      lastUploadSha256: serializer.fromJson<String?>(json['lastUploadSha256']),
+      lastDownloadAt: serializer.fromJson<DateTime?>(json['lastDownloadAt']),
+      lastServerOkAt: serializer.fromJson<DateTime?>(json['lastServerOkAt']),
     );
   }
   @override
@@ -3587,6 +3927,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       'overdueAlertDays': serializer.toJson<int>(overdueAlertDays),
       'profileName': serializer.toJson<String?>(profileName),
+      'syncEnabled': serializer.toJson<bool>(syncEnabled),
+      'syncServerUrl': serializer.toJson<String?>(syncServerUrl),
+      'syncUsername': serializer.toJson<String?>(syncUsername),
+      'syncPassword': serializer.toJson<String?>(syncPassword),
+      'syncIntervalHours': serializer.toJson<int>(syncIntervalHours),
+      'syncPeriodicEnabled': serializer.toJson<bool>(syncPeriodicEnabled),
+      'lastUploadAt': serializer.toJson<DateTime?>(lastUploadAt),
+      'lastUploadSha256': serializer.toJson<String?>(lastUploadSha256),
+      'lastDownloadAt': serializer.toJson<DateTime?>(lastDownloadAt),
+      'lastServerOkAt': serializer.toJson<DateTime?>(lastServerOkAt),
     };
   }
 
@@ -3596,6 +3946,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? contactsAutofillEnabled,
     int? overdueAlertDays,
     Value<String?> profileName = const Value.absent(),
+    bool? syncEnabled,
+    Value<String?> syncServerUrl = const Value.absent(),
+    Value<String?> syncUsername = const Value.absent(),
+    Value<String?> syncPassword = const Value.absent(),
+    int? syncIntervalHours,
+    bool? syncPeriodicEnabled,
+    Value<DateTime?> lastUploadAt = const Value.absent(),
+    Value<String?> lastUploadSha256 = const Value.absent(),
+    Value<DateTime?> lastDownloadAt = const Value.absent(),
+    Value<DateTime?> lastServerOkAt = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     defaultCurrencyCode: defaultCurrencyCode ?? this.defaultCurrencyCode,
@@ -3603,6 +3963,24 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         contactsAutofillEnabled ?? this.contactsAutofillEnabled,
     overdueAlertDays: overdueAlertDays ?? this.overdueAlertDays,
     profileName: profileName.present ? profileName.value : this.profileName,
+    syncEnabled: syncEnabled ?? this.syncEnabled,
+    syncServerUrl: syncServerUrl.present
+        ? syncServerUrl.value
+        : this.syncServerUrl,
+    syncUsername: syncUsername.present ? syncUsername.value : this.syncUsername,
+    syncPassword: syncPassword.present ? syncPassword.value : this.syncPassword,
+    syncIntervalHours: syncIntervalHours ?? this.syncIntervalHours,
+    syncPeriodicEnabled: syncPeriodicEnabled ?? this.syncPeriodicEnabled,
+    lastUploadAt: lastUploadAt.present ? lastUploadAt.value : this.lastUploadAt,
+    lastUploadSha256: lastUploadSha256.present
+        ? lastUploadSha256.value
+        : this.lastUploadSha256,
+    lastDownloadAt: lastDownloadAt.present
+        ? lastDownloadAt.value
+        : this.lastDownloadAt,
+    lastServerOkAt: lastServerOkAt.present
+        ? lastServerOkAt.value
+        : this.lastServerOkAt,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -3619,6 +3997,36 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       profileName: data.profileName.present
           ? data.profileName.value
           : this.profileName,
+      syncEnabled: data.syncEnabled.present
+          ? data.syncEnabled.value
+          : this.syncEnabled,
+      syncServerUrl: data.syncServerUrl.present
+          ? data.syncServerUrl.value
+          : this.syncServerUrl,
+      syncUsername: data.syncUsername.present
+          ? data.syncUsername.value
+          : this.syncUsername,
+      syncPassword: data.syncPassword.present
+          ? data.syncPassword.value
+          : this.syncPassword,
+      syncIntervalHours: data.syncIntervalHours.present
+          ? data.syncIntervalHours.value
+          : this.syncIntervalHours,
+      syncPeriodicEnabled: data.syncPeriodicEnabled.present
+          ? data.syncPeriodicEnabled.value
+          : this.syncPeriodicEnabled,
+      lastUploadAt: data.lastUploadAt.present
+          ? data.lastUploadAt.value
+          : this.lastUploadAt,
+      lastUploadSha256: data.lastUploadSha256.present
+          ? data.lastUploadSha256.value
+          : this.lastUploadSha256,
+      lastDownloadAt: data.lastDownloadAt.present
+          ? data.lastDownloadAt.value
+          : this.lastDownloadAt,
+      lastServerOkAt: data.lastServerOkAt.present
+          ? data.lastServerOkAt.value
+          : this.lastServerOkAt,
     );
   }
 
@@ -3629,7 +4037,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('defaultCurrencyCode: $defaultCurrencyCode, ')
           ..write('contactsAutofillEnabled: $contactsAutofillEnabled, ')
           ..write('overdueAlertDays: $overdueAlertDays, ')
-          ..write('profileName: $profileName')
+          ..write('profileName: $profileName, ')
+          ..write('syncEnabled: $syncEnabled, ')
+          ..write('syncServerUrl: $syncServerUrl, ')
+          ..write('syncUsername: $syncUsername, ')
+          ..write('syncPassword: $syncPassword, ')
+          ..write('syncIntervalHours: $syncIntervalHours, ')
+          ..write('syncPeriodicEnabled: $syncPeriodicEnabled, ')
+          ..write('lastUploadAt: $lastUploadAt, ')
+          ..write('lastUploadSha256: $lastUploadSha256, ')
+          ..write('lastDownloadAt: $lastDownloadAt, ')
+          ..write('lastServerOkAt: $lastServerOkAt')
           ..write(')'))
         .toString();
   }
@@ -3641,6 +4059,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     contactsAutofillEnabled,
     overdueAlertDays,
     profileName,
+    syncEnabled,
+    syncServerUrl,
+    syncUsername,
+    syncPassword,
+    syncIntervalHours,
+    syncPeriodicEnabled,
+    lastUploadAt,
+    lastUploadSha256,
+    lastDownloadAt,
+    lastServerOkAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -3650,7 +4078,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.defaultCurrencyCode == this.defaultCurrencyCode &&
           other.contactsAutofillEnabled == this.contactsAutofillEnabled &&
           other.overdueAlertDays == this.overdueAlertDays &&
-          other.profileName == this.profileName);
+          other.profileName == this.profileName &&
+          other.syncEnabled == this.syncEnabled &&
+          other.syncServerUrl == this.syncServerUrl &&
+          other.syncUsername == this.syncUsername &&
+          other.syncPassword == this.syncPassword &&
+          other.syncIntervalHours == this.syncIntervalHours &&
+          other.syncPeriodicEnabled == this.syncPeriodicEnabled &&
+          other.lastUploadAt == this.lastUploadAt &&
+          other.lastUploadSha256 == this.lastUploadSha256 &&
+          other.lastDownloadAt == this.lastDownloadAt &&
+          other.lastServerOkAt == this.lastServerOkAt);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -3659,12 +4097,32 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> contactsAutofillEnabled;
   final Value<int> overdueAlertDays;
   final Value<String?> profileName;
+  final Value<bool> syncEnabled;
+  final Value<String?> syncServerUrl;
+  final Value<String?> syncUsername;
+  final Value<String?> syncPassword;
+  final Value<int> syncIntervalHours;
+  final Value<bool> syncPeriodicEnabled;
+  final Value<DateTime?> lastUploadAt;
+  final Value<String?> lastUploadSha256;
+  final Value<DateTime?> lastDownloadAt;
+  final Value<DateTime?> lastServerOkAt;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.defaultCurrencyCode = const Value.absent(),
     this.contactsAutofillEnabled = const Value.absent(),
     this.overdueAlertDays = const Value.absent(),
     this.profileName = const Value.absent(),
+    this.syncEnabled = const Value.absent(),
+    this.syncServerUrl = const Value.absent(),
+    this.syncUsername = const Value.absent(),
+    this.syncPassword = const Value.absent(),
+    this.syncIntervalHours = const Value.absent(),
+    this.syncPeriodicEnabled = const Value.absent(),
+    this.lastUploadAt = const Value.absent(),
+    this.lastUploadSha256 = const Value.absent(),
+    this.lastDownloadAt = const Value.absent(),
+    this.lastServerOkAt = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -3672,6 +4130,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.contactsAutofillEnabled = const Value.absent(),
     this.overdueAlertDays = const Value.absent(),
     this.profileName = const Value.absent(),
+    this.syncEnabled = const Value.absent(),
+    this.syncServerUrl = const Value.absent(),
+    this.syncUsername = const Value.absent(),
+    this.syncPassword = const Value.absent(),
+    this.syncIntervalHours = const Value.absent(),
+    this.syncPeriodicEnabled = const Value.absent(),
+    this.lastUploadAt = const Value.absent(),
+    this.lastUploadSha256 = const Value.absent(),
+    this.lastDownloadAt = const Value.absent(),
+    this.lastServerOkAt = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -3679,6 +4147,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? contactsAutofillEnabled,
     Expression<int>? overdueAlertDays,
     Expression<String>? profileName,
+    Expression<bool>? syncEnabled,
+    Expression<String>? syncServerUrl,
+    Expression<String>? syncUsername,
+    Expression<String>? syncPassword,
+    Expression<int>? syncIntervalHours,
+    Expression<bool>? syncPeriodicEnabled,
+    Expression<DateTime>? lastUploadAt,
+    Expression<String>? lastUploadSha256,
+    Expression<DateTime>? lastDownloadAt,
+    Expression<DateTime>? lastServerOkAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -3688,6 +4166,17 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         'contacts_autofill_enabled': contactsAutofillEnabled,
       if (overdueAlertDays != null) 'overdue_alert_days': overdueAlertDays,
       if (profileName != null) 'profile_name': profileName,
+      if (syncEnabled != null) 'sync_enabled': syncEnabled,
+      if (syncServerUrl != null) 'sync_server_url': syncServerUrl,
+      if (syncUsername != null) 'sync_username': syncUsername,
+      if (syncPassword != null) 'sync_password': syncPassword,
+      if (syncIntervalHours != null) 'sync_interval_hours': syncIntervalHours,
+      if (syncPeriodicEnabled != null)
+        'sync_periodic_enabled': syncPeriodicEnabled,
+      if (lastUploadAt != null) 'last_upload_at': lastUploadAt,
+      if (lastUploadSha256 != null) 'last_upload_sha256': lastUploadSha256,
+      if (lastDownloadAt != null) 'last_download_at': lastDownloadAt,
+      if (lastServerOkAt != null) 'last_server_ok_at': lastServerOkAt,
     });
   }
 
@@ -3697,6 +4186,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? contactsAutofillEnabled,
     Value<int>? overdueAlertDays,
     Value<String?>? profileName,
+    Value<bool>? syncEnabled,
+    Value<String?>? syncServerUrl,
+    Value<String?>? syncUsername,
+    Value<String?>? syncPassword,
+    Value<int>? syncIntervalHours,
+    Value<bool>? syncPeriodicEnabled,
+    Value<DateTime?>? lastUploadAt,
+    Value<String?>? lastUploadSha256,
+    Value<DateTime?>? lastDownloadAt,
+    Value<DateTime?>? lastServerOkAt,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -3705,6 +4204,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           contactsAutofillEnabled ?? this.contactsAutofillEnabled,
       overdueAlertDays: overdueAlertDays ?? this.overdueAlertDays,
       profileName: profileName ?? this.profileName,
+      syncEnabled: syncEnabled ?? this.syncEnabled,
+      syncServerUrl: syncServerUrl ?? this.syncServerUrl,
+      syncUsername: syncUsername ?? this.syncUsername,
+      syncPassword: syncPassword ?? this.syncPassword,
+      syncIntervalHours: syncIntervalHours ?? this.syncIntervalHours,
+      syncPeriodicEnabled: syncPeriodicEnabled ?? this.syncPeriodicEnabled,
+      lastUploadAt: lastUploadAt ?? this.lastUploadAt,
+      lastUploadSha256: lastUploadSha256 ?? this.lastUploadSha256,
+      lastDownloadAt: lastDownloadAt ?? this.lastDownloadAt,
+      lastServerOkAt: lastServerOkAt ?? this.lastServerOkAt,
     );
   }
 
@@ -3730,6 +4239,36 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (profileName.present) {
       map['profile_name'] = Variable<String>(profileName.value);
     }
+    if (syncEnabled.present) {
+      map['sync_enabled'] = Variable<bool>(syncEnabled.value);
+    }
+    if (syncServerUrl.present) {
+      map['sync_server_url'] = Variable<String>(syncServerUrl.value);
+    }
+    if (syncUsername.present) {
+      map['sync_username'] = Variable<String>(syncUsername.value);
+    }
+    if (syncPassword.present) {
+      map['sync_password'] = Variable<String>(syncPassword.value);
+    }
+    if (syncIntervalHours.present) {
+      map['sync_interval_hours'] = Variable<int>(syncIntervalHours.value);
+    }
+    if (syncPeriodicEnabled.present) {
+      map['sync_periodic_enabled'] = Variable<bool>(syncPeriodicEnabled.value);
+    }
+    if (lastUploadAt.present) {
+      map['last_upload_at'] = Variable<DateTime>(lastUploadAt.value);
+    }
+    if (lastUploadSha256.present) {
+      map['last_upload_sha256'] = Variable<String>(lastUploadSha256.value);
+    }
+    if (lastDownloadAt.present) {
+      map['last_download_at'] = Variable<DateTime>(lastDownloadAt.value);
+    }
+    if (lastServerOkAt.present) {
+      map['last_server_ok_at'] = Variable<DateTime>(lastServerOkAt.value);
+    }
     return map;
   }
 
@@ -3740,7 +4279,17 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('defaultCurrencyCode: $defaultCurrencyCode, ')
           ..write('contactsAutofillEnabled: $contactsAutofillEnabled, ')
           ..write('overdueAlertDays: $overdueAlertDays, ')
-          ..write('profileName: $profileName')
+          ..write('profileName: $profileName, ')
+          ..write('syncEnabled: $syncEnabled, ')
+          ..write('syncServerUrl: $syncServerUrl, ')
+          ..write('syncUsername: $syncUsername, ')
+          ..write('syncPassword: $syncPassword, ')
+          ..write('syncIntervalHours: $syncIntervalHours, ')
+          ..write('syncPeriodicEnabled: $syncPeriodicEnabled, ')
+          ..write('lastUploadAt: $lastUploadAt, ')
+          ..write('lastUploadSha256: $lastUploadSha256, ')
+          ..write('lastDownloadAt: $lastDownloadAt, ')
+          ..write('lastServerOkAt: $lastServerOkAt')
           ..write(')'))
         .toString();
   }
@@ -6520,6 +7069,16 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> contactsAutofillEnabled,
       Value<int> overdueAlertDays,
       Value<String?> profileName,
+      Value<bool> syncEnabled,
+      Value<String?> syncServerUrl,
+      Value<String?> syncUsername,
+      Value<String?> syncPassword,
+      Value<int> syncIntervalHours,
+      Value<bool> syncPeriodicEnabled,
+      Value<DateTime?> lastUploadAt,
+      Value<String?> lastUploadSha256,
+      Value<DateTime?> lastDownloadAt,
+      Value<DateTime?> lastServerOkAt,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -6528,6 +7087,16 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> contactsAutofillEnabled,
       Value<int> overdueAlertDays,
       Value<String?> profileName,
+      Value<bool> syncEnabled,
+      Value<String?> syncServerUrl,
+      Value<String?> syncUsername,
+      Value<String?> syncPassword,
+      Value<int> syncIntervalHours,
+      Value<bool> syncPeriodicEnabled,
+      Value<DateTime?> lastUploadAt,
+      Value<String?> lastUploadSha256,
+      Value<DateTime?> lastDownloadAt,
+      Value<DateTime?> lastServerOkAt,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -6561,6 +7130,56 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get profileName => $composableBuilder(
     column: $table.profileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get syncEnabled => $composableBuilder(
+    column: $table.syncEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncServerUrl => $composableBuilder(
+    column: $table.syncServerUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncUsername => $composableBuilder(
+    column: $table.syncUsername,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncPassword => $composableBuilder(
+    column: $table.syncPassword,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncIntervalHours => $composableBuilder(
+    column: $table.syncIntervalHours,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get syncPeriodicEnabled => $composableBuilder(
+    column: $table.syncPeriodicEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastUploadAt => $composableBuilder(
+    column: $table.lastUploadAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastUploadSha256 => $composableBuilder(
+    column: $table.lastUploadSha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastDownloadAt => $composableBuilder(
+    column: $table.lastDownloadAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastServerOkAt => $composableBuilder(
+    column: $table.lastServerOkAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -6598,6 +7217,56 @@ class $$AppSettingsTableOrderingComposer
     column: $table.profileName,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get syncEnabled => $composableBuilder(
+    column: $table.syncEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncServerUrl => $composableBuilder(
+    column: $table.syncServerUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncUsername => $composableBuilder(
+    column: $table.syncUsername,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncPassword => $composableBuilder(
+    column: $table.syncPassword,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncIntervalHours => $composableBuilder(
+    column: $table.syncIntervalHours,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get syncPeriodicEnabled => $composableBuilder(
+    column: $table.syncPeriodicEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastUploadAt => $composableBuilder(
+    column: $table.lastUploadAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastUploadSha256 => $composableBuilder(
+    column: $table.lastUploadSha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastDownloadAt => $composableBuilder(
+    column: $table.lastDownloadAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastServerOkAt => $composableBuilder(
+    column: $table.lastServerOkAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -6629,6 +7298,56 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get profileName => $composableBuilder(
     column: $table.profileName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get syncEnabled => $composableBuilder(
+    column: $table.syncEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncServerUrl => $composableBuilder(
+    column: $table.syncServerUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncUsername => $composableBuilder(
+    column: $table.syncUsername,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get syncPassword => $composableBuilder(
+    column: $table.syncPassword,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get syncIntervalHours => $composableBuilder(
+    column: $table.syncIntervalHours,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get syncPeriodicEnabled => $composableBuilder(
+    column: $table.syncPeriodicEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastUploadAt => $composableBuilder(
+    column: $table.lastUploadAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get lastUploadSha256 => $composableBuilder(
+    column: $table.lastUploadSha256,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastDownloadAt => $composableBuilder(
+    column: $table.lastDownloadAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastServerOkAt => $composableBuilder(
+    column: $table.lastServerOkAt,
     builder: (column) => column,
   );
 }
@@ -6669,12 +7388,32 @@ class $$AppSettingsTableTableManager
                 Value<bool> contactsAutofillEnabled = const Value.absent(),
                 Value<int> overdueAlertDays = const Value.absent(),
                 Value<String?> profileName = const Value.absent(),
+                Value<bool> syncEnabled = const Value.absent(),
+                Value<String?> syncServerUrl = const Value.absent(),
+                Value<String?> syncUsername = const Value.absent(),
+                Value<String?> syncPassword = const Value.absent(),
+                Value<int> syncIntervalHours = const Value.absent(),
+                Value<bool> syncPeriodicEnabled = const Value.absent(),
+                Value<DateTime?> lastUploadAt = const Value.absent(),
+                Value<String?> lastUploadSha256 = const Value.absent(),
+                Value<DateTime?> lastDownloadAt = const Value.absent(),
+                Value<DateTime?> lastServerOkAt = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
                 contactsAutofillEnabled: contactsAutofillEnabled,
                 overdueAlertDays: overdueAlertDays,
                 profileName: profileName,
+                syncEnabled: syncEnabled,
+                syncServerUrl: syncServerUrl,
+                syncUsername: syncUsername,
+                syncPassword: syncPassword,
+                syncIntervalHours: syncIntervalHours,
+                syncPeriodicEnabled: syncPeriodicEnabled,
+                lastUploadAt: lastUploadAt,
+                lastUploadSha256: lastUploadSha256,
+                lastDownloadAt: lastDownloadAt,
+                lastServerOkAt: lastServerOkAt,
               ),
           createCompanionCallback:
               ({
@@ -6683,12 +7422,32 @@ class $$AppSettingsTableTableManager
                 Value<bool> contactsAutofillEnabled = const Value.absent(),
                 Value<int> overdueAlertDays = const Value.absent(),
                 Value<String?> profileName = const Value.absent(),
+                Value<bool> syncEnabled = const Value.absent(),
+                Value<String?> syncServerUrl = const Value.absent(),
+                Value<String?> syncUsername = const Value.absent(),
+                Value<String?> syncPassword = const Value.absent(),
+                Value<int> syncIntervalHours = const Value.absent(),
+                Value<bool> syncPeriodicEnabled = const Value.absent(),
+                Value<DateTime?> lastUploadAt = const Value.absent(),
+                Value<String?> lastUploadSha256 = const Value.absent(),
+                Value<DateTime?> lastDownloadAt = const Value.absent(),
+                Value<DateTime?> lastServerOkAt = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
                 contactsAutofillEnabled: contactsAutofillEnabled,
                 overdueAlertDays: overdueAlertDays,
                 profileName: profileName,
+                syncEnabled: syncEnabled,
+                syncServerUrl: syncServerUrl,
+                syncUsername: syncUsername,
+                syncPassword: syncPassword,
+                syncIntervalHours: syncIntervalHours,
+                syncPeriodicEnabled: syncPeriodicEnabled,
+                lastUploadAt: lastUploadAt,
+                lastUploadSha256: lastUploadSha256,
+                lastDownloadAt: lastDownloadAt,
+                lastServerOkAt: lastServerOkAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

@@ -24,7 +24,7 @@ void main() {
           allTransactionsProvider
               .overrideWith((ref, _) => Stream.value(<LedgerTransactionWithClient>[])),
         ],
-        child: const WexcomDebtApp(),
+        child: const WexcomDebtApp(enablePeriodicSync: false),
       ),
     );
 

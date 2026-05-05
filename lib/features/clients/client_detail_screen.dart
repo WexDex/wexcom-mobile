@@ -24,13 +24,27 @@ Color _tagColor(String hex) {
   return Color(0xFF000000 | value);
 }
 
-class ClientDetailScreen extends ConsumerWidget {
+class ClientDetailScreen extends ConsumerStatefulWidget {
   const ClientDetailScreen({super.key, required this.clientId});
 
   final String clientId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClientDetailScreen> createState() => _ClientDetailScreenState();
+}
+
+class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
+  bool _compactHeader = false;
+
+  void _onTransactionsScrollOffset(double offset) {
+    final next = offset > 24;
+    if (next == _compactHeader) return;
+    setState(() => _compactHeader = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clientId = widget.clientId;
     final clientAsync = ref.watch(clientProvider(clientId));
     final txsAsync = ref.watch(clientTransactionsProvider(clientId));
     final currencyAsync = ref.watch(defaultCurrencyProvider);
@@ -49,7 +63,15 @@ class ClientDetailScreen extends ConsumerWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(client.fullName),
+            title: Text(
+              client.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Export client summary PDF',
@@ -129,251 +151,328 @@ class ClientDetailScreen extends ConsumerWidget {
               ),
             ],
           ),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                    border: Border.all(
-                      color: balanceColor(
-                        client.balanceMinor,
-                      ).withValues(alpha: 0.35),
-                    ),
+          body: NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.axis == Axis.vertical) {
+                _onTransactionsScrollOffset(notification.metrics.pixels);
+              }
+              return false;
+            },
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: 96,
+                    top: _compactHeader ? 76 : 0,
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          _compactHeader ? 8 : 16,
+                          20,
+                          12,
+                        ),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          padding: EdgeInsets.all(_compactHeader ? 10 : 12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(
+                              AppTheme.radiusLg,
                             ),
-                            decoration: BoxDecoration(
+                            border: Border.all(
                               color: balanceColor(
                                 client.balanceMinor,
-                              ).withValues(alpha: 0.18),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              balanceSemanticsLine(client.balanceMinor),
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(
-                                    color: balanceColor(client.balanceMinor),
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                              ).withValues(alpha: 0.35),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color:
-                                  (archived
-                                          ? AppTheme.ledgerCancel
-                                          : AppTheme.ledgerPayment)
-                                      .withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              archived ? 'ARCHIVED' : 'ACTIVE',
-                              style: Theme.of(context).textTheme.labelLarge
-                                  ?.copyWith(
-                                    color: archived
-                                        ? AppTheme.ledgerCancel
-                                        : AppTheme.ledgerPayment,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        MoneyFormat.formatMinor(client.balanceMinor, code),
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: balanceColor(client.balanceMinor),
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
-                            ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton.icon(
-                          onPressed: archived || client.balanceMinor <= 0
-                              ? null
-                              : () => _confirmSettleAllDebt(
-                                  context,
-                                  ref,
-                                  clientId: client.id,
-                                  currencyCode: code,
-                                  beforeBalanceMinor: client.balanceMinor,
-                                ),
-                          icon: const Icon(Icons.done_all_rounded),
-                          label: const Text('Settle all debt'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppTheme.ledgerPayment,
-                            foregroundColor: Colors.black87,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.calendar_today_outlined,
-                            size: 18,
-                            color: AppTheme.mutedFg,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Added ${MoneyFormat.formatDate(client.createdAt)}',
-                            style: TextStyle(color: AppTheme.mutedFg),
-                          ),
-                        ],
-                      ),
-                      if (client.phone != null && client.phone!.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        InkWell(
-                          borderRadius: BorderRadius.circular(8),
-                          onTap: () => _callClient(
-                            context,
-                            phoneNumber: client.phone!,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.phone_outlined,
-                                  size: 18,
-                                  color: AppTheme.ledgerPayment,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    client.phone!,
-                                    style: TextStyle(color: AppTheme.ledgerPayment),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.open_in_new,
-                                  size: 16,
-                                  color: AppTheme.mutedFg,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (client.note != null && client.note!.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          client.note!,
-                          style: TextStyle(
-                            color: AppTheme.mutedFg,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                      ...clientTagsAsync.when(
-                        data: (tags) {
-                          if (tags.isEmpty) return const <Widget>[];
-                          return [
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 4,
-                              children: tags
-                                  .map(
-                                    (t) => Chip(
-                                      label: Text(t.name),
-                                      avatar: CircleAvatar(
-                                        radius: 4,
-                                        backgroundColor: _tagColor(t.colorHex),
-                                      ),
-                                      backgroundColor: _tagColor(
-                                        t.colorHex,
-                                      ).withValues(alpha: 0.18),
-                                      side: BorderSide(
-                                        color: _tagColor(
-                                          t.colorHex,
-                                        ).withValues(alpha: 0.75),
-                                      ),
-                                      shape: const StadiumBorder(),
-                                      visualDensity: VisualDensity.compact,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
                                     ),
-                                  )
-                                  .toList(),
+                                    decoration: BoxDecoration(
+                                      color: balanceColor(
+                                        client.balanceMinor,
+                                      ).withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      balanceSemanticsLine(client.balanceMinor),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: balanceColor(
+                                              client.balanceMinor,
+                                            ),
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          (archived
+                                                  ? AppTheme.ledgerCancel
+                                                  : AppTheme.ledgerPayment)
+                                              .withValues(alpha: 0.16),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Text(
+                                      archived ? 'ARCHIVED' : 'ACTIVE',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelLarge
+                                          ?.copyWith(
+                                            color: archived
+                                                ? AppTheme.ledgerCancel
+                                                : AppTheme.ledgerPayment,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: _compactHeader ? 6 : 10),
+                              Text(
+                                MoneyFormat.formatMinor(
+                                  client.balanceMinor,
+                                  code,
+                                ),
+                                style:
+                                    (_compactHeader
+                                            ? Theme.of(
+                                                context,
+                                              ).textTheme.titleLarge
+                                            : Theme.of(
+                                                context,
+                                              ).textTheme.headlineMedium)
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: balanceColor(
+                                            client.balanceMinor,
+                                          ),
+                                          fontFeatures: const [
+                                            FontFeature.tabularFigures(),
+                                          ],
+                                        ),
+                              ),
+                              SizedBox(height: _compactHeader ? 6 : 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: FilledButton.icon(
+                                  onPressed:
+                                      archived || client.balanceMinor <= 0
+                                      ? null
+                                      : () => _confirmSettleAllDebt(
+                                          context,
+                                          ref,
+                                          clientId: client.id,
+                                          currencyCode: code,
+                                          beforeBalanceMinor:
+                                              client.balanceMinor,
+                                        ),
+                                  icon: const Icon(Icons.done_all_rounded),
+                                  label: const Text('Settle all debt'),
+                                  style: FilledButton.styleFrom(
+                                    backgroundColor: AppTheme.ledgerPayment,
+                                    foregroundColor: Colors.black87,
+                                  ),
+                                ),
+                              ),
+                              if (!_compactHeader) ...[
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_outlined,
+                                      size: 18,
+                                      color: AppTheme.mutedFg,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Added ${MoneyFormat.formatDate(client.createdAt)}',
+                                      style: TextStyle(color: AppTheme.mutedFg),
+                                    ),
+                                  ],
+                                ),
+                                if (client.phone != null &&
+                                    client.phone!.isNotEmpty) ...[
+                                  const SizedBox(height: 12),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(8),
+                                    onTap: () => _callClient(
+                                      context,
+                                      phoneNumber: client.phone!,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 2,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.phone_outlined,
+                                            size: 18,
+                                            color: AppTheme.ledgerPayment,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              client.phone!,
+                                              style: TextStyle(
+                                                color: AppTheme.ledgerPayment,
+                                              ),
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.open_in_new,
+                                            size: 16,
+                                            color: AppTheme.mutedFg,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (client.note != null &&
+                                    client.note!.isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    client.note!,
+                                    style: TextStyle(
+                                      color: AppTheme.mutedFg,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                              ...clientTagsAsync.when(
+                                data: (tags) {
+                                  if (tags.isEmpty) return const <Widget>[];
+                                  return [
+                                    SizedBox(height: _compactHeader ? 6 : 10),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      children: tags
+                                          .map(
+                                            (t) => Chip(
+                                              label: Text(t.name),
+                                              avatar: CircleAvatar(
+                                                radius: 4,
+                                                backgroundColor: _tagColor(
+                                                  t.colorHex,
+                                                ),
+                                              ),
+                                              backgroundColor: _tagColor(
+                                                t.colorHex,
+                                              ).withValues(alpha: 0.18),
+                                              side: BorderSide(
+                                                color: _tagColor(
+                                                  t.colorHex,
+                                                ).withValues(alpha: 0.75),
+                                              ),
+                                              shape: const StadiumBorder(),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                                  ];
+                                },
+                                loading: () => const <Widget>[],
+                                error: (_, __) => const <Widget>[],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                        child: Row(
+                          children: [
+                            Text(
+                              'Transactions',
+                              style: Theme.of(context).textTheme.titleSmall
+                                  ?.copyWith(
+                                    color: AppTheme.mutedFg,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
-                          ];
+                            const SizedBox(width: 8),
+                            txsAsync.when(
+                              data: (txs) {
+                                final lastActivity = txs.isNotEmpty
+                                    ? ' • Last: ${MoneyFormat.formatDate(txs.first.effectiveAt ?? txs.first.createdAt)}'
+                                    : '';
+                                return Text(
+                                  '(${txs.length})$lastActivity',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(color: AppTheme.mutedFg),
+                                );
+                              },
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, __) => const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                      ),
+                      txsAsync.when(
+                        data: (txs) {
+                          return ClientTransactionsList(
+                            transactions: txs,
+                            currencyCode: code,
+                            onEditActive: (t) => _openEditTx(context, ref, t),
+                            onCancelActive: (id) =>
+                                _confirmCancel(context, ref, id),
+                            embeddedInParentScroll: true,
+                            compactControls: _compactHeader,
+                          );
                         },
-                        loading: () => const <Widget>[],
-                        error: (_, __) => const <Widget>[],
+                        loading: () => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                        error: (e, _) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 48),
+                          child: Center(child: Text('Error: $e')),
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-                child: Row(
-                  children: [
-                    Text(
-                      'Transactions',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppTheme.mutedFg,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    txsAsync.when(
-                      data: (txs) {
-                        final lastActivity = txs.isNotEmpty
-                            ? ' • Last: ${MoneyFormat.formatDate(txs.first.effectiveAt ?? txs.first.createdAt)}'
-                            : '';
-                        return Text(
-                          '(${txs.length})$lastActivity',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(color: AppTheme.mutedFg),
-                        );
-                      },
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: txsAsync.when(
-                  data: (txs) {
-                    return ClientTransactionsList(
-                      transactions: txs,
+                if (_compactHeader)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    top: 8,
+                    child: _PinnedCompactSummaryBar(
+                      client: client,
                       currencyCode: code,
-                      onEditActive: (t) => _openEditTx(context, ref, t),
-                      onCancelActive: (id) => _confirmCancel(context, ref, id),
-                    );
-                  },
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Error: $e')),
-                ),
-              ),
-            ],
+                      archived: archived,
+                    ),
+                  ),
+              ],
+            ),
           ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: archived ? null : AppTheme.ledgerPayment,
             foregroundColor: archived ? null : Colors.black87,
@@ -584,7 +683,9 @@ class ClientDetailScreen extends ConsumerWidget {
     final message = launched
         ? 'Opening phone app. Number copied: $phoneNumber'
         : 'Could not open phone app. Number copied: $phoneNumber';
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _exportClientSummaryPdf(
@@ -595,9 +696,14 @@ class ClientDetailScreen extends ConsumerWidget {
   }) async {
     final pdf = pw.Document();
     final now = DateTime.now();
-    final balanceText = MoneyFormat.formatMinor(client.balanceMinor, currencyCode);
+    final balanceText = MoneyFormat.formatMinor(
+      client.balanceMinor,
+      currencyCode,
+    );
     final createdText = MoneyFormat.formatDate(client.createdAt);
-    final lastText = MoneyFormat.formatDate(client.lastInteractionAt ?? client.createdAt);
+    final lastText = MoneyFormat.formatDate(
+      client.lastInteractionAt ?? client.createdAt,
+    );
     final statusText = client.archivedAt == null ? 'Active' : 'Archived';
     pdf.addPage(
       pw.Page(
@@ -616,7 +722,9 @@ class ClientDetailScreen extends ConsumerWidget {
             pw.Text('Phone: ${client.phone ?? '-'}'),
             pw.SizedBox(height: 8),
             pw.Text('Current balance: $balanceText'),
-            pw.Text('Balance meaning: ${balanceSemanticsLine(client.balanceMinor)}'),
+            pw.Text(
+              'Balance meaning: ${balanceSemanticsLine(client.balanceMinor)}',
+            ),
             pw.SizedBox(height: 8),
             pw.Text('Created date: $createdText'),
             pw.Text('Last activity date: $lastText'),
@@ -644,6 +752,66 @@ class ClientDetailScreen extends ConsumerWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Client summary PDF exported')),
+    );
+  }
+}
+
+class _PinnedCompactSummaryBar extends StatelessWidget {
+  const _PinnedCompactSummaryBar({
+    required this.client,
+    required this.currencyCode,
+    required this.archived,
+  });
+
+  final Client client;
+  final String currencyCode;
+  final bool archived;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = balanceColor(client.balanceMinor);
+    return Material(
+      elevation: 3,
+      color: AppTheme.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                balanceSemanticsLine(client.balanceMinor),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: balanceColor(client.balanceMinor),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                MoneyFormat.formatMinor(client.balanceMinor, currencyCode),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
