@@ -182,10 +182,46 @@ class SyncService {
   }
 
   Uri _uri(String path, {Map<String, String>? query}) {
-    final base = _config.serverUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final base = _normalizedBaseUrl();
     final uri = Uri.parse('$base$path');
     if (query == null || query.isEmpty) return uri;
     return uri.replace(queryParameters: query);
+  }
+
+  String _normalizedBaseUrl() {
+    final raw = _config.serverUrl.trim();
+    if (raw.isEmpty) {
+      throw const FormatException(
+        'Server URL is required. Example: http://127.0.0.1:8787',
+      );
+    }
+
+    final withScheme = raw.contains('://') ? raw : _guessScheme(raw);
+    final parsed = Uri.tryParse(withScheme);
+    if (parsed == null || parsed.host.isEmpty) {
+      throw FormatException(
+        'Invalid server URL "$raw". Use http://host:port or https://host.',
+      );
+    }
+    if (parsed.scheme != 'http' && parsed.scheme != 'https') {
+      throw FormatException(
+        'Unsupported URL scheme "${parsed.scheme}". Use http or https.',
+      );
+    }
+
+    final cleanedPath = parsed.path.replaceAll(RegExp(r'/+$'), '');
+    return parsed.replace(path: cleanedPath).toString();
+  }
+
+  String _guessScheme(String input) {
+    final lower = input.toLowerCase();
+    final localHostLike = lower.startsWith('localhost') ||
+        lower.startsWith('127.') ||
+        lower.startsWith('10.') ||
+        lower.startsWith('192.168.') ||
+        lower.startsWith('172.');
+    final scheme = localHostLike ? 'http' : 'https';
+    return '$scheme://$input';
   }
 
   Map<String, String> _headers() {

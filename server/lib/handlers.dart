@@ -2,11 +2,32 @@ import 'dart:convert';
 
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf.dart' as shelf;
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 import 'auth.dart';
 import 'store.dart';
+
+const _corsHeaders = <String, String>{
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'access-control-allow-headers':
+      'authorization, content-type, accept, x-device-name, x-requested-with',
+  'access-control-expose-headers':
+      'x-snapshot-id, x-snapshot-sha256, content-disposition',
+  'access-control-max-age': '86400',
+};
+
+Middleware _corsMiddleware() {
+  return (innerHandler) {
+    return (request) async {
+      if (request.method == 'OPTIONS') {
+        return Response(204, headers: _corsHeaders);
+      }
+      final response = await innerHandler(request);
+      return response.change(headers: _corsHeaders);
+    };
+  };
+}
 
 Handler buildServerHandler({
   required ServerStore store,
@@ -93,7 +114,7 @@ Handler buildServerHandler({
 
   return const Pipeline()
       .addMiddleware(logRequests())
-      .addMiddleware(corsHeaders())
+      .addMiddleware(_corsMiddleware())
       .addMiddleware(
         basicAuthMiddleware(
           username: authUsername,
