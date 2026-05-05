@@ -36,7 +36,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   Widget build(BuildContext context) {
     final txAsync = ref.watch(allTransactionsProvider(_selectedClientId));
     final clientsAsync = ref.watch(activeClientsProvider);
-    final quickAsync = ref.watch(quickAddSuggestionsProvider);
     final code = ref.watch(defaultCurrencyProvider).valueOrNull ?? 'DZD';
 
     return Scaffold(
@@ -76,35 +75,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               loading: () => const LinearProgressIndicator(),
               error: (e, _) => Text('Error: $e'),
             ),
-          ),
-          quickAsync.when(
-            data: (items) {
-              if (items.isEmpty) return const SizedBox.shrink();
-              return SizedBox(
-                height: 42,
-                child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (_, i) {
-                    final it = items[i];
-                    final label =
-                        '${it.type == LedgerTxType.debt ? 'Add debt' : 'Add payment'} ${it.amountMinor}';
-                    return ActionChip(
-                      label: Text(label),
-                      onPressed: () => _openEditor(
-                        context,
-                        defaultAmount: it.amountMinor,
-                        defaultType: it.type,
-                      ),
-                    );
-                  },
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemCount: items.length,
-                ),
-              );
-            },
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
           ),
           Expanded(
             child: txAsync.when(

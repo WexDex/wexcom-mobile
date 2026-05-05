@@ -531,20 +531,37 @@ class _LedgerTransactionTile extends ConsumerWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: (!active ? AppTheme.ledgerCancel : typeColor)
-                                .withValues(alpha: 0.18),
+                            color: typeColor.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            !active ? 'Cancelled' : typeLabel,
+                            typeLabel,
                             style: text.labelMedium?.copyWith(
-                              color: !active
-                                  ? AppTheme.ledgerCancel
-                                  : typeColor,
+                              color: typeColor,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
+                        if (!active) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.ledgerCancel.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'Cancelled',
+                              style: text.labelMedium?.copyWith(
+                                color: AppTheme.ledgerCancel,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         Text(
                           amountLabel,

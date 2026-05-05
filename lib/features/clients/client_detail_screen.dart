@@ -434,6 +434,100 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                           ],
                         ),
                       ),
+                      if (!archived)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                          child: ref
+                              .watch(quickAddSuggestionsProvider)
+                              .when(
+                                data: (items) {
+                                  if (items.isEmpty) return const SizedBox.shrink();
+                                  return SizedBox(
+                                    height: _compactHeader ? 36 : 42,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: items.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: 8),
+                                      itemBuilder: (_, i) {
+                                        final it = items[i];
+                                        final label =
+                                            '${it.type == LedgerTxType.debt ? 'Add debt' : 'Add payment'} ${it.amountMinor}';
+                                        return ActionChip(
+                                          visualDensity: _compactHeader
+                                              ? VisualDensity.compact
+                                              : VisualDensity.standard,
+                                          label: Text(label),
+                                          onPressed: () async {
+                                            final txTags = await ref.read(
+                                              transactionScopeTagsProvider.future,
+                                            );
+                                            if (!context.mounted) return;
+                                            await showModalBottomSheet<void>(
+                                              context: context,
+                                              isScrollControlled: true,
+                                              backgroundColor: AppTheme.surface,
+                                              shape: const RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.vertical(
+                                                  top: Radius.circular(
+                                                    AppTheme.radius,
+                                                  ),
+                                                ),
+                                              ),
+                                              builder: (ctx) => Padding(
+                                                padding: EdgeInsets.only(
+                                                  bottom:
+                                                      MediaQuery.viewInsetsOf(ctx)
+                                                          .bottom,
+                                                ),
+                                                child: TransactionEditorSheet(
+                                                  title: 'New transaction',
+                                                  currencyCode: code,
+                                                  initialAmountMinor: it.amountMinor,
+                                                  initialType: it.type,
+                                                  currentBalanceMinor:
+                                                      client.balanceMinor,
+                                                  availableTags: txTags,
+                                                  onSubmit:
+                                                      (
+                                                        amountMinor,
+                                                        type,
+                                                        note,
+                                                        tagIds,
+                                                        effectiveAt,
+                                                      ) async {
+                                                        await ref
+                                                            .read(
+                                                              ledgerRepositoryProvider,
+                                                            )
+                                                            .insertTransaction(
+                                                              clientId: client.id,
+                                                              amountMinor:
+                                                                  amountMinor,
+                                                              type: type,
+                                                              currencyCode: code,
+                                                              note: note,
+                                                              tagIds: tagIds,
+                                                              effectiveAt:
+                                                                  effectiveAt,
+                                                            );
+                                                        if (context.mounted) {
+                                                          Navigator.pop(ctx);
+                                                        }
+                                                      },
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                                loading: () => const SizedBox.shrink(),
+                                error: (_, __) => const SizedBox.shrink(),
+                              ),
+                        ),
                       txsAsync.when(
                         data: (txs) {
                           return ClientTransactionsList(
