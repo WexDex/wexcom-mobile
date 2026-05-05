@@ -195,6 +195,27 @@ class ClientDetailScreen extends ConsumerWidget {
                               ],
                             ),
                       ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.icon(
+                          onPressed: archived || client.balanceMinor <= 0
+                              ? null
+                              : () => _confirmSettleAllDebt(
+                                  context,
+                                  ref,
+                                  clientId: client.id,
+                                  currencyCode: code,
+                                  beforeBalanceMinor: client.balanceMinor,
+                                ),
+                          icon: const Icon(Icons.done_all_rounded),
+                          label: const Text('Settle all debt'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppTheme.ledgerPayment,
+                            foregroundColor: Colors.black87,
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
@@ -468,6 +489,58 @@ class ClientDetailScreen extends ConsumerWidget {
     );
     if (ok == true && context.mounted) {
       await ref.read(ledgerRepositoryProvider).cancelTransaction(txId);
+    }
+  }
+
+  Future<void> _confirmSettleAllDebt(
+    BuildContext context,
+    WidgetRef ref, {
+    required String clientId,
+    required String currencyCode,
+    required int beforeBalanceMinor,
+  }) async {
+    final afterBalanceMinor = 0;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Settle all debt?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This will create one payment transaction.'),
+            const SizedBox(height: 10),
+            Text(
+              'Before: ${MoneyFormat.formatMinor(beforeBalanceMinor, currencyCode)} (${balanceSemanticsLine(beforeBalanceMinor)})',
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'After: ${MoneyFormat.formatMinor(afterBalanceMinor, currencyCode)} (${balanceSemanticsLine(afterBalanceMinor)})',
+              style: TextStyle(
+                color: AppTheme.ledgerPayment.withValues(alpha: 0.95),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.ledgerPayment,
+              foregroundColor: Colors.black87,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Settle all'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await ref.read(ledgerRepositoryProvider).settleFullDebt(clientId);
     }
   }
 }
