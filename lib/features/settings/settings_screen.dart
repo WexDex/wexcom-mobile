@@ -31,6 +31,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _syncIntervalHours = 24;
   bool _settingsLoaded = false;
   bool _backupBusy = false;
+  String? _syncInlineStatus;
+  bool _syncInlineStatusIsError = false;
 
   @override
   void initState() {
@@ -252,6 +254,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             error: (_, _) => 'unreachable',
             loading: () => 'checking...',
           );
+    final statusColor = _syncInlineStatus == null
+        ? AppTheme.mutedFg
+        : (_syncInlineStatusIsError ? Theme.of(context).colorScheme.error : Colors.green);
+    final statusBgColor = _syncInlineStatus == null
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : (_syncInlineStatusIsError
+            ? Theme.of(context).colorScheme.errorContainer
+            : Colors.green.withValues(alpha: 0.12));
+    final statusIcon = _syncInlineStatus == null
+        ? Icons.info_outline
+        : (_syncInlineStatusIsError ? Icons.error_outline : Icons.check_circle_outline);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -261,116 +274,145 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           'Optional online sync while keeping the app offline-first.',
           style: TextStyle(color: AppTheme.mutedFg, fontSize: 13),
         ),
-        const SizedBox(height: 10),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Enable sync server'),
-          subtitle: const Text('Allow upload/download through your optional PC server.'),
-          value: _syncEnabled,
-          onChanged: (value) => setState(() => _syncEnabled = value),
-        ),
-        TextField(
-          controller: _syncUrlController,
-          decoration: const InputDecoration(
-            labelText: 'Server URL',
-            hintText: 'https://your-sync-host.example.com',
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _syncUsernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: TextField(
-                controller: _syncPasswordController,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: _syncEnabled && !_backupBusy ? _testSyncConnection : null,
-              icon: const Icon(Icons.health_and_safety_outlined),
-              label: const Text('Test connection'),
-            ),
-            FilledButton.tonalIcon(
-              onPressed: _syncEnabled && !_backupBusy ? _uploadNow : null,
-              icon: const Icon(Icons.cloud_upload_outlined),
-              label: const Text('Upload now'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _syncEnabled && !_backupBusy ? _downloadAllFromServer : null,
-              icon: const Icon(Icons.cloud_download_outlined),
-              label: const Text('Download full data'),
-            ),
-            OutlinedButton.icon(
-              onPressed:
-                  _syncEnabled && !_backupBusy ? _downloadSingleClientFromServer : null,
-              icon: const Icon(Icons.download_for_offline_outlined),
-              label: const Text('Download single client'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SwitchListTile.adaptive(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Periodic upload (while app is open)'),
-          subtitle: const Text('Uploads only when local export hash changed.'),
-          value: _syncPeriodicEnabled,
-          onChanged: _syncEnabled
-              ? (value) => setState(() => _syncPeriodicEnabled = value)
-              : null,
-        ),
-        Row(
-          children: [
-            const Text('Interval'),
-            const SizedBox(width: 8),
-            DropdownButton<int>(
-              value: _syncIntervalHours,
-              items: const [1, 6, 12, 24, 48]
-                  .map(
-                    (h) => DropdownMenuItem<int>(
-                      value: h,
-                      child: Text('$h h'),
+        const SizedBox(height: 12),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Enable sync server'),
+                  subtitle: const Text('Allow upload/download through your optional PC server.'),
+                  value: _syncEnabled,
+                  onChanged: (value) => setState(() => _syncEnabled = value),
+                ),
+                TextField(
+                  controller: _syncUrlController,
+                  decoration: const InputDecoration(
+                    labelText: 'Server URL',
+                    hintText: 'https://your-sync-host.example.com',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _syncUsernameController,
+                        decoration: const InputDecoration(labelText: 'Username'),
+                      ),
                     ),
-                  )
-                  .toList(),
-              onChanged: !_syncEnabled
-                  ? null
-                  : (value) {
-                      if (value == null) return;
-                      setState(() => _syncIntervalHours = value);
-                    },
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _syncPasswordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(labelText: 'Password'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _syncEnabled && !_backupBusy ? _testSyncConnection : null,
+                      icon: const Icon(Icons.health_and_safety_outlined),
+                      label: const Text('Test connection'),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: _syncEnabled && !_backupBusy ? _uploadNow : null,
+                      icon: const Icon(Icons.cloud_upload_outlined),
+                      label: const Text('Upload now'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _syncEnabled && !_backupBusy ? _downloadAllFromServer : null,
+                      icon: const Icon(Icons.cloud_download_outlined),
+                      label: const Text('Download full data'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed:
+                          _syncEnabled && !_backupBusy ? _downloadSingleClientFromServer : null,
+                      icon: const Icon(Icons.download_for_offline_outlined),
+                      label: const Text('Download single client'),
+                    ),
+                    TextButton.icon(
+                      onPressed: !_backupBusy ? _resetSyncServerSettings : null,
+                      icon: const Icon(Icons.restart_alt_outlined),
+                      label: const Text('Reset'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Periodic upload (while app is open)'),
+                  subtitle: const Text('Uploads only when local export hash changed.'),
+                  value: _syncPeriodicEnabled,
+                  onChanged: _syncEnabled
+                      ? (value) => setState(() => _syncPeriodicEnabled = value)
+                      : null,
+                ),
+                Row(
+                  children: [
+                    const Text('Interval'),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: _syncIntervalHours,
+                      items: const [1, 6, 12, 24, 48]
+                          .map(
+                            (h) => DropdownMenuItem<int>(
+                              value: h,
+                              child: Text('$h h'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: !_syncEnabled
+                          ? null
+                          : (value) {
+                              if (value == null) return;
+                              setState(() => _syncIntervalHours = value);
+                            },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: statusBgColor,
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Icon(statusIcon, size: 18, color: statusColor),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _syncInlineStatus ??
+                              'Server: $statusText • Current: ${liveStatus == null ? '-' : (liveStatus.current ? 'yes' : 'no')}\n'
+                                  'Last upload: ${_formatMaybeTime(lastUploadAt)}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Text(
-            'Last upload: ${_formatMaybeTime(lastUploadAt)}\n'
-            'Server: $statusText\n'
-            'Current: ${liveStatus == null ? '-' : (liveStatus.current ? 'yes' : 'no')}',
-            style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
       ],
@@ -384,19 +426,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       password: _syncPasswordController.text.trim(),
     );
     if (config.isValid) return SyncService(config);
-    if (!mounted) return null;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Set sync server URL, username, and password first.'),
-      ),
-    );
+    if (mounted) {
+      setState(() {
+        _syncInlineStatus = 'Set sync server URL, username, and password first.';
+        _syncInlineStatusIsError = true;
+      });
+    }
     return null;
+  }
+
+  Future<void> _resetSyncServerSettings() async {
+    final username = _syncUsernameController.text.trim();
+    setState(() {
+      _syncUrlController.clear();
+      _syncPasswordController.clear();
+      _syncEnabled = false;
+      _syncPeriodicEnabled = false;
+      _syncInlineStatus = 'Sync reset. Username kept, password removed.';
+      _syncInlineStatusIsError = false;
+    });
+    await ref.read(ledgerRepositoryProvider).saveSyncSettings(
+          enabled: false,
+          serverUrl: '',
+          username: username,
+          password: '',
+          intervalHours: _syncIntervalHours,
+          periodicEnabled: false,
+        );
+    ref.invalidate(syncSettingsProvider);
+    ref.invalidate(syncServiceProvider);
+    ref.invalidate(serverStatusProvider);
   }
 
   Future<void> _testSyncConnection() async {
     final service = _configuredSyncService();
     if (service == null) return;
-    setState(() => _backupBusy = true);
+    setState(() {
+      _backupBusy = true;
+      _syncInlineStatus = 'Checking server connection...';
+      _syncInlineStatusIsError = false;
+    });
     try {
       final localSha = await ref.read(ledgerRepositoryProvider).currentExportSha256();
       final status = await service.getStatus(localSha256: localSha);
@@ -404,19 +473,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ref.invalidate(syncSettingsProvider);
       ref.invalidate(serverStatusProvider);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
+      setState(() {
+        _syncInlineStatus =
             'Server ${status.ok ? 'ok' : 'unhealthy'}'
-            '${status.lastUploadAt != null ? ' • last upload ${_formatMaybeTime(status.lastUploadAt)}' : ''}',
-          ),
-        ),
-      );
+            '${status.lastUploadAt != null ? ' • last upload ${_formatMaybeTime(status.lastUploadAt)}' : ''}';
+        _syncInlineStatusIsError = !status.ok;
+      });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Connection failed: $e')),
-      );
+      setState(() {
+        _syncInlineStatus = 'Connection failed: $e';
+        _syncInlineStatusIsError = true;
+      });
     } finally {
       if (mounted) setState(() => _backupBusy = false);
     }
