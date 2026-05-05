@@ -20,6 +20,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _controller = TextEditingController();
   final _overdueController = TextEditingController();
+  final _importPayloadController = TextEditingController();
   bool _contactsAutofillEnabled = true;
   bool _settingsLoaded = false;
   bool _backupBusy = false;
@@ -46,6 +47,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void dispose() {
     _controller.dispose();
     _overdueController.dispose();
+    _importPayloadController.dispose();
     super.dispose();
   }
 
@@ -291,7 +293,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openImportDialog() async {
-    final payloadController = TextEditingController();
     ImportPreview? preview;
     final resolutionByKey = <String, ImportConflictResolution>{};
     var analyzing = false;
@@ -333,7 +334,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   if (file == null) return;
                                   final raw = await file.readAsString();
                                   setLocalState(() {
-                                    payloadController.text = raw;
+                                    _importPayloadController.text = raw;
                                     sourceLabel = 'file';
                                     preview = null;
                                     resolutionByKey.clear();
@@ -362,7 +363,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 final raw = clip?.text?.trim() ?? '';
                                 if (raw.isEmpty) return;
                                 setLocalState(() {
-                                  payloadController.text = raw;
+                                  _importPayloadController.text = raw;
                                   sourceLabel = 'clipboard';
                                   preview = null;
                                   resolutionByKey.clear();
@@ -375,7 +376,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                   const SizedBox(height: 10),
                   TextField(
-                    controller: payloadController,
+                    controller: _importPayloadController,
                     minLines: 8,
                     maxLines: 14,
                     decoration: const InputDecoration(
@@ -397,6 +398,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   if (preview != null && preview!.conflicts.isNotEmpty)
                     ...preview!.conflicts.map(
                       (conflict) => Padding(
+                        key: ValueKey('conflict-${conflict.importClientKey}'),
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,6 +450,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             const SizedBox(height: 8),
                             DropdownButton<ImportConflictResolution>(
+                              key: ValueKey(
+                                'resolution-${conflict.importClientKey}',
+                              ),
                               value:
                                   resolutionByKey[conflict.importClientKey] ??
                                       ImportConflictResolution.mix,
@@ -492,7 +497,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: analyzing || importing
                   ? null
                   : () async {
-                      final raw = payloadController.text.trim();
+                      final raw = _importPayloadController.text.trim();
                       if (raw.isEmpty) return;
                       setLocalState(() => analyzing = true);
                       try {
@@ -527,7 +532,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onPressed: importing
                   ? null
                   : () async {
-                      final raw = payloadController.text.trim();
+                      final raw = _importPayloadController.text.trim();
                       if (raw.isEmpty) return;
                       setLocalState(() => importing = true);
                       try {
@@ -572,6 +577,5 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       ),
     );
-    payloadController.dispose();
   }
 }
