@@ -19,16 +19,28 @@ abstract final class AppTheme {
   /// Cancelled / voided transaction highlight.
   static const Color ledgerCancel = Color(0xFFEAB308);
   static const Color ledgerCancelSurface = Color(0xFF422006);
+  /// Navbar / key interactive accent (cyan).
+  static const Color brandPrimary = Color(0xFF22D3EE);
+  /// Secondary accent (violet) — tags, alternates.
+  static const Color brandSecondary = Color(0xFFC4B5FD);
+  /// Personal spending (rose), distinct from ledger debt.
+  static const Color personalExpense = Color(0xFFFB7185);
+  /// Personal income / gains (emerald).
+  static const Color personalGain = Color(0xFF34D399);
   static const double radius = 10;
   static const double radiusLg = 14;
 
   static ThemeData dark() {
     final scheme = ColorScheme.dark(
       surface: surface,
-      primary: appFg,
+      primary: brandPrimary,
       onPrimary: appBg,
-      secondary: const Color(0xFF334155),
-      onSecondary: appFg,
+      primaryContainer: Color.lerp(surface, brandPrimary, 0.35)!,
+      onPrimaryContainer: appFg,
+      secondary: brandSecondary,
+      onSecondary: appBg,
+      secondaryContainer: Color.lerp(surface, brandSecondary, 0.28)!,
+      onSecondaryContainer: appFg,
       error: destructive,
       onError: Colors.white,
       onSurface: appFg,
@@ -77,8 +89,8 @@ abstract final class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        backgroundColor: brandPrimary,
+        foregroundColor: appBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
       ),
       listTileTheme: ListTileThemeData(
@@ -97,6 +109,21 @@ abstract final class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius)),
         side: BorderSide(color: scheme.outline.withValues(alpha: 0.5)),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: surface,
+        elevation: 12,
+        shadowColor: Colors.black54,
+        indicatorColor: brandPrimary.withValues(alpha: 0.22),
+        surfaceTintColor: brandPrimary.withValues(alpha: 0.12),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            color: selected ? brandPrimary : mutedFg,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontSize: 12,
+          );
+        }),
       ),
     );
   }

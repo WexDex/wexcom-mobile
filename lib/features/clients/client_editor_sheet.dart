@@ -50,7 +50,7 @@ class _ClientEditorSheetState extends ConsumerState<ClientEditorSheet> {
     text: widget.initialNote ?? '',
   );
   bool _busy = false;
-  late Set<String> _selectedTagIds = widget.initialTagIds.toSet();
+  late final Set<String> _selectedTagIds = widget.initialTagIds.toSet();
   bool _contactsAutofillVisible = false;
   bool _contactsPermissionGranted = false;
   bool _loadingSuggestions = false;

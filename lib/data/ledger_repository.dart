@@ -193,6 +193,67 @@ class LedgerRepository {
     );
   }
 
+  Stream<List<PersonalFinanceEntry>> watchPersonalFinanceEntries(
+    PersonalFinanceKind kind,
+  ) {
+    return (_db.select(_db.personalFinanceEntries)
+          ..where((e) => e.kind.equals(kind.index))
+          ..orderBy([
+            (e) => OrderingTerm.desc(e.createdAt),
+            (e) => OrderingTerm.desc(e.id),
+          ]))
+        .watch();
+  }
+
+  Future<void> addPersonalFinanceEntry({
+    required PersonalFinanceKind kind,
+    required String title,
+    required int amountMinor,
+    String? currencyCode,
+    String? note,
+    DateTime? createdAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final at = createdAt?.toUtc() ?? now;
+    await _db.into(_db.personalFinanceEntries).insert(
+          PersonalFinanceEntriesCompanion.insert(
+            id: _uuid.v4(),
+            kind: kind.index,
+            title: title.trim(),
+            amountMinor: amountMinor,
+            currencyCode: Value(currencyCode ?? 'DZD'),
+            note: Value(_normalizeNullable(note)),
+            createdAt: at,
+            updatedAt: now,
+          ),
+        );
+  }
+
+  Future<void> updatePersonalFinanceEntry({
+    required String id,
+    required String title,
+    required int amountMinor,
+    String? currencyCode,
+    String? note,
+    DateTime? createdAt,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).write(
+          PersonalFinanceEntriesCompanion(
+            title: Value(title.trim()),
+            amountMinor: Value(amountMinor),
+            currencyCode: currencyCode == null ? const Value.absent() : Value(currencyCode),
+            note: Value(_normalizeNullable(note)),
+            updatedAt: Value(now),
+            createdAt: createdAt == null ? const Value.absent() : Value(createdAt.toUtc()),
+          ),
+        );
+  }
+
+  Future<void> deletePersonalFinanceEntry(String id) async {
+    await (_db.delete(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).go();
+  }
+
   Future<String> exportAllClientsWithTransactionsJson() async {
     final payload = await _buildExportPayload();
     return const JsonEncoder.withIndent('  ').convert(payload);
@@ -240,6 +301,10 @@ class LedgerRepository {
     for (final tx in txs) {
       txsByClient.putIfAbsent(tx.clientId, () => []).add(tx);
     }
+
+    final personalFinanceJson = clientId == null
+        ? await _personalFinanceExportRows()
+        : <Map<String, dynamic>>[];
 
     return {
       'version': 1,
@@ -294,7 +359,32 @@ class LedgerRepository {
           'transactions': clientTxs,
         };
       }).toList(),
+      if (clientId == null) 'personalFinance': personalFinanceJson,
     };
+  }
+
+  Future<List<Map<String, dynamic>>> _personalFinanceExportRows() async {
+    final rows = await (_db.select(_db.personalFinanceEntries)
+          ..orderBy([
+            (e) => OrderingTerm.asc(e.kind),
+            (e) => OrderingTerm.asc(e.createdAt),
+            (e) => OrderingTerm.asc(e.id),
+          ]))
+        .get();
+    return rows
+        .map(
+          (e) => {
+            'id': e.id,
+            'kind': e.kind,
+            'title': e.title,
+            'amountMinor': e.amountMinor,
+            'currencyCode': e.currencyCode,
+            'note': e.note,
+            'createdAt': e.createdAt.toIso8601String(),
+            'updatedAt': e.updatedAt.toIso8601String(),
+          },
+        )
+        .toList();
   }
 
   Future<ImportPreview> previewImport(String rawJson) async {
@@ -1178,6 +1268,26 @@ class LedgerRepository {
 
         await _refreshPostingSnapshots(targetClientId);
       }
+
+      final importedPf = _tryParsePersonalFinanceFromJson(rawJson);
+      if (importedPf != null) {
+        for (final row in importedPf) {
+          final id = row.id.isEmpty ? _uuid.v4() : row.id;
+          await _db.into(_db.personalFinanceEntries).insert(
+                PersonalFinanceEntriesCompanion.insert(
+                  id: id,
+                  kind: row.kind,
+                  title: row.title,
+                  amountMinor: row.amountMinor,
+                  currencyCode: Value(row.currencyCode ?? 'DZD'),
+                  note: Value(row.note),
+                  createdAt: row.createdAt,
+                  updatedAt: row.updatedAt,
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+        }
+      }
     });
 
     return ImportApplyResult(
@@ -1293,6 +1403,80 @@ class LedgerRepository {
         .whereType<Map>()
         .map((c) => _ImportedClientPayload.fromMap(c.cast<String, dynamic>()))
         .toList();
+  }
+
+  /// When key is absent (legacy backups), returns null and local rows are left unchanged.
+  /// When present, entries are upserted by [id] inside [importFromJson].
+  List<_ImportedPersonalFinancePayload>? _tryParsePersonalFinanceFromJson(
+    String rawJson,
+  ) {
+    final dynamic root = jsonDecode(rawJson);
+    if (root is! Map) return null;
+    final node = root['personalFinance'];
+    if (node == null) return null;
+    if (node is! List) {
+      throw const FormatException(
+        'Invalid import format: "personalFinance" must be a list when provided',
+      );
+    }
+    return node
+        .whereType<Map>()
+        .map((e) => _ImportedPersonalFinancePayload.fromMap(e.cast<String, dynamic>()))
+        .toList();
+  }
+}
+
+class _ImportedPersonalFinancePayload {
+  const _ImportedPersonalFinancePayload({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.amountMinor,
+    required this.currencyCode,
+    required this.note,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final int kind;
+  final String title;
+  final int amountMinor;
+  final String? currencyCode;
+  final String? note;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  factory _ImportedPersonalFinancePayload.fromMap(Map<String, dynamic> map) {
+    final kind = (map['kind'] as num?)?.toInt();
+    final amountMinor = (map['amountMinor'] as num?)?.toInt();
+    final title = (map['title'] ?? '').toString().trim();
+    final createdRaw = map['createdAt']?.toString();
+    if (kind == null ||
+        kind < 0 ||
+        kind >= PersonalFinanceKind.values.length ||
+        amountMinor == null ||
+        amountMinor <= 0 ||
+        title.isEmpty ||
+        createdRaw == null) {
+      throw const FormatException('Personal finance entry has missing required fields');
+    }
+    final createdAt = DateTime.tryParse(createdRaw)?.toUtc();
+    if (createdAt == null) {
+      throw const FormatException('Personal finance entry createdAt is invalid');
+    }
+    final updatedAt =
+        DateTime.tryParse((map['updatedAt'] ?? '').toString())?.toUtc() ?? createdAt;
+    return _ImportedPersonalFinancePayload(
+      id: (map['id'] ?? '').toString().trim(),
+      kind: kind,
+      title: title,
+      amountMinor: amountMinor,
+      currencyCode: map['currencyCode']?.toString(),
+      note: map['note']?.toString(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 }
 

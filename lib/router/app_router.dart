@@ -10,6 +10,7 @@ import '../features/settings/settings_screen.dart';
 import '../features/settings/user_stats_screen.dart';
 import '../features/shell/app_shell_screen.dart';
 import '../features/transactions/transactions_screen.dart';
+import '../features/finance/personal_finance_screen.dart';
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
@@ -43,6 +44,15 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: '/transactions',
                 name: 'transactions',
                 builder: (context, state) => const TransactionsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/finance',
+                name: 'finance',
+                builder: (context, state) => const PersonalFinanceScreen(),
               ),
             ],
           ),

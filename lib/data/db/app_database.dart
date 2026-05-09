@@ -96,6 +96,22 @@ class QuickActionUsages extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@TableIndex(name: 'idx_personal_finance_kind_created', columns: {#kind, #createdAt})
+class PersonalFinanceEntries extends Table {
+  TextColumn get id => text()();
+  /// 0 = expense, 1 = gain
+  IntColumn get kind => integer()();
+  TextColumn get title => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('AppSetting')
 class AppSettings extends Table {
   IntColumn get id => integer().withDefault(const Constant(1))();
@@ -126,6 +142,7 @@ class AppSettings extends Table {
     LedgerTransactions,
     TransactionTags,
     QuickActionUsages,
+    PersonalFinanceEntries,
     AppSettings,
   ],
 )
@@ -133,7 +150,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -215,6 +232,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(appSettings, appSettings.lastUploadSha256);
             await m.addColumn(appSettings, appSettings.lastDownloadAt);
             await m.addColumn(appSettings, appSettings.lastServerOkAt);
+          }
+          if (from < 6) {
+            await m.createTable(personalFinanceEntries);
           }
         },
       );

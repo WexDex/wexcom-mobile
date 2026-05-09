@@ -1,3 +1,10 @@
+enum PersonalFinanceKind {
+  expense,
+  gain;
+
+  static PersonalFinanceKind fromInt(int v) => PersonalFinanceKind.values[v];
+}
+
 enum LedgerTxType {
   debt,
   payment;

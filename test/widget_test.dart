@@ -23,6 +23,7 @@ void main() {
           activeClientsProvider.overrideWith((ref) => Stream.value([])),
           allTransactionsProvider
               .overrideWith((ref, _) => Stream.value(<LedgerTransactionWithClient>[])),
+          personalFinanceEntriesProvider.overrideWith((ref, _) => Stream.value([])),
         ],
         child: const WexcomDebtApp(enablePeriodicSync: false),
       ),

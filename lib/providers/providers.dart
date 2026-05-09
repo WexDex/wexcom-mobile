@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/db/app_database.dart';
 import '../data/ledger_repository.dart';
+import '../data/ledger_types.dart';
 import '../services/contacts_service.dart';
 import '../services/sync_service.dart';
 
@@ -129,4 +130,9 @@ final clientOverdueProvider =
   final repo = ref.watch(ledgerRepositoryProvider);
   final days = await repo.overdueAlertDays();
   return repo.hasOverdueDebt(clientId, days);
+});
+
+final personalFinanceEntriesProvider = StreamProvider.autoDispose
+    .family<List<PersonalFinanceEntry>, PersonalFinanceKind>((ref, kind) {
+  return ref.watch(ledgerRepositoryProvider).watchPersonalFinanceEntries(kind);
 });
