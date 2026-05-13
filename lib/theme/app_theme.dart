@@ -30,6 +30,28 @@ abstract final class AppTheme {
   static const double radius = 10;
   static const double radiusLg = 14;
 
+  // --- Glow HUD design tokens ---
+  static const double glowSigmaOuter = 12.0;
+  static const double glowSigmaInner = 5.0;
+  static const double glowStrokeOuter = 8.0;
+  static const double glowStrokeCore = 2.6;
+
+  static Color get hudGrid => const Color(0xFF334155);
+  static Color get hudGridFaint => const Color(0xFF1E293B);
+
+  static List<BoxShadow> cardGlow(Color accent, {double intensity = 0.18}) => [
+    BoxShadow(
+      color: accent.withValues(alpha: intensity),
+      blurRadius: 16,
+      spreadRadius: 2,
+    ),
+    BoxShadow(
+      color: accent.withValues(alpha: intensity * 0.5),
+      blurRadius: 32,
+      spreadRadius: -2,
+    ),
+  ];
+
   static ThemeData dark() {
     final scheme = ColorScheme.dark(
       surface: surface,
@@ -125,6 +147,31 @@ abstract final class AppTheme {
           );
         }),
       ),
+    );
+  }
+
+  /// Neon Cyberpunk — same palette, amplified glow tokens.
+  static ThemeData neonCyberpunk() {
+    final base = dark();
+    return base.copyWith(
+      cardTheme: base.cardTheme.copyWith(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radius),
+        ),
+      ),
+    );
+  }
+
+  /// Minimal Frost — semi-transparent surfaces, glow near zero.
+  static ThemeData minimalFrost() {
+    final base = dark();
+    const frostSurface = Color(0xCC152035);
+    final scheme = base.colorScheme.copyWith(surface: frostSurface);
+    return base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: const Color(0xFF060E1A),
+      cardTheme: base.cardTheme.copyWith(color: frostSurface),
     );
   }
 }

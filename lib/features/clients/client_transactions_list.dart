@@ -6,6 +6,7 @@ import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
+import '../../widgets/hud_empty_state.dart';
 
 enum _TxKindFilter { all, debt, payment, cancelled }
 
@@ -379,13 +380,10 @@ class _ClientTransactionsListState extends ConsumerState<ClientTransactionsList>
         if (filtered.isEmpty)
           SizedBox(
             height: widget.embeddedInParentScroll ? null : 220,
-            child: Center(
-              child: Text(
-                widget.transactions.isEmpty
-                    ? 'No transactions yet.'
-                    : 'Nothing matches these filters.',
-                style: TextStyle(color: AppTheme.mutedFg),
-              ),
+            child: HudEmptyState(
+              icon: Icons.receipt_long_outlined,
+              message: widget.transactions.isEmpty ? 'No transactions yet' : 'No results',
+              subtitle: widget.transactions.isEmpty ? null : 'Try adjusting the filters.',
             ),
           )
         else
@@ -662,6 +660,10 @@ class _LedgerTransactionTile extends ConsumerWidget {
                             .toList(),
                       ),
                     ],
+                    if (tx.dueAt != null && type == LedgerTxType.debt && active) ...[
+                      const SizedBox(height: 6),
+                      _DueDateChip(dueAt: tx.dueAt!),
+                    ],
                     if (tx.note != null && tx.note!.isNotEmpty) ...[
                       const SizedBox(height: 6),
                       Text(tx.note!, style: text.bodyMedium),
@@ -690,6 +692,49 @@ class _LedgerTransactionTile extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DueDateChip extends StatelessWidget {
+  const _DueDateChip({required this.dueAt});
+  final DateTime dueAt;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final overdue = dueAt.isBefore(now);
+    final days = now.difference(dueAt).inDays.abs();
+    final label = overdue
+        ? 'Overdue ${days}d'
+        : 'Due ${MoneyFormat.formatDate(dueAt)}';
+    final color = overdue ? Colors.amber : AppTheme.mutedFg;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: overdue ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            overdue ? Icons.warning_amber_rounded : Icons.schedule_outlined,
+            size: 12,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: overdue ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }

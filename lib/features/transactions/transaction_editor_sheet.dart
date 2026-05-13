@@ -6,6 +6,9 @@ import '../../data/ledger_types.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
 
+typedef OnSaveTemplate =
+    Future<void> Function(String label, int amountMinor, LedgerTxType type, String? note);
+
 typedef TransactionSubmit =
     Future<void> Function(
       int amountMinor,
@@ -13,6 +16,7 @@ typedef TransactionSubmit =
       String? note,
       List<String> tagIds,
       DateTime effectiveAt,
+      DateTime? dueAt,
     );
 
 class TransactionEditorSheet extends StatefulWidget {
@@ -28,6 +32,10 @@ class TransactionEditorSheet extends StatefulWidget {
     this.initialTagIds = const [],
     this.currentBalanceMinor,
     this.initialEffectiveAt,
+    this.initialDueAt,
+    this.templates = const [],
+    this.onSaveTemplate,
+    this.onDeleteTemplate,
   });
 
   final String title;
@@ -40,6 +48,10 @@ class TransactionEditorSheet extends StatefulWidget {
   final List<String> initialTagIds;
   final int? currentBalanceMinor;
   final DateTime? initialEffectiveAt;
+  final DateTime? initialDueAt;
+  final List<TransactionTemplate> templates;
+  final OnSaveTemplate? onSaveTemplate;
+  final Future<void> Function(String id)? onDeleteTemplate;
 
   @override
   State<TransactionEditorSheet> createState() => _TransactionEditorSheetState();
@@ -53,9 +65,10 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
     text: widget.initialNote ?? '',
   );
   bool _busy = false;
-  late Set<String> _selectedTagIds = widget.initialTagIds.toSet();
+  late final Set<String> _selectedTagIds = widget.initialTagIds.toSet();
   late DateTime _effectiveAt =
       (widget.initialEffectiveAt ?? DateTime.now()).toLocal();
+  DateTime? _dueAt;
 
   DateTime _selectedDateWithCurrentTime(DateTime dateOnlyLocal) {
     final now = DateTime.now();
@@ -80,6 +93,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
   void initState() {
     super.initState();
     if (widget.initialType != null) _type = widget.initialType!;
+    if (widget.initialDueAt != null) _dueAt = widget.initialDueAt!.toLocal();
     if (widget.initialAmountMinor != null) {
       _amount = TextEditingController(
         text: widget.initialAmountMinor!.toString(),
@@ -173,6 +187,57 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 ],
               ),
               const SizedBox(height: 12),
+              if (widget.templates.isNotEmpty) ...[
+                SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: widget.templates.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final t = widget.templates[i];
+                      final tType = LedgerTxType.fromInt(t.txType);
+                      final label =
+                          '${tType == LedgerTxType.debt ? '↑' : '↓'} ${t.label} · ${MoneyFormat.formatMinor(t.amountMinor, widget.currencyCode)}';
+                      return GestureDetector(
+                        onLongPress: widget.onDeleteTemplate == null
+                            ? null
+                            : () async {
+                                final ok = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete template?'),
+                                    content: Text('"${t.label}"'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (ok == true && mounted) {
+                                  await widget.onDeleteTemplate!(t.id);
+                                }
+                              },
+                        child: ActionChip(
+                          label: Text(label, style: const TextStyle(fontSize: 12)),
+                          onPressed: () => setState(() {
+                            _amount.text = t.amountMinor.toString();
+                            _type = tType;
+                            if (t.note != null) _note.text = t.note!;
+                          }),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               TextFormField(
                 controller: _amount,
                 keyboardType: TextInputType.number,
@@ -184,8 +249,9 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 ),
                 validator: (v) {
                   final minor = MoneyFormat.parseMinorUnits(v ?? '');
-                  if (minor == null || minor <= 0)
+                  if (minor == null || minor <= 0) {
                     return 'Enter a positive amount';
+                  }
                   return null;
                 },
               ),
@@ -211,6 +277,42 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                   }
                 },
               ),
+              if (_type == LedgerTxType.debt)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    Icons.schedule_outlined,
+                    color: _dueAt != null && _dueAt!.isBefore(DateTime.now())
+                        ? Colors.amber
+                        : null,
+                  ),
+                  title: Text(
+                    _dueAt == null ? 'Due date' : 'Due ${MoneyFormat.formatDate(_dueAt!)}',
+                    style: _dueAt != null && _dueAt!.isBefore(DateTime.now())
+                        ? const TextStyle(color: Colors.amber, fontWeight: FontWeight.w600)
+                        : null,
+                  ),
+                  subtitle: _dueAt == null ? const Text('Tap to set a repayment deadline') : null,
+                  trailing: _dueAt == null
+                      ? const Icon(Icons.add_circle_outline, size: 20)
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setState(() => _dueAt = null),
+                        ),
+                  onTap: () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _dueAt ?? now.add(const Duration(days: 7)),
+                      firstDate: now.subtract(const Duration(days: 365)),
+                      lastDate: DateTime(now.year + 5, 12, 31),
+                      helpText: 'Select due date',
+                    );
+                    if (picked != null && mounted) {
+                      setState(() => _dueAt = DateTime(picked.year, picked.month, picked.day, 23, 59));
+                    }
+                  },
+                ),
               if (before != null && after != null) ...[
                 const SizedBox(height: 8),
                 Container(
@@ -252,6 +354,61 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 maxLines: 2,
                 decoration: const InputDecoration(labelText: 'Note (optional)'),
               ),
+              if (widget.onSaveTemplate != null && parsedAmount > 0) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                    label: const Text('Save as template'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    ),
+                    onPressed: () async {
+                      final labelCtrl = TextEditingController();
+                      final label = await showDialog<String>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Save template'),
+                          content: TextField(
+                            controller: labelCtrl,
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Template name',
+                              hintText: 'e.g. Monthly rent',
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(ctx, labelCtrl.text.trim()),
+                              child: const Text('Save'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (label != null && label.isNotEmpty && mounted) {
+                        await widget.onSaveTemplate!(
+                          label,
+                          parsedAmount,
+                          _type,
+                          _note.text.trim().isEmpty ? null : _note.text.trim(),
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Template "$label" saved')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              ],
               if (widget.availableTags.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -303,6 +460,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                                 : _note.text.trim(),
                             _selectedTagIds.toList(growable: false),
                             _effectiveAt.toUtc(),
+                            _type == LedgerTxType.debt ? _dueAt?.toUtc() : null,
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);

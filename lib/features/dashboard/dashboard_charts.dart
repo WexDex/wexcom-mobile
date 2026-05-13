@@ -8,6 +8,10 @@ import '../../data/ledger_repository.dart';
 import '../../data/ledger_types.dart';
 import '../../theme/app_theme.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Date helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Inclusive calendar days from [start] through [end] (date-only), oldest first.
 List<DateTime> calendarDaysInRange(DateTime start, DateTime end) {
   final a = DateTime(start.year, start.month, start.day);
@@ -44,6 +48,10 @@ String shortDayLabel(DateTime day, int rangeLength) {
   }
   return '${day.month}/${day.day}';
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data models
+// ─────────────────────────────────────────────────────────────────────────────
 
 class LedgerDailyPoint {
   const LedgerDailyPoint({
@@ -404,15 +412,162 @@ List<CumulativePersonalPoint> toCumulativePersonal(List<PersonalCombinedDailyPoi
       .toList();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Glow HUD drawing helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Clips a polyline to the first [progress] fraction of its length.
+List<Offset> _clipProgressPts(List<Offset> pts, double progress) {
+  if (pts.length < 2 || progress >= 1.0) return pts;
+  if (progress <= 0.0) return [];
+  final total = pts.length - 1;
+  final show = progress * total;
+  final full = show.floor().clamp(0, total - 1);
+  final frac = show - full;
+  final clipped = List<Offset>.of(pts.sublist(0, full + 1));
+  if (frac > 0) {
+    clipped.add(Offset.lerp(pts[full], pts[full + 1], frac)!);
+  }
+  return clipped;
+}
+
+/// HUD scan-line grid — faint horizontal lines + optional vertical markers.
+void _drawHudGrid(Canvas canvas, Size size, {int hLines = 4, int vLines = 0}) {
+  final hPaint = Paint()
+    ..color = AppTheme.hudGridFaint
+    ..strokeWidth = 0.5;
+  for (var i = 1; i <= hLines; i++) {
+    final y = size.height * (i / (hLines + 1));
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), hPaint);
+  }
+  if (vLines > 0) {
+    final vPaint = Paint()
+      ..color = AppTheme.hudGrid.withValues(alpha: 0.2)
+      ..strokeWidth = 0.5;
+    for (var i = 1; i < vLines; i++) {
+      final x = size.width * (i / vLines);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), vPaint);
+    }
+  }
+}
+
+/// Gradient fill under a polyline. Draw BEFORE the glow line.
+void _drawGradientFill(Canvas canvas, Size size, List<Offset> pts, Color color) {
+  if (pts.length < 2) return;
+  final fillPath = Path()..moveTo(pts[0].dx, size.height);
+  for (final p in pts) {
+    fillPath.lineTo(p.dx, p.dy);
+  }
+  fillPath
+    ..lineTo(pts.last.dx, size.height)
+    ..close();
+  final gradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.0)],
+  );
+  canvas.drawPath(
+    fillPath,
+    Paint()
+      ..shader = gradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..style = PaintingStyle.fill,
+  );
+}
+
+/// Three-pass neon glow polyline: outer aura → inner glow → crisp core.
+void _drawGlowPolyline(
+  Canvas canvas,
+  List<Offset> pts,
+  Color color, {
+  double progress = 1.0,
+}) {
+  if (pts.length < 2) return;
+  final clipped = _clipProgressPts(pts, progress);
+  if (clipped.length < 2) return;
+
+  final path = Path()..moveTo(clipped[0].dx, clipped[0].dy);
+  for (var i = 1; i < clipped.length; i++) {
+    path.lineTo(clipped[i].dx, clipped[i].dy);
+  }
+
+  // Pass 1: outer aura
+  canvas.drawPath(
+    path,
+    Paint()
+      ..color = color.withValues(alpha: 0.18)
+      ..strokeWidth = AppTheme.glowStrokeOuter
+      ..style = PaintingStyle.stroke
+      ..maskFilter = MaskFilter.blur(BlurStyle.outer, AppTheme.glowSigmaOuter)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round,
+  );
+  // Pass 2: inner solid glow
+  canvas.drawPath(
+    path,
+    Paint()
+      ..color = color.withValues(alpha: 0.55)
+      ..strokeWidth = 4.0
+      ..style = PaintingStyle.stroke
+      ..maskFilter = MaskFilter.blur(BlurStyle.solid, AppTheme.glowSigmaInner)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round,
+  );
+  // Pass 3: crisp core line
+  canvas.drawPath(
+    path,
+    Paint()
+      ..color = color
+      ..strokeWidth = AppTheme.glowStrokeCore
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round,
+  );
+}
+
+/// Three-layer glowing dot at a chart data point.
+void _drawGlowDot(Canvas canvas, Offset center, Color color, {bool highlight = false}) {
+  final r = highlight ? 5.0 : 3.0;
+  canvas.drawCircle(
+    center,
+    r * 3,
+    Paint()
+      ..color = color.withValues(alpha: 0.15)
+      ..maskFilter = MaskFilter.blur(BlurStyle.outer, 8),
+  );
+  canvas.drawCircle(
+    center,
+    r * 1.8,
+    Paint()
+      ..color = color.withValues(alpha: 0.45)
+      ..maskFilter = MaskFilter.blur(BlurStyle.solid, 4),
+  );
+  canvas.drawCircle(center, r, Paint()..color = color);
+  if (highlight) {
+    canvas.drawCircle(center, r * 0.35, Paint()..color = Colors.white.withValues(alpha: 0.8));
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ChartCard
+// ─────────────────────────────────────────────────────────────────────────────
+
 class ChartCard extends StatelessWidget {
-  const ChartCard({super.key, required this.title, required this.child, this.subtitle});
+  const ChartCard({
+    super.key,
+    required this.title,
+    required this.child,
+    this.subtitle,
+    this.accentColor,
+  });
 
   final String title;
   final String? subtitle;
   final Widget child;
+  final Color? accentColor;
 
   @override
   Widget build(BuildContext context) {
+    final accent = accentColor ?? AppTheme.brandPrimary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -427,7 +582,8 @@ class ChartCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppTheme.surface,
             borderRadius: BorderRadius.circular(AppTheme.radius),
-            border: Border.all(color: AppTheme.mutedFg.withValues(alpha: 0.2)),
+            border: Border.all(color: accent.withValues(alpha: 0.25)),
+            boxShadow: AppTheme.cardGlow(accent, intensity: 0.12),
           ),
           child: child,
         ),
@@ -435,6 +591,10 @@ class ChartCard extends StatelessWidget {
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Interactive shell
+// ─────────────────────────────────────────────────────────────────────────────
 
 int? chartIndexAtDx(double localX, double width, int count) {
   if (count <= 0) return null;
@@ -545,8 +705,9 @@ class _InteractiveChartShellState extends State<InteractiveChartShell> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: AppTheme.brandPrimary.withValues(alpha: 0.35),
+                                color: AppTheme.brandPrimary.withValues(alpha: 0.45),
                               ),
+                              boxShadow: AppTheme.cardGlow(AppTheme.brandPrimary, intensity: 0.1),
                             ),
                             child: Text(
                               widget.detailBuilder(_index!),
@@ -578,6 +739,10 @@ class _InteractiveChartShellState extends State<InteractiveChartShell> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Chart widgets
+// ─────────────────────────────────────────────────────────────────────────────
+
 class DualAmountLineChart extends StatefulWidget {
   const DualAmountLineChart({
     super.key,
@@ -602,9 +767,34 @@ class DualAmountLineChart extends StatefulWidget {
   State<DualAmountLineChart> createState() => _DualAmountLineChartState();
 }
 
-class _DualAmountLineChartState extends State<DualAmountLineChart> {
+class _DualAmountLineChartState extends State<DualAmountLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showA = true;
   bool _showB = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(DualAmountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) {
+      _entry.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -637,21 +827,6 @@ class _DualAmountLineChartState extends State<DualAmountLineChart> {
       }),
     );
 
-    final staticChart = CustomPaint(
-      painter: _DualAmountPainter<LedgerDailyPoint>(
-        points: widget.points,
-        maxY: maxY,
-        valueA: (p) => p.debt,
-        valueB: (p) => p.payment,
-        colorA: widget.colorA,
-        colorB: widget.colorB,
-        showA: _showA,
-        showB: _showB,
-        highlightIndex: null,
-      ),
-      child: const SizedBox.expand(),
-    );
-
     if (widget.interactiveDetailLine != null && code.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -670,19 +845,23 @@ class _DualAmountLineChartState extends State<DualAmountLineChart> {
               widget.points,
               showLegendDots: false,
             ),
-            buildChart: (hover) => CustomPaint(
-              painter: _DualAmountPainter<LedgerDailyPoint>(
-                points: widget.points,
-                maxY: maxY,
-                valueA: (p) => p.debt,
-                valueB: (p) => p.payment,
-                colorA: widget.colorA,
-                colorB: widget.colorB,
-                showA: _showA,
-                showB: _showB,
-                highlightIndex: hover,
+            buildChart: (hover) => AnimatedBuilder(
+              animation: _progress,
+              builder: (_, __) => CustomPaint(
+                painter: _DualAmountPainter<LedgerDailyPoint>(
+                  points: widget.points,
+                  maxY: maxY,
+                  valueA: (p) => p.debt,
+                  valueB: (p) => p.payment,
+                  colorA: widget.colorA,
+                  colorB: widget.colorB,
+                  showA: _showA,
+                  showB: _showB,
+                  highlightIndex: hover,
+                  progress: _progress.value,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
         ],
@@ -694,7 +873,27 @@ class _DualAmountLineChartState extends State<DualAmountLineChart> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         filters,
-        SizedBox(height: 210, child: staticChart),
+        SizedBox(
+          height: 210,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualAmountPainter<LedgerDailyPoint>(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.debt,
+                valueB: (p) => p.payment,
+                colorA: widget.colorA,
+                colorB: widget.colorB,
+                showA: _showA,
+                showB: _showB,
+                highlightIndex: null,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
         const SizedBox(height: 6),
         _xLabels(context, widget.points.map((p) => p.label).toList()),
       ],
@@ -718,9 +917,32 @@ class CurrentBalanceLineChart extends StatefulWidget {
   State<CurrentBalanceLineChart> createState() => _CurrentBalanceLineChartState();
 }
 
-class _CurrentBalanceLineChartState extends State<CurrentBalanceLineChart> {
+class _CurrentBalanceLineChartState extends State<CurrentBalanceLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showTheyOwe = true;
   bool _showYouOwe = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(CurrentBalanceLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -766,19 +988,23 @@ class _CurrentBalanceLineChartState extends State<CurrentBalanceLineChart> {
             widget.points,
             showLegendDots: false,
           ),
-          buildChart: (hover) => CustomPaint(
-            painter: _DualAmountPainter<CurrentBalancePoint>(
-              points: widget.points,
-              maxY: maxY,
-              valueA: (p) => p.theyOweYouMinor,
-              valueB: (p) => p.youOweThemMinor,
-              colorA: AppTheme.balanceReceivable,
-              colorB: AppTheme.ledgerDebt,
-              showA: _showTheyOwe,
-              showB: _showYouOwe,
-              highlightIndex: hover,
+          buildChart: (hover) => AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualAmountPainter<CurrentBalancePoint>(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.theyOweYouMinor,
+                valueB: (p) => p.youOweThemMinor,
+                colorA: AppTheme.balanceReceivable,
+                colorB: AppTheme.ledgerDebt,
+                showA: _showTheyOwe,
+                showB: _showYouOwe,
+                highlightIndex: hover,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
       ],
@@ -810,9 +1036,32 @@ class CumulativeAmountLineChart extends StatefulWidget {
   State<CumulativeAmountLineChart> createState() => _CumulativeAmountLineChartState();
 }
 
-class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart> {
+class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showA = true;
   bool _showB = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(CumulativeAmountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -845,21 +1094,6 @@ class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart> {
       }),
     );
 
-    final staticChart = CustomPaint(
-      painter: _DualAmountPainter<CumulativeLedgerPoint>(
-        points: widget.points,
-        maxY: maxY,
-        valueA: (p) => p.cumDebt,
-        valueB: (p) => p.cumPayment,
-        colorA: widget.colorA,
-        colorB: widget.colorB,
-        showA: _showA,
-        showB: _showB,
-        highlightIndex: null,
-      ),
-      child: const SizedBox.expand(),
-    );
-
     if (widget.interactiveDetailLine != null && code.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -878,19 +1112,23 @@ class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart> {
               widget.points,
               showLegendDots: false,
             ),
-            buildChart: (hover) => CustomPaint(
-              painter: _DualAmountPainter<CumulativeLedgerPoint>(
-                points: widget.points,
-                maxY: maxY,
-                valueA: (p) => p.cumDebt,
-                valueB: (p) => p.cumPayment,
-                colorA: widget.colorA,
-                colorB: widget.colorB,
-                showA: _showA,
-                showB: _showB,
-                highlightIndex: hover,
+            buildChart: (hover) => AnimatedBuilder(
+              animation: _progress,
+              builder: (_, __) => CustomPaint(
+                painter: _DualAmountPainter<CumulativeLedgerPoint>(
+                  points: widget.points,
+                  maxY: maxY,
+                  valueA: (p) => p.cumDebt,
+                  valueB: (p) => p.cumPayment,
+                  colorA: widget.colorA,
+                  colorB: widget.colorB,
+                  showA: _showA,
+                  showB: _showB,
+                  highlightIndex: hover,
+                  progress: _progress.value,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
         ],
@@ -902,7 +1140,27 @@ class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         filters,
-        SizedBox(height: 210, child: staticChart),
+        SizedBox(
+          height: 210,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualAmountPainter<CumulativeLedgerPoint>(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.cumDebt,
+                valueB: (p) => p.cumPayment,
+                colorA: widget.colorA,
+                colorB: widget.colorB,
+                showA: _showA,
+                showB: _showB,
+                highlightIndex: null,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
         const SizedBox(height: 6),
         _xLabels(context, widget.points.map((p) => p.label).toList()),
       ],
@@ -910,7 +1168,7 @@ class _CumulativeAmountLineChartState extends State<CumulativeAmountLineChart> {
   }
 }
 
-class NetAmountLineChart extends StatelessWidget {
+class NetAmountLineChart extends StatefulWidget {
   const NetAmountLineChart({
     super.key,
     required this.points,
@@ -925,24 +1183,44 @@ class NetAmountLineChart extends StatelessWidget {
   final String Function(int i, String code)? interactiveDetailLine;
 
   @override
+  State<NetAmountLineChart> createState() => _NetAmountLineChartState();
+}
+
+class _NetAmountLineChartState extends State<NetAmountLineChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(NetAmountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final rawMax = points.map((p) => p.net.abs()).fold<int>(1, (a, b) => b > a ? b : a);
+    final rawMax = widget.points.map((p) => p.net.abs()).fold<int>(1, (a, b) => b > a ? b : a);
     final maxY = rawMax;
-    final staticChart = CustomPaint(
-      painter: _SingleSeriesPainter(
-        values: points.map((p) => p.net.toDouble()).toList(),
-        maxAbs: maxY.toDouble(),
-        color: lineColor,
-        highlightIndex: null,
-      ),
-      child: const SizedBox.expand(),
-    );
-    final code = interactiveCurrencyCode ?? '';
-    if (interactiveDetailLine != null && code.isNotEmpty) {
+    final code = widget.interactiveCurrencyCode ?? '';
+    if (widget.interactiveDetailLine != null && code.isNotEmpty) {
       return InteractiveChartShell(
-        pointCount: points.length,
+        pointCount: widget.points.length,
         chartHeight: 200,
-        detailBuilder: (i) => interactiveDetailLine!(i, code),
+        detailBuilder: (i) => widget.interactiveDetailLine!(i, code),
         footer: Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Text(
@@ -950,23 +1228,42 @@ class NetAmountLineChart extends StatelessWidget {
             style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.mutedFg),
           ),
         ),
-        buildChart: (hover) => CustomPaint(
-          painter: _SingleSeriesPainter(
-            values: points.map((p) => p.net.toDouble()).toList(),
-            maxAbs: maxY.toDouble(),
-            color: lineColor,
-            highlightIndex: hover,
+        buildChart: (hover) => AnimatedBuilder(
+          animation: _progress,
+          builder: (_, __) => CustomPaint(
+            painter: _SingleSeriesPainter(
+              values: widget.points.map((p) => p.net.toDouble()).toList(),
+              maxAbs: maxY.toDouble(),
+              color: widget.lineColor,
+              highlightIndex: hover,
+              progress: _progress.value,
+            ),
+            child: const SizedBox.expand(),
           ),
-          child: const SizedBox.expand(),
         ),
       );
     }
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(height: 200, child: staticChart),
+        SizedBox(
+          height: 200,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _SingleSeriesPainter(
+                values: widget.points.map((p) => p.net.toDouble()).toList(),
+                maxAbs: maxY.toDouble(),
+                color: widget.lineColor,
+                highlightIndex: null,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
         const SizedBox(height: 6),
-        _xLabels(context, points.map((p) => p.label).toList()),
+        _xLabels(context, widget.points.map((p) => p.label).toList()),
         const SizedBox(height: 8),
         Text(
           'Debt minus payments per day',
@@ -999,9 +1296,32 @@ class CountLineChart extends StatefulWidget {
   State<CountLineChart> createState() => _CountLineChartState();
 }
 
-class _CountLineChartState extends State<CountLineChart> {
+class _CountLineChartState extends State<CountLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showA = true;
   bool _showB = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(CountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -1033,21 +1353,6 @@ class _CountLineChartState extends State<CountLineChart> {
       }),
     );
 
-    final staticChart = CustomPaint(
-      painter: _DualIntPainter(
-        points: widget.points,
-        maxY: maxY,
-        valueA: (p) => p.debtCount,
-        valueB: (p) => p.paymentCount,
-        colorA: widget.colorA,
-        colorB: widget.colorB,
-        showA: _showA,
-        showB: _showB,
-        highlightIndex: null,
-      ),
-      child: const SizedBox.expand(),
-    );
-
     if (widget.interactiveDetailLine != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1066,19 +1371,23 @@ class _CountLineChartState extends State<CountLineChart> {
               widget.points,
               showLegendDots: false,
             ),
-            buildChart: (hover) => CustomPaint(
-              painter: _DualIntPainter(
-                points: widget.points,
-                maxY: maxY,
-                valueA: (p) => p.debtCount,
-                valueB: (p) => p.paymentCount,
-                colorA: widget.colorA,
-                colorB: widget.colorB,
-                showA: _showA,
-                showB: _showB,
-                highlightIndex: hover,
+            buildChart: (hover) => AnimatedBuilder(
+              animation: _progress,
+              builder: (_, __) => CustomPaint(
+                painter: _DualIntPainter(
+                  points: widget.points,
+                  maxY: maxY,
+                  valueA: (p) => p.debtCount,
+                  valueB: (p) => p.paymentCount,
+                  colorA: widget.colorA,
+                  colorB: widget.colorB,
+                  showA: _showA,
+                  showB: _showB,
+                  highlightIndex: hover,
+                  progress: _progress.value,
+                ),
+                child: const SizedBox.expand(),
               ),
-              child: const SizedBox.expand(),
             ),
           ),
         ],
@@ -1090,7 +1399,27 @@ class _CountLineChartState extends State<CountLineChart> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         filters,
-        SizedBox(height: 200, child: staticChart),
+        SizedBox(
+          height: 200,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualIntPainter(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.debtCount,
+                valueB: (p) => p.paymentCount,
+                colorA: widget.colorA,
+                colorB: widget.colorB,
+                showA: _showA,
+                showB: _showB,
+                highlightIndex: null,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
         const SizedBox(height: 6),
         _xLabels(context, widget.points.map((p) => p.label).toList()),
       ],
@@ -1114,9 +1443,32 @@ class DualPersonalAmountLineChart extends StatefulWidget {
   State<DualPersonalAmountLineChart> createState() => _DualPersonalAmountLineChartState();
 }
 
-class _DualPersonalAmountLineChartState extends State<DualPersonalAmountLineChart> {
+class _DualPersonalAmountLineChartState extends State<DualPersonalAmountLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showExpense = true;
   bool _showGain = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(DualPersonalAmountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -1162,19 +1514,23 @@ class _DualPersonalAmountLineChartState extends State<DualPersonalAmountLineChar
             widget.points,
             showLegendDots: false,
           ),
-          buildChart: (hover) => CustomPaint(
-            painter: _DualAmountPainter<PersonalCombinedDailyPoint>(
-              points: widget.points,
-              maxY: maxY,
-              valueA: (p) => p.expense,
-              valueB: (p) => p.gain,
-              colorA: AppTheme.personalExpense,
-              colorB: AppTheme.personalGain,
-              showA: _showExpense,
-              showB: _showGain,
-              highlightIndex: hover,
+          buildChart: (hover) => AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualAmountPainter<PersonalCombinedDailyPoint>(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.expense,
+                valueB: (p) => p.gain,
+                colorA: AppTheme.personalExpense,
+                colorB: AppTheme.personalGain,
+                showA: _showExpense,
+                showB: _showGain,
+                highlightIndex: hover,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
       ],
@@ -1198,9 +1554,32 @@ class CumulativePersonalLineChart extends StatefulWidget {
   State<CumulativePersonalLineChart> createState() => _CumulativePersonalLineChartState();
 }
 
-class _CumulativePersonalLineChartState extends State<CumulativePersonalLineChart> {
+class _CumulativePersonalLineChartState extends State<CumulativePersonalLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showExpense = true;
   bool _showGain = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(CumulativePersonalLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -1246,19 +1625,23 @@ class _CumulativePersonalLineChartState extends State<CumulativePersonalLineChar
             widget.points,
             showLegendDots: false,
           ),
-          buildChart: (hover) => CustomPaint(
-            painter: _DualAmountPainter<CumulativePersonalPoint>(
-              points: widget.points,
-              maxY: maxY,
-              valueA: (p) => p.cumExpense,
-              valueB: (p) => p.cumGain,
-              colorA: AppTheme.personalExpense,
-              colorB: AppTheme.personalGain,
-              showA: _showExpense,
-              showB: _showGain,
-              highlightIndex: hover,
+          buildChart: (hover) => AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualAmountPainter<CumulativePersonalPoint>(
+                points: widget.points,
+                maxY: maxY,
+                valueA: (p) => p.cumExpense,
+                valueB: (p) => p.cumGain,
+                colorA: AppTheme.personalExpense,
+                colorB: AppTheme.personalGain,
+                showA: _showExpense,
+                showB: _showGain,
+                highlightIndex: hover,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
       ],
@@ -1360,48 +1743,58 @@ class CombinedLedgerPersonalLineChart extends StatefulWidget {
   final String Function(int i, String code) detailBuilder;
 
   @override
-  State<CombinedLedgerPersonalLineChart> createState() => _CombinedLedgerPersonalLineChartState();
+  State<CombinedLedgerPersonalLineChart> createState() =>
+      _CombinedLedgerPersonalLineChartState();
 }
 
-class _CombinedLedgerPersonalLineChartState extends State<CombinedLedgerPersonalLineChart> {
+class _CombinedLedgerPersonalLineChartState extends State<CombinedLedgerPersonalLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showDebt = true;
   bool _showPayment = true;
   bool _showExpense = true;
   bool _showGain = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(CombinedLedgerPersonalLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _visibleCount() =>
-      (_showDebt ? 1 : 0) +
-      (_showPayment ? 1 : 0) +
-      (_showExpense ? 1 : 0) +
-      (_showGain ? 1 : 0);
+      (_showDebt ? 1 : 0) + (_showPayment ? 1 : 0) + (_showExpense ? 1 : 0) + (_showGain ? 1 : 0);
 
-  void _setDebt(bool v) {
-    setState(() {
-      if (!v && _showDebt && _visibleCount() <= 1) return;
-      _showDebt = v;
-    });
-  }
-
-  void _setPayment(bool v) {
-    setState(() {
-      if (!v && _showPayment && _visibleCount() <= 1) return;
-      _showPayment = v;
-    });
-  }
-
-  void _setExpense(bool v) {
-    setState(() {
-      if (!v && _showExpense && _visibleCount() <= 1) return;
-      _showExpense = v;
-    });
-  }
-
-  void _setGain(bool v) {
-    setState(() {
-      if (!v && _showGain && _visibleCount() <= 1) return;
-      _showGain = v;
-    });
-  }
+  void _setDebt(bool v) => setState(() {
+    if (!v && _showDebt && _visibleCount() <= 1) return;
+    _showDebt = v;
+  });
+  void _setPayment(bool v) => setState(() {
+    if (!v && _showPayment && _visibleCount() <= 1) return;
+    _showPayment = v;
+  });
+  void _setExpense(bool v) => setState(() {
+    if (!v && _showExpense && _visibleCount() <= 1) return;
+    _showExpense = v;
+  });
+  void _setGain(bool v) => setState(() {
+    if (!v && _showGain && _visibleCount() <= 1) return;
+    _showGain = v;
+  });
 
   int _maxY() {
     var m = 1;
@@ -1446,17 +1839,21 @@ class _CombinedLedgerPersonalLineChartState extends State<CombinedLedgerPersonal
             padding: const EdgeInsets.only(top: 6),
             child: _xLabels(context, widget.points.map((p) => p.label).toList()),
           ),
-          buildChart: (hover) => CustomPaint(
-            painter: _QuadLedgerPersonalPainter(
-              points: widget.points,
-              maxY: maxY,
-              showDebt: _showDebt,
-              showPayment: _showPayment,
-              showExpense: _showExpense,
-              showGain: _showGain,
-              highlightIndex: hover,
+          buildChart: (hover) => AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _QuadLedgerPersonalPainter(
+                points: widget.points,
+                maxY: maxY,
+                showDebt: _showDebt,
+                showPayment: _showPayment,
+                showExpense: _showExpense,
+                showGain: _showGain,
+                highlightIndex: hover,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
       ],
@@ -1464,7 +1861,7 @@ class _CombinedLedgerPersonalLineChartState extends State<CombinedLedgerPersonal
   }
 }
 
-class PersonalNetLineChart extends StatelessWidget {
+class PersonalNetLineChart extends StatefulWidget {
   const PersonalNetLineChart({
     super.key,
     required this.points,
@@ -1477,14 +1874,41 @@ class PersonalNetLineChart extends StatelessWidget {
   final String Function(int i, String code) detailBuilder;
 
   @override
+  State<PersonalNetLineChart> createState() => _PersonalNetLineChartState();
+}
+
+class _PersonalNetLineChartState extends State<PersonalNetLineChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(PersonalNetLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final maxAbs = points
-        .map((p) => p.net.abs())
-        .fold<int>(1, (a, b) => b > a ? b : a);
+    final maxAbs = widget.points.map((p) => p.net.abs()).fold<int>(1, (a, b) => b > a ? b : a);
     return InteractiveChartShell(
-      pointCount: points.length,
+      pointCount: widget.points.length,
       chartHeight: 200,
-      detailBuilder: (i) => detailBuilder(i, interactiveCurrencyCode),
+      detailBuilder: (i) => widget.detailBuilder(i, widget.interactiveCurrencyCode),
       footer: Padding(
         padding: const EdgeInsets.only(top: 8),
         child: Text(
@@ -1492,14 +1916,18 @@ class PersonalNetLineChart extends StatelessWidget {
           style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.mutedFg),
         ),
       ),
-      buildChart: (hover) => CustomPaint(
-        painter: _SingleSeriesPainter(
-          values: points.map((p) => p.net.toDouble()).toList(),
-          maxAbs: maxAbs.toDouble(),
-          color: AppTheme.brandPrimary,
-          highlightIndex: hover,
+      buildChart: (hover) => AnimatedBuilder(
+        animation: _progress,
+        builder: (_, __) => CustomPaint(
+          painter: _SingleSeriesPainter(
+            values: widget.points.map((p) => p.net.toDouble()).toList(),
+            maxAbs: maxAbs.toDouble(),
+            color: AppTheme.brandPrimary,
+            highlightIndex: hover,
+            progress: _progress.value,
+          ),
+          child: const SizedBox.expand(),
         ),
-        child: const SizedBox.expand(),
       ),
     );
   }
@@ -1519,9 +1947,32 @@ class PersonalCountLineChart extends StatefulWidget {
   State<PersonalCountLineChart> createState() => _PersonalCountLineChartState();
 }
 
-class _PersonalCountLineChartState extends State<PersonalCountLineChart> {
+class _PersonalCountLineChartState extends State<PersonalCountLineChart>
+    with SingleTickerProviderStateMixin {
   bool _showExpense = true;
   bool _showGain = true;
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(PersonalCountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
 
   int _maxY() {
     var m = 1;
@@ -1567,15 +2018,19 @@ class _PersonalCountLineChartState extends State<PersonalCountLineChart> {
             widget.points,
             showLegendDots: false,
           ),
-          buildChart: (hover) => CustomPaint(
-            painter: _DualPersonalCountPainter(
-              points: widget.points,
-              maxY: maxY,
-              showExpense: _showExpense,
-              showGain: _showGain,
-              highlightIndex: hover,
+          buildChart: (hover) => AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _DualPersonalCountPainter(
+                points: widget.points,
+                maxY: maxY,
+                showExpense: _showExpense,
+                showGain: _showGain,
+                highlightIndex: hover,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
       ],
@@ -1583,7 +2038,7 @@ class _PersonalCountLineChartState extends State<PersonalCountLineChart> {
   }
 }
 
-class PersonalAmountLineChart extends StatelessWidget {
+class PersonalAmountLineChart extends StatefulWidget {
   const PersonalAmountLineChart({
     super.key,
     required this.points,
@@ -1596,31 +2051,68 @@ class PersonalAmountLineChart extends StatelessWidget {
   final String legend;
 
   @override
+  State<PersonalAmountLineChart> createState() => _PersonalAmountLineChartState();
+}
+
+class _PersonalAmountLineChartState extends State<PersonalAmountLineChart>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _entry;
+  late Animation<double> _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _entry = AnimationController(vsync: this, duration: const Duration(milliseconds: 750));
+    _progress = CurvedAnimation(parent: _entry, curve: Curves.easeOutCubic);
+    _entry.forward();
+  }
+
+  @override
+  void didUpdateWidget(PersonalAmountLineChart old) {
+    super.didUpdateWidget(old);
+    if (old.points != widget.points) _entry.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _entry.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final maxY = points.map((p) => p.amount).fold<int>(1, (a, b) => b > a ? b : a);
+    final maxY = widget.points.map((p) => p.amount).fold<int>(1, (a, b) => b > a ? b : a);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
           height: 200,
-          child: CustomPaint(
-            painter: _SinglePositivePainter(
-              values: points.map((p) => p.amount).toList(),
-              maxY: maxY,
-              color: color,
-              highlightIndex: null,
+          child: AnimatedBuilder(
+            animation: _progress,
+            builder: (_, __) => CustomPaint(
+              painter: _SinglePositivePainter(
+                values: widget.points.map((p) => p.amount).toList(),
+                maxY: maxY,
+                color: widget.color,
+                highlightIndex: null,
+                progress: _progress.value,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         ),
         const SizedBox(height: 6),
-        _xLabels(context, points.map((p) => p.label).toList()),
+        _xLabels(context, widget.points.map((p) => p.label).toList()),
         const SizedBox(height: 8),
-        _LegendDot(color: color, label: legend),
+        _LegendDot(color: widget.color, label: widget.legend),
       ],
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 Widget _xLabels(BuildContext context, List<String> labels) {
   return Row(
@@ -1703,21 +2195,6 @@ void _paintDashedVertical(Canvas canvas, Offset a, Offset b, Paint p) {
   }
 }
 
-void _strokePolylineWithDots(Canvas canvas, List<Offset> pts, Paint paint, double dotRadius) {
-  if (pts.isEmpty) return;
-  if (pts.length >= 2) {
-    final path = Path()..moveTo(pts[0].dx, pts[0].dy);
-    for (var i = 1; i < pts.length; i++) {
-      path.lineTo(pts[i].dx, pts[i].dy);
-    }
-    canvas.drawPath(path, paint);
-  }
-  for (final o in pts) {
-    canvas.drawCircle(o, dotRadius, paint..style = PaintingStyle.fill);
-    paint.style = PaintingStyle.stroke;
-  }
-}
-
 class _SeriesFilterChips extends StatelessWidget {
   const _SeriesFilterChips({
     required this.labelA,
@@ -1793,6 +2270,10 @@ class _SeriesFilterChips extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Painters — all upgraded with glow HUD rendering
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _QuadLedgerPersonalPainter extends CustomPainter {
   _QuadLedgerPersonalPainter({
     required this.points,
@@ -1802,6 +2283,7 @@ class _QuadLedgerPersonalPainter extends CustomPainter {
     required this.showExpense,
     required this.showGain,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<LedgerPersonalDailyPoint> points;
@@ -1811,63 +2293,75 @@ class _QuadLedgerPersonalPainter extends CustomPainter {
   final bool showExpense;
   final bool showGain;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (points.length <= 1) return w / 2;
     return i * (w / (points.length - 1));
   }
 
-  void _series(
-    Canvas canvas,
-    Size size,
-    int Function(LedgerPersonalDailyPoint) value,
-    Color color,
-    bool show,
-  ) {
-    if (!show) return;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2.4
-      ..style = PaintingStyle.stroke;
-    final pts = <Offset>[
-      for (var i = 0; i < points.length; i++)
-        Offset(
-          _xFor(i, size.width),
-          size.height - ((value(points[i]) / maxY) * size.height),
-        ),
-    ];
-    _strokePolylineWithDots(canvas, pts, paint, 2.2);
-  }
+  List<Offset> _pts(Size size, int Function(LedgerPersonalDailyPoint) val) => [
+    for (var i = 0; i < points.length; i++)
+      Offset(
+        _xFor(i, size.width),
+        size.height - ((val(points[i]) / maxY) * size.height),
+      ),
+  ];
 
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty || maxY <= 0) return;
-    _series(canvas, size, (p) => p.debt, AppTheme.ledgerDebt, showDebt);
-    _series(canvas, size, (p) => p.payment, AppTheme.ledgerPayment, showPayment);
-    _series(canvas, size, (p) => p.expense, AppTheme.personalExpense, showExpense);
-    _series(canvas, size, (p) => p.gain, AppTheme.personalGain, showGain);
+    _drawHudGrid(canvas, size);
 
-    if (highlightIndex != null &&
-        highlightIndex! >= 0 &&
-        highlightIndex! < points.length) {
+    // Draw fills back-to-front to avoid z-fighting
+    if (showGain) _drawGradientFill(canvas, size, _pts(size, (p) => p.gain), AppTheme.personalGain);
+    if (showExpense) _drawGradientFill(canvas, size, _pts(size, (p) => p.expense), AppTheme.personalExpense);
+    if (showPayment) _drawGradientFill(canvas, size, _pts(size, (p) => p.payment), AppTheme.ledgerPayment);
+    if (showDebt) _drawGradientFill(canvas, size, _pts(size, (p) => p.debt), AppTheme.ledgerDebt);
+
+    if (showGain) _drawGlowPolyline(canvas, _pts(size, (p) => p.gain), AppTheme.personalGain, progress: progress);
+    if (showExpense) _drawGlowPolyline(canvas, _pts(size, (p) => p.expense), AppTheme.personalExpense, progress: progress);
+    if (showPayment) _drawGlowPolyline(canvas, _pts(size, (p) => p.payment), AppTheme.ledgerPayment, progress: progress);
+    if (showDebt) _drawGlowPolyline(canvas, _pts(size, (p) => p.debt), AppTheme.ledgerDebt, progress: progress);
+
+    // Dots for each visible series
+    final seriesInfo = [
+      if (showDebt) (AppTheme.ledgerDebt, _pts(size, (p) => p.debt)),
+      if (showPayment) (AppTheme.ledgerPayment, _pts(size, (p) => p.payment)),
+      if (showExpense) (AppTheme.personalExpense, _pts(size, (p) => p.expense)),
+      if (showGain) (AppTheme.personalGain, _pts(size, (p) => p.gain)),
+    ];
+    final clippedCount = _clipProgressPts(
+      List.generate(points.length, (i) => Offset(i.toDouble(), 0)),
+      progress,
+    ).length;
+    for (final (color, pts) in seriesInfo) {
+      for (var i = 0; i < math.min(clippedCount, pts.length); i++) {
+        _drawGlowDot(canvas, pts[i], color, highlight: i == highlightIndex);
+      }
+    }
+
+    if (highlightIndex != null && highlightIndex! >= 0 && highlightIndex! < points.length) {
       final hx = _xFor(highlightIndex!, size.width);
-      final dash = Paint()
-        ..color = AppTheme.mutedFg.withValues(alpha: 0.5)
-        ..strokeWidth = 1;
-      _paintDashedVertical(canvas, Offset(hx, 0), Offset(hx, size.height), dash);
+      _paintDashedVertical(
+        canvas,
+        Offset(hx, 0),
+        Offset(hx, size.height),
+        Paint()..color = AppTheme.mutedFg.withValues(alpha: 0.5)..strokeWidth = 1,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _QuadLedgerPersonalPainter oldDelegate) {
-    return oldDelegate.points != points ||
-        oldDelegate.maxY != maxY ||
-        oldDelegate.highlightIndex != highlightIndex ||
-        oldDelegate.showDebt != showDebt ||
-        oldDelegate.showPayment != showPayment ||
-        oldDelegate.showExpense != showExpense ||
-        oldDelegate.showGain != showGain;
-  }
+  bool shouldRepaint(covariant _QuadLedgerPersonalPainter old) =>
+      old.points != points ||
+      old.maxY != maxY ||
+      old.highlightIndex != highlightIndex ||
+      old.showDebt != showDebt ||
+      old.showPayment != showPayment ||
+      old.showExpense != showExpense ||
+      old.showGain != showGain ||
+      old.progress != progress;
 }
 
 class _DualAmountPainter<T> extends CustomPainter {
@@ -1881,6 +2375,7 @@ class _DualAmountPainter<T> extends CustomPainter {
     this.showA = true,
     this.showB = true,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<T> points;
@@ -1892,6 +2387,7 @@ class _DualAmountPainter<T> extends CustomPainter {
   final bool showA;
   final bool showB;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (points.length <= 1) return w / 2;
@@ -1901,58 +2397,64 @@ class _DualAmountPainter<T> extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty || maxY <= 0) return;
-    final paintA = Paint()
-      ..color = colorA
-      ..strokeWidth = 2.6
-      ..style = PaintingStyle.stroke;
-    final paintB = Paint()
-      ..color = colorB
-      ..strokeWidth = 2.6
-      ..style = PaintingStyle.stroke;
+    _drawHudGrid(canvas, size);
+
+    final ptsA = showA
+        ? [
+            for (var i = 0; i < points.length; i++)
+              Offset(_xFor(i, size.width), size.height - ((valueA(points[i]) / maxY) * size.height)),
+          ]
+        : <Offset>[];
+
+    final ptsB = showB
+        ? [
+            for (var i = 0; i < points.length; i++)
+              Offset(_xFor(i, size.width), size.height - ((valueB(points[i]) / maxY) * size.height)),
+          ]
+        : <Offset>[];
+
+    if (showB) _drawGradientFill(canvas, size, ptsB, colorB);
+    if (showA) _drawGradientFill(canvas, size, ptsA, colorA);
+
+    if (showB) _drawGlowPolyline(canvas, ptsB, colorB, progress: progress);
+    if (showA) _drawGlowPolyline(canvas, ptsA, colorA, progress: progress);
+
+    final clippedCount = points.isEmpty
+        ? 0
+        : _clipProgressPts(List.generate(points.length, (i) => Offset(i.toDouble(), 0)), progress).length;
 
     if (showA) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((valueA(points[i]) / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintA, 2.4);
+      for (var i = 0; i < math.min(clippedCount, ptsA.length); i++) {
+        _drawGlowDot(canvas, ptsA[i], colorA, highlight: i == highlightIndex);
+      }
     }
-
     if (showB) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((valueB(points[i]) / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintB, 2.4);
+      for (var i = 0; i < math.min(clippedCount, ptsB.length); i++) {
+        _drawGlowDot(canvas, ptsB[i], colorB, highlight: i == highlightIndex);
+      }
     }
 
-    if (highlightIndex != null &&
-        highlightIndex! >= 0 &&
-        highlightIndex! < points.length) {
+    if (highlightIndex != null && highlightIndex! >= 0 && highlightIndex! < points.length) {
       final hx = _xFor(highlightIndex!, size.width);
-      final dash = Paint()
-        ..color = AppTheme.mutedFg.withValues(alpha: 0.5)
-        ..strokeWidth = 1;
-      _paintDashedVertical(canvas, Offset(hx, 0), Offset(hx, size.height), dash);
+      _paintDashedVertical(
+        canvas,
+        Offset(hx, 0),
+        Offset(hx, size.height),
+        Paint()..color = AppTheme.mutedFg.withValues(alpha: 0.5)..strokeWidth = 1,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DualAmountPainter<T> oldDelegate) {
-    return oldDelegate.points != points ||
-        oldDelegate.maxY != maxY ||
-        oldDelegate.highlightIndex != highlightIndex ||
-        oldDelegate.showA != showA ||
-        oldDelegate.showB != showB ||
-        oldDelegate.colorA != colorA ||
-        oldDelegate.colorB != colorB;
-  }
+  bool shouldRepaint(covariant _DualAmountPainter<T> old) =>
+      old.points != points ||
+      old.maxY != maxY ||
+      old.highlightIndex != highlightIndex ||
+      old.showA != showA ||
+      old.showB != showB ||
+      old.colorA != colorA ||
+      old.colorB != colorB ||
+      old.progress != progress;
 }
 
 class _DualIntPainter extends CustomPainter {
@@ -1966,6 +2468,7 @@ class _DualIntPainter extends CustomPainter {
     this.showA = true,
     this.showB = true,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<LedgerDailyPoint> points;
@@ -1977,6 +2480,7 @@ class _DualIntPainter extends CustomPainter {
   final bool showA;
   final bool showB;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (points.length <= 1) return w / 2;
@@ -1986,56 +2490,56 @@ class _DualIntPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty || maxY <= 0) return;
-    final paintA = Paint()
-      ..color = colorA
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
-    final paintB = Paint()
-      ..color = colorB
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
+    _drawHudGrid(canvas, size);
+
+    final ptsA = showA
+        ? [for (var i = 0; i < points.length; i++)
+            Offset(_xFor(i, size.width), size.height - ((valueA(points[i]) / maxY) * size.height))]
+        : <Offset>[];
+    final ptsB = showB
+        ? [for (var i = 0; i < points.length; i++)
+            Offset(_xFor(i, size.width), size.height - ((valueB(points[i]) / maxY) * size.height))]
+        : <Offset>[];
+
+    if (showB) _drawGradientFill(canvas, size, ptsB, colorB);
+    if (showA) _drawGradientFill(canvas, size, ptsA, colorA);
+    if (showB) _drawGlowPolyline(canvas, ptsB, colorB, progress: progress);
+    if (showA) _drawGlowPolyline(canvas, ptsA, colorA, progress: progress);
+
+    final clippedCount = points.isEmpty
+        ? 0
+        : _clipProgressPts(List.generate(points.length, (i) => Offset(i.toDouble(), 0)), progress).length;
 
     if (showA) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((valueA(points[i]) / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintA, 2.2);
+      for (var i = 0; i < math.min(clippedCount, ptsA.length); i++) {
+        _drawGlowDot(canvas, ptsA[i], colorA, highlight: i == highlightIndex);
+      }
     }
-
     if (showB) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((valueB(points[i]) / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintB, 2.2);
+      for (var i = 0; i < math.min(clippedCount, ptsB.length); i++) {
+        _drawGlowDot(canvas, ptsB[i], colorB, highlight: i == highlightIndex);
+      }
     }
 
-    if (highlightIndex != null &&
-        highlightIndex! >= 0 &&
-        highlightIndex! < points.length) {
+    if (highlightIndex != null && highlightIndex! >= 0 && highlightIndex! < points.length) {
       final hx = _xFor(highlightIndex!, size.width);
-      final dash = Paint()
-        ..color = AppTheme.mutedFg.withValues(alpha: 0.5)
-        ..strokeWidth = 1;
-      _paintDashedVertical(canvas, Offset(hx, 0), Offset(hx, size.height), dash);
+      _paintDashedVertical(
+        canvas,
+        Offset(hx, 0),
+        Offset(hx, size.height),
+        Paint()..color = AppTheme.mutedFg.withValues(alpha: 0.5)..strokeWidth = 1,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DualIntPainter oldDelegate) {
-    return oldDelegate.points != points ||
-        oldDelegate.maxY != maxY ||
-        oldDelegate.highlightIndex != highlightIndex ||
-        oldDelegate.showA != showA ||
-        oldDelegate.showB != showB;
-  }
+  bool shouldRepaint(covariant _DualIntPainter old) =>
+      old.points != points ||
+      old.maxY != maxY ||
+      old.highlightIndex != highlightIndex ||
+      old.showA != showA ||
+      old.showB != showB ||
+      old.progress != progress;
 }
 
 class _DualPersonalCountPainter extends CustomPainter {
@@ -2045,6 +2549,7 @@ class _DualPersonalCountPainter extends CustomPainter {
     this.showExpense = true,
     this.showGain = true,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<PersonalCombinedDailyPoint> points;
@@ -2052,6 +2557,7 @@ class _DualPersonalCountPainter extends CustomPainter {
   final bool showExpense;
   final bool showGain;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (points.length <= 1) return w / 2;
@@ -2061,56 +2567,56 @@ class _DualPersonalCountPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (points.isEmpty || maxY <= 0) return;
-    final paintA = Paint()
-      ..color = AppTheme.personalExpense
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
-    final paintB = Paint()
-      ..color = AppTheme.personalGain
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
+    _drawHudGrid(canvas, size);
+
+    final ptsA = showExpense
+        ? [for (var i = 0; i < points.length; i++)
+            Offset(_xFor(i, size.width), size.height - ((points[i].expenseCount / maxY) * size.height))]
+        : <Offset>[];
+    final ptsB = showGain
+        ? [for (var i = 0; i < points.length; i++)
+            Offset(_xFor(i, size.width), size.height - ((points[i].gainCount / maxY) * size.height))]
+        : <Offset>[];
+
+    if (showGain) _drawGradientFill(canvas, size, ptsB, AppTheme.personalGain);
+    if (showExpense) _drawGradientFill(canvas, size, ptsA, AppTheme.personalExpense);
+    if (showGain) _drawGlowPolyline(canvas, ptsB, AppTheme.personalGain, progress: progress);
+    if (showExpense) _drawGlowPolyline(canvas, ptsA, AppTheme.personalExpense, progress: progress);
+
+    final clippedCount = points.isEmpty
+        ? 0
+        : _clipProgressPts(List.generate(points.length, (i) => Offset(i.toDouble(), 0)), progress).length;
 
     if (showExpense) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((points[i].expenseCount / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintA, 2.2);
+      for (var i = 0; i < math.min(clippedCount, ptsA.length); i++) {
+        _drawGlowDot(canvas, ptsA[i], AppTheme.personalExpense, highlight: i == highlightIndex);
+      }
     }
-
     if (showGain) {
-      final pts = <Offset>[
-        for (var i = 0; i < points.length; i++)
-          Offset(
-            _xFor(i, size.width),
-            size.height - ((points[i].gainCount / maxY) * size.height),
-          ),
-      ];
-      _strokePolylineWithDots(canvas, pts, paintB, 2.2);
+      for (var i = 0; i < math.min(clippedCount, ptsB.length); i++) {
+        _drawGlowDot(canvas, ptsB[i], AppTheme.personalGain, highlight: i == highlightIndex);
+      }
     }
 
-    if (highlightIndex != null &&
-        highlightIndex! >= 0 &&
-        highlightIndex! < points.length) {
+    if (highlightIndex != null && highlightIndex! >= 0 && highlightIndex! < points.length) {
       final hx = _xFor(highlightIndex!, size.width);
-      final dash = Paint()
-        ..color = AppTheme.mutedFg.withValues(alpha: 0.5)
-        ..strokeWidth = 1;
-      _paintDashedVertical(canvas, Offset(hx, 0), Offset(hx, size.height), dash);
+      _paintDashedVertical(
+        canvas,
+        Offset(hx, 0),
+        Offset(hx, size.height),
+        Paint()..color = AppTheme.mutedFg.withValues(alpha: 0.5)..strokeWidth = 1,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _DualPersonalCountPainter oldDelegate) {
-    return oldDelegate.points != points ||
-        oldDelegate.maxY != maxY ||
-        oldDelegate.highlightIndex != highlightIndex ||
-        oldDelegate.showExpense != showExpense ||
-        oldDelegate.showGain != showGain;
-  }
+  bool shouldRepaint(covariant _DualPersonalCountPainter old) =>
+      old.points != points ||
+      old.maxY != maxY ||
+      old.highlightIndex != highlightIndex ||
+      old.showExpense != showExpense ||
+      old.showGain != showGain ||
+      old.progress != progress;
 }
 
 class _SingleSeriesPainter extends CustomPainter {
@@ -2119,12 +2625,14 @@ class _SingleSeriesPainter extends CustomPainter {
     required this.maxAbs,
     required this.color,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<double> values;
   final double maxAbs;
   final Color color;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (values.length <= 1) return w / 2;
@@ -2134,18 +2642,10 @@ class _SingleSeriesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty || maxAbs <= 0) return;
+    _drawHudGrid(canvas, size);
+
     final midY = size.height / 2;
-    final paintLine = Paint()
-      ..color = color
-      ..strokeWidth = 2.4
-      ..style = PaintingStyle.stroke;
-    final pts = <Offset>[
-      for (var i = 0; i < values.length; i++)
-        Offset(
-          _xFor(i, size.width),
-          midY - ((values[i] / maxAbs).clamp(-1.0, 1.0)) * (size.height * 0.42),
-        ),
-    ];
+    // Glow midline
     canvas.drawLine(
       Offset(0, midY),
       Offset(size.width, midY),
@@ -2153,25 +2653,43 @@ class _SingleSeriesPainter extends CustomPainter {
         ..color = AppTheme.mutedFg.withValues(alpha: 0.25)
         ..strokeWidth = 1,
     );
-    _strokePolylineWithDots(canvas, pts, paintLine, 2.4);
 
-    if (highlightIndex != null &&
-        highlightIndex! >= 0 &&
-        highlightIndex! < values.length) {
+    final pts = [
+      for (var i = 0; i < values.length; i++)
+        Offset(
+          _xFor(i, size.width),
+          midY - ((values[i] / maxAbs).clamp(-1.0, 1.0)) * (size.height * 0.42),
+        ),
+    ];
+
+    _drawGradientFill(canvas, size, pts, color);
+    _drawGlowPolyline(canvas, pts, color, progress: progress);
+
+    final clippedCount = values.isEmpty
+        ? 0
+        : _clipProgressPts(List.generate(values.length, (i) => Offset(i.toDouble(), 0)), progress).length;
+
+    for (var i = 0; i < math.min(clippedCount, pts.length); i++) {
+      _drawGlowDot(canvas, pts[i], color, highlight: i == highlightIndex);
+    }
+
+    if (highlightIndex != null && highlightIndex! >= 0 && highlightIndex! < values.length) {
       final hx = _xFor(highlightIndex!, size.width);
-      final dash = Paint()
-        ..color = AppTheme.mutedFg.withValues(alpha: 0.5)
-        ..strokeWidth = 1;
-      _paintDashedVertical(canvas, Offset(hx, 0), Offset(hx, size.height), dash);
+      _paintDashedVertical(
+        canvas,
+        Offset(hx, 0),
+        Offset(hx, size.height),
+        Paint()..color = AppTheme.mutedFg.withValues(alpha: 0.5)..strokeWidth = 1,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SingleSeriesPainter oldDelegate) {
-    return oldDelegate.values != values ||
-        oldDelegate.maxAbs != maxAbs ||
-        oldDelegate.highlightIndex != highlightIndex;
-  }
+  bool shouldRepaint(covariant _SingleSeriesPainter old) =>
+      old.values != values ||
+      old.maxAbs != maxAbs ||
+      old.highlightIndex != highlightIndex ||
+      old.progress != progress;
 }
 
 class _SinglePositivePainter extends CustomPainter {
@@ -2180,12 +2698,14 @@ class _SinglePositivePainter extends CustomPainter {
     required this.maxY,
     required this.color,
     this.highlightIndex,
+    this.progress = 1.0,
   });
 
   final List<int> values;
   final int maxY;
   final Color color;
   final int? highlightIndex;
+  final double progress;
 
   double _xFor(int i, double w) {
     if (values.length <= 1) return w / 2;
@@ -2195,25 +2715,33 @@ class _SinglePositivePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (values.isEmpty || maxY <= 0) return;
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2.6
-      ..style = PaintingStyle.stroke;
-    final pts = <Offset>[
+    _drawHudGrid(canvas, size);
+
+    final pts = [
       for (var i = 0; i < values.length; i++)
-        Offset(
-          _xFor(i, size.width),
-          size.height - ((values[i] / maxY) * size.height),
-        ),
+        Offset(_xFor(i, size.width), size.height - ((values[i] / maxY) * size.height)),
     ];
-    _strokePolylineWithDots(canvas, pts, paint, 2.4);
+
+    _drawGradientFill(canvas, size, pts, color);
+    _drawGlowPolyline(canvas, pts, color, progress: progress);
+
+    final clippedCount = values.isEmpty
+        ? 0
+        : _clipProgressPts(List.generate(values.length, (i) => Offset(i.toDouble(), 0)), progress).length;
+
+    for (var i = 0; i < math.min(clippedCount, pts.length); i++) {
+      _drawGlowDot(canvas, pts[i], color, highlight: i == highlightIndex);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _SinglePositivePainter oldDelegate) {
-    return oldDelegate.values != values || oldDelegate.maxY != maxY;
-  }
+  bool shouldRepaint(covariant _SinglePositivePainter old) =>
+      old.values != values || old.maxY != maxY || old.progress != progress;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Legend dot
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _LegendDot extends StatelessWidget {
   const _LegendDot({required this.color, required this.label});
@@ -2228,7 +2756,11 @@ class _LegendDot extends StatelessWidget {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            boxShadow: [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 6, spreadRadius: 1)],
+          ),
         ),
         const SizedBox(width: 6),
         Text(label, style: Theme.of(context).textTheme.labelMedium),

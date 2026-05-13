@@ -136,3 +136,16 @@ final personalFinanceEntriesProvider = StreamProvider.autoDispose
     .family<List<PersonalFinanceEntry>, PersonalFinanceKind>((ref, kind) {
   return ref.watch(ledgerRepositoryProvider).watchPersonalFinanceEntries(kind);
 });
+
+final transactionTemplatesProvider =
+    StreamProvider.autoDispose<List<TransactionTemplate>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchTemplates();
+});
+
+final auditLogProvider = StreamProvider.autoDispose<List<AuditLogData>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchAuditLog();
+});
+
+final appSettingsProvider = StreamProvider<AppSetting?>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchAppSettings();
+});

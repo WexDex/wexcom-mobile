@@ -69,6 +69,33 @@ class LedgerTransactions extends Table {
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get cancelledAt => dateTime().nullable()();
   TextColumn get note => text().nullable()();
+  DateTimeColumn get dueAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class TransactionTemplates extends Table {
+  TextColumn get id => text()();
+  TextColumn get label => text()();
+  IntColumn get amountMinor => integer()();
+  IntColumn get txType => integer()();
+  TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_audit_log_created', columns: {#createdAt})
+class AuditLog extends Table {
+  TextColumn get id => text()();
+  TextColumn get action => text()(); // create_tx, cancel_tx, settle_tx, archive_client, etc.
+  TextColumn get entityType => text()(); // transaction | client
+  TextColumn get entityId => text()();
+  TextColumn get detail => text().nullable()(); // JSON snapshot
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -130,6 +157,15 @@ class AppSettings extends Table {
   DateTimeColumn get lastDownloadAt => dateTime().nullable()();
   DateTimeColumn get lastServerOkAt => dateTime().nullable()();
 
+  // Notification settings (v8)
+  BoolColumn get notifOverdueEnabled => boolean().withDefault(const Constant(false))();
+  IntColumn get notifOverdueHour => integer().withDefault(const Constant(9))();
+  BoolColumn get notifBalanceMilestoneEnabled => boolean().withDefault(const Constant(false))();
+  IntColumn get notifBalanceMilestoneMinor => integer().withDefault(const Constant(100000))();
+  BoolColumn get notifInactivityEnabled => boolean().withDefault(const Constant(false))();
+  IntColumn get notifInactivityDays => integer().withDefault(const Constant(7))();
+  BoolColumn get notifSyncEnabled => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -144,13 +180,15 @@ class AppSettings extends Table {
     QuickActionUsages,
     PersonalFinanceEntries,
     AppSettings,
+    TransactionTemplates,
+    AuditLog,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -235,6 +273,25 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             await m.createTable(personalFinanceEntries);
+          }
+          if (from < 7) {
+            await m.addColumn(ledgerTransactions, ledgerTransactions.dueAt);
+            await m.createTable(transactionTemplates);
+            await m.createTable(auditLog);
+          }
+          if (from < 8) {
+            const sql = [
+              'ALTER TABLE app_settings ADD COLUMN notif_overdue_enabled INTEGER NOT NULL DEFAULT 0',
+              'ALTER TABLE app_settings ADD COLUMN notif_overdue_hour INTEGER NOT NULL DEFAULT 9',
+              'ALTER TABLE app_settings ADD COLUMN notif_balance_milestone_enabled INTEGER NOT NULL DEFAULT 0',
+              'ALTER TABLE app_settings ADD COLUMN notif_balance_milestone_minor INTEGER NOT NULL DEFAULT 100000',
+              'ALTER TABLE app_settings ADD COLUMN notif_inactivity_enabled INTEGER NOT NULL DEFAULT 0',
+              'ALTER TABLE app_settings ADD COLUMN notif_inactivity_days INTEGER NOT NULL DEFAULT 7',
+              'ALTER TABLE app_settings ADD COLUMN notif_sync_enabled INTEGER NOT NULL DEFAULT 0',
+            ];
+            for (final s in sql) {
+              await m.issueCustomQuery(s);
+            }
           }
         },
       );

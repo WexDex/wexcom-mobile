@@ -12,7 +12,10 @@ import '../../services/export_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/balance_display.dart';
 import '../../utils/money.dart';
+import '../../widgets/hud_empty_state.dart';
+import '../../widgets/skeleton_loaders.dart';
 import 'client_editor_sheet.dart';
+import '../transactions/transaction_editor_sheet.dart';
 
 Color _tagColor(String hex) {
   final cleaned = hex.replaceAll('#', '');
@@ -54,6 +57,8 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
   bool _compact = false;
   _ClientSortField _sortField = _ClientSortField.name;
   bool _sortAscending = true;
+  bool _selectMode = false;
+  final Set<String> _selected = {};
 
   @override
   void initState() {
@@ -117,60 +122,55 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Clients'),
-        actions: [
-          IconButton(
-            tooltip: _compact ? 'Comfortable view' : 'Compact view',
-            icon: Icon(
-              _compact
-                  ? Icons.view_agenda_outlined
-                  : Icons.view_headline_outlined,
+      appBar: _selectMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => setState(() {
+                  _selectMode = false;
+                  _selected.clear();
+                }),
+              ),
+              title: Text('${_selected.length} selected'),
+              actions: [
+                TextButton.icon(
+                  icon: const Icon(Icons.archive_outlined),
+                  label: const Text('Archive'),
+                  onPressed: _selected.isEmpty ? null : _bulkArchive,
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Clients'),
+              actions: [
+                IconButton(
+                  tooltip: _compact ? 'Comfortable view' : 'Compact view',
+                  icon: Icon(
+                    _compact
+                        ? Icons.view_agenda_outlined
+                        : Icons.view_headline_outlined,
+                  ),
+                  onPressed: () => setState(() => _compact = !_compact),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.archive_outlined),
+                  tooltip: 'Archived clients',
+                  onPressed: () => context.push('/archived'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download_outlined),
+                  tooltip: 'Export clients CSV',
+                  onPressed: () => _exportClientsCsv(context, asyncClients.valueOrNull),
+                ),
+              ],
             ),
-            onPressed: () => setState(() => _compact = !_compact),
-          ),
-          IconButton(
-            icon: const Icon(Icons.archive_outlined),
-            tooltip: 'Archived clients',
-            onPressed: () => context.push('/archived'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.download_outlined),
-            tooltip: 'Export clients CSV',
-            onPressed: () => _exportClientsCsv(context, asyncClients.valueOrNull),
-          ),
-        ],
-      ),
       body: asyncClients.when(
         data: (clients) {
           if (clients.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.people_outline,
-                      size: 56,
-                      color: AppTheme.mutedFg.withValues(alpha: 0.6),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No clients yet',
-                      style: text.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap the + button to add someone to your ledger.',
-                      textAlign: TextAlign.center,
-                      style: text.bodyLarge?.copyWith(color: AppTheme.mutedFg),
-                    ),
-                  ],
-                ),
-              ),
+            return HudEmptyState(
+              icon: Icons.people_outline,
+              message: 'No clients yet',
+              subtitle: 'Tap + to add someone to your ledger.',
             );
           }
           final code = currencyAsync.valueOrNull ?? 'DZD';
@@ -396,7 +396,17 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
                                   overdue: overdueAsync.valueOrNull ?? false,
                                   onTap: () => context.push('/client/${c.id}'),
                                 )
-                              : _ClientRowComfortable(
+                              : GestureDetector(
+                                  onLongPress: () {
+                                    HapticFeedback.mediumImpact();
+                                    setState(() {
+                                      _selectMode = true;
+                                      _selected.add(c.id);
+                                    });
+                                  },
+                                  child: Stack(
+                                    children: [
+                                      _ClientRowComfortable(
                                   name: c.fullName,
                                   phone: c.phone,
                                   phrase: phrase,
@@ -409,7 +419,69 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
                                   tags: tagsAsync.valueOrNull ?? const [],
                                   insight: insightAsync.valueOrNull ?? '',
                                   overdue: overdueAsync.valueOrNull ?? false,
-                                  onTap: () => context.push('/client/${c.id}'),
+                                  onTap: _selectMode
+                                      ? () => setState(() {
+                                            if (_selected.contains(c.id)) {
+                                              _selected.remove(c.id);
+                                            } else {
+                                              _selected.add(c.id);
+                                            }
+                                          })
+                                      : () => context.push('/client/${c.id}'),
+                                  onQuickAdd: _selectMode ? null : () async {
+                                    final txTags = await ref.read(
+                                      transactionScopeTagsProvider.future,
+                                    );
+                                    if (!context.mounted) return;
+                                    await showModalBottomSheet<void>(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: AppTheme.surface,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.vertical(
+                                          top: Radius.circular(AppTheme.radius),
+                                        ),
+                                      ),
+                                      builder: (ctx) => Padding(
+                                        padding: EdgeInsets.only(
+                                          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                                        ),
+                                        child: TransactionEditorSheet(
+                                          title: 'Add transaction',
+                                          currencyCode: code,
+                                          currentBalanceMinor: c.balanceMinor,
+                                          availableTags: txTags,
+                                          onSubmit: (amount, type, note, tagIds, effectiveAt, dueAt) async {
+                                            await ref.read(ledgerRepositoryProvider).insertTransaction(
+                                              clientId: c.id,
+                                              amountMinor: amount,
+                                              type: type,
+                                              currencyCode: code,
+                                              note: note,
+                                              tagIds: tagIds,
+                                              effectiveAt: effectiveAt,
+                                              dueAt: dueAt,
+                                            );
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                      if (_selectMode)
+                                        Positioned(
+                                          top: 8,
+                                          right: 8,
+                                          child: IgnorePointer(
+                                            child: Checkbox(
+                                              value: _selected.contains(c.id),
+                                              onChanged: null,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 );
                         },
                       ),
@@ -417,7 +489,10 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+          children: const [ClientListSkeleton()],
+        ),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
       floatingActionButton: FloatingActionButton(
@@ -454,6 +529,36 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
         child: const Icon(Icons.person_add_alt_1_outlined),
       ),
     );
+  }
+
+  Future<void> _bulkArchive() async {
+    final ids = List<String>.from(_selected);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Archive ${ids.length} client${ids.length == 1 ? '' : 's'}?'),
+        content: const Text('Archived clients are hidden from the main list.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final repo = ref.read(ledgerRepositoryProvider);
+    for (final id in ids) {
+      await repo.setClientArchived(id, true);
+    }
+    setState(() {
+      _selectMode = false;
+      _selected.clear();
+    });
   }
 
   Future<void> _exportClientsCsv(
@@ -688,6 +793,7 @@ class _ClientRowComfortable extends StatelessWidget {
     required this.insight,
     required this.overdue,
     required this.onTap,
+    this.onQuickAdd,
   });
 
   final String name;
@@ -703,6 +809,7 @@ class _ClientRowComfortable extends StatelessWidget {
   final String insight;
   final bool overdue;
   final VoidCallback onTap;
+  final VoidCallback? onQuickAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -840,11 +947,32 @@ class _ClientRowComfortable extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Icon(
-                    overdue ? Icons.warning_amber_rounded : Icons.chevron_right,
-                    color: overdue
-                        ? AppTheme.ledgerCancel
-                        : AppTheme.mutedFg.withValues(alpha: 0.6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onQuickAdd != null && !isArchived)
+                        SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            iconSize: 18,
+                            icon: const Icon(Icons.add_rounded),
+                            color: accent,
+                            tooltip: 'Add transaction',
+                            onPressed: () {
+                              HapticFeedback.lightImpact();
+                              onQuickAdd!();
+                            },
+                          ),
+                        ),
+                      Icon(
+                        overdue ? Icons.warning_amber_rounded : Icons.chevron_right,
+                        color: overdue
+                            ? AppTheme.ledgerCancel
+                            : AppTheme.mutedFg.withValues(alpha: 0.6),
+                      ),
+                    ],
                   ),
                 ],
               ),

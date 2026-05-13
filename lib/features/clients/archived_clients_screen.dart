@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
+import '../../widgets/hud_empty_state.dart';
 
 String _archivedInitials(String fullName) {
   final parts = fullName.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
@@ -59,11 +60,10 @@ class _ArchivedClientsScreenState extends ConsumerState<ArchivedClientsScreen> {
       body: asyncClients.when(
         data: (clients) {
           if (clients.isEmpty) {
-            return Center(
-              child: Text(
-                'No archived clients.',
-                style: text.bodyLarge?.copyWith(color: AppTheme.mutedFg),
-              ),
+            return const HudEmptyState(
+              icon: Icons.archive_outlined,
+              message: 'No archived clients',
+              subtitle: 'Clients you archive will appear here.',
             );
           }
           final code = currencyAsync.valueOrNull ?? 'DZD';

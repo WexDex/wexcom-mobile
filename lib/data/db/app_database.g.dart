@@ -1683,6 +1683,15 @@ class $LedgerTransactionsTable extends LedgerTransactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _dueAtMeta = const VerificationMeta('dueAt');
+  @override
+  late final GeneratedColumn<DateTime> dueAt = GeneratedColumn<DateTime>(
+    'due_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1706,6 +1715,7 @@ class $LedgerTransactionsTable extends LedgerTransactions
     updatedAt,
     cancelledAt,
     note,
+    dueAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1890,6 +1900,12 @@ class $LedgerTransactionsTable extends LedgerTransactions
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
       );
     }
+    if (data.containsKey('due_at')) {
+      context.handle(
+        _dueAtMeta,
+        dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta),
+      );
+    }
     return context;
   }
 
@@ -1983,6 +1999,10 @@ class $LedgerTransactionsTable extends LedgerTransactions
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      dueAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_at'],
+      ),
     );
   }
 
@@ -2015,6 +2035,7 @@ class LedgerTransaction extends DataClass
   final DateTime updatedAt;
   final DateTime? cancelledAt;
   final String? note;
+  final DateTime? dueAt;
   const LedgerTransaction({
     required this.id,
     required this.clientId,
@@ -2037,6 +2058,7 @@ class LedgerTransaction extends DataClass
     required this.updatedAt,
     this.cancelledAt,
     this.note,
+    this.dueAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2082,6 +2104,9 @@ class LedgerTransaction extends DataClass
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
+    if (!nullToAbsent || dueAt != null) {
+      map['due_at'] = Variable<DateTime>(dueAt);
+    }
     return map;
   }
 
@@ -2120,6 +2145,9 @@ class LedgerTransaction extends DataClass
           ? const Value.absent()
           : Value(cancelledAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      dueAt: dueAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueAt),
     );
   }
 
@@ -2158,6 +2186,7 @@ class LedgerTransaction extends DataClass
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       cancelledAt: serializer.fromJson<DateTime?>(json['cancelledAt']),
       note: serializer.fromJson<String?>(json['note']),
+      dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
     );
   }
   @override
@@ -2193,6 +2222,7 @@ class LedgerTransaction extends DataClass
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'cancelledAt': serializer.toJson<DateTime?>(cancelledAt),
       'note': serializer.toJson<String?>(note),
+      'dueAt': serializer.toJson<DateTime?>(dueAt),
     };
   }
 
@@ -2218,6 +2248,7 @@ class LedgerTransaction extends DataClass
     DateTime? updatedAt,
     Value<DateTime?> cancelledAt = const Value.absent(),
     Value<String?> note = const Value.absent(),
+    Value<DateTime?> dueAt = const Value.absent(),
   }) => LedgerTransaction(
     id: id ?? this.id,
     clientId: clientId ?? this.clientId,
@@ -2246,6 +2277,7 @@ class LedgerTransaction extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     cancelledAt: cancelledAt.present ? cancelledAt.value : this.cancelledAt,
     note: note.present ? note.value : this.note,
+    dueAt: dueAt.present ? dueAt.value : this.dueAt,
   );
   LedgerTransaction copyWithCompanion(LedgerTransactionsCompanion data) {
     return LedgerTransaction(
@@ -2290,6 +2322,7 @@ class LedgerTransaction extends DataClass
           ? data.cancelledAt.value
           : this.cancelledAt,
       note: data.note.present ? data.note.value : this.note,
+      dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
     );
   }
 
@@ -2316,7 +2349,8 @@ class LedgerTransaction extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('cancelledAt: $cancelledAt, ')
-          ..write('note: $note')
+          ..write('note: $note, ')
+          ..write('dueAt: $dueAt')
           ..write(')'))
         .toString();
   }
@@ -2344,6 +2378,7 @@ class LedgerTransaction extends DataClass
     updatedAt,
     cancelledAt,
     note,
+    dueAt,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2369,7 +2404,8 @@ class LedgerTransaction extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.cancelledAt == this.cancelledAt &&
-          other.note == this.note);
+          other.note == this.note &&
+          other.dueAt == this.dueAt);
 }
 
 class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
@@ -2394,6 +2430,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
   final Value<DateTime> updatedAt;
   final Value<DateTime?> cancelledAt;
   final Value<String?> note;
+  final Value<DateTime?> dueAt;
   final Value<int> rowid;
   const LedgerTransactionsCompanion({
     this.id = const Value.absent(),
@@ -2417,6 +2454,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     this.updatedAt = const Value.absent(),
     this.cancelledAt = const Value.absent(),
     this.note = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LedgerTransactionsCompanion.insert({
@@ -2441,6 +2479,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     required DateTime updatedAt,
     this.cancelledAt = const Value.absent(),
     this.note = const Value.absent(),
+    this.dueAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        clientId = Value(clientId),
@@ -2473,6 +2512,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? cancelledAt,
     Expression<String>? note,
+    Expression<DateTime>? dueAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2501,6 +2541,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (cancelledAt != null) 'cancelled_at': cancelledAt,
       if (note != null) 'note': note,
+      if (dueAt != null) 'due_at': dueAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2527,6 +2568,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     Value<DateTime>? updatedAt,
     Value<DateTime?>? cancelledAt,
     Value<String?>? note,
+    Value<DateTime?>? dueAt,
     Value<int>? rowid,
   }) {
     return LedgerTransactionsCompanion(
@@ -2555,6 +2597,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
       updatedAt: updatedAt ?? this.updatedAt,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       note: note ?? this.note,
+      dueAt: dueAt ?? this.dueAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2633,6 +2676,9 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     if (note.present) {
       map['note'] = Variable<String>(note.value);
     }
+    if (dueAt.present) {
+      map['due_at'] = Variable<DateTime>(dueAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2663,6 +2709,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
           ..write('updatedAt: $updatedAt, ')
           ..write('cancelledAt: $cancelledAt, ')
           ..write('note: $note, ')
+          ..write('dueAt: $dueAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4061,6 +4108,100 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _notifOverdueEnabledMeta =
+      const VerificationMeta('notifOverdueEnabled');
+  @override
+  late final GeneratedColumn<bool> notifOverdueEnabled = GeneratedColumn<bool>(
+    'notif_overdue_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("notif_overdue_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _notifOverdueHourMeta = const VerificationMeta(
+    'notifOverdueHour',
+  );
+  @override
+  late final GeneratedColumn<int> notifOverdueHour = GeneratedColumn<int>(
+    'notif_overdue_hour',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(9),
+  );
+  static const VerificationMeta _notifBalanceMilestoneEnabledMeta =
+      const VerificationMeta('notifBalanceMilestoneEnabled');
+  @override
+  late final GeneratedColumn<bool> notifBalanceMilestoneEnabled =
+      GeneratedColumn<bool>(
+        'notif_balance_milestone_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("notif_balance_milestone_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _notifBalanceMilestoneMinorMeta =
+      const VerificationMeta('notifBalanceMilestoneMinor');
+  @override
+  late final GeneratedColumn<int> notifBalanceMilestoneMinor =
+      GeneratedColumn<int>(
+        'notif_balance_milestone_minor',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(100000),
+      );
+  static const VerificationMeta _notifInactivityEnabledMeta =
+      const VerificationMeta('notifInactivityEnabled');
+  @override
+  late final GeneratedColumn<bool> notifInactivityEnabled =
+      GeneratedColumn<bool>(
+        'notif_inactivity_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("notif_inactivity_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _notifInactivityDaysMeta =
+      const VerificationMeta('notifInactivityDays');
+  @override
+  late final GeneratedColumn<int> notifInactivityDays = GeneratedColumn<int>(
+    'notif_inactivity_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(7),
+  );
+  static const VerificationMeta _notifSyncEnabledMeta = const VerificationMeta(
+    'notifSyncEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> notifSyncEnabled = GeneratedColumn<bool>(
+    'notif_sync_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("notif_sync_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4078,6 +4219,13 @@ class $AppSettingsTable extends AppSettings
     lastUploadSha256,
     lastDownloadAt,
     lastServerOkAt,
+    notifOverdueEnabled,
+    notifOverdueHour,
+    notifBalanceMilestoneEnabled,
+    notifBalanceMilestoneMinor,
+    notifInactivityEnabled,
+    notifInactivityDays,
+    notifSyncEnabled,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4220,6 +4368,69 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('notif_overdue_enabled')) {
+      context.handle(
+        _notifOverdueEnabledMeta,
+        notifOverdueEnabled.isAcceptableOrUnknown(
+          data['notif_overdue_enabled']!,
+          _notifOverdueEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_overdue_hour')) {
+      context.handle(
+        _notifOverdueHourMeta,
+        notifOverdueHour.isAcceptableOrUnknown(
+          data['notif_overdue_hour']!,
+          _notifOverdueHourMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_balance_milestone_enabled')) {
+      context.handle(
+        _notifBalanceMilestoneEnabledMeta,
+        notifBalanceMilestoneEnabled.isAcceptableOrUnknown(
+          data['notif_balance_milestone_enabled']!,
+          _notifBalanceMilestoneEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_balance_milestone_minor')) {
+      context.handle(
+        _notifBalanceMilestoneMinorMeta,
+        notifBalanceMilestoneMinor.isAcceptableOrUnknown(
+          data['notif_balance_milestone_minor']!,
+          _notifBalanceMilestoneMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_inactivity_enabled')) {
+      context.handle(
+        _notifInactivityEnabledMeta,
+        notifInactivityEnabled.isAcceptableOrUnknown(
+          data['notif_inactivity_enabled']!,
+          _notifInactivityEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_inactivity_days')) {
+      context.handle(
+        _notifInactivityDaysMeta,
+        notifInactivityDays.isAcceptableOrUnknown(
+          data['notif_inactivity_days']!,
+          _notifInactivityDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_sync_enabled')) {
+      context.handle(
+        _notifSyncEnabledMeta,
+        notifSyncEnabled.isAcceptableOrUnknown(
+          data['notif_sync_enabled']!,
+          _notifSyncEnabledMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4289,6 +4500,34 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_server_ok_at'],
       ),
+      notifOverdueEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_overdue_enabled'],
+      )!,
+      notifOverdueHour: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notif_overdue_hour'],
+      )!,
+      notifBalanceMilestoneEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_balance_milestone_enabled'],
+      )!,
+      notifBalanceMilestoneMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notif_balance_milestone_minor'],
+      )!,
+      notifInactivityEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_inactivity_enabled'],
+      )!,
+      notifInactivityDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notif_inactivity_days'],
+      )!,
+      notifSyncEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_sync_enabled'],
+      )!,
     );
   }
 
@@ -4314,6 +4553,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String? lastUploadSha256;
   final DateTime? lastDownloadAt;
   final DateTime? lastServerOkAt;
+  final bool notifOverdueEnabled;
+  final int notifOverdueHour;
+  final bool notifBalanceMilestoneEnabled;
+  final int notifBalanceMilestoneMinor;
+  final bool notifInactivityEnabled;
+  final int notifInactivityDays;
+  final bool notifSyncEnabled;
   const AppSetting({
     required this.id,
     required this.defaultCurrencyCode,
@@ -4330,6 +4576,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     this.lastUploadSha256,
     this.lastDownloadAt,
     this.lastServerOkAt,
+    required this.notifOverdueEnabled,
+    required this.notifOverdueHour,
+    required this.notifBalanceMilestoneEnabled,
+    required this.notifBalanceMilestoneMinor,
+    required this.notifInactivityEnabled,
+    required this.notifInactivityDays,
+    required this.notifSyncEnabled,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4365,6 +4618,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || lastServerOkAt != null) {
       map['last_server_ok_at'] = Variable<DateTime>(lastServerOkAt);
     }
+    map['notif_overdue_enabled'] = Variable<bool>(notifOverdueEnabled);
+    map['notif_overdue_hour'] = Variable<int>(notifOverdueHour);
+    map['notif_balance_milestone_enabled'] = Variable<bool>(
+      notifBalanceMilestoneEnabled,
+    );
+    map['notif_balance_milestone_minor'] = Variable<int>(
+      notifBalanceMilestoneMinor,
+    );
+    map['notif_inactivity_enabled'] = Variable<bool>(notifInactivityEnabled);
+    map['notif_inactivity_days'] = Variable<int>(notifInactivityDays);
+    map['notif_sync_enabled'] = Variable<bool>(notifSyncEnabled);
     return map;
   }
 
@@ -4401,6 +4665,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastServerOkAt: lastServerOkAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastServerOkAt),
+      notifOverdueEnabled: Value(notifOverdueEnabled),
+      notifOverdueHour: Value(notifOverdueHour),
+      notifBalanceMilestoneEnabled: Value(notifBalanceMilestoneEnabled),
+      notifBalanceMilestoneMinor: Value(notifBalanceMilestoneMinor),
+      notifInactivityEnabled: Value(notifInactivityEnabled),
+      notifInactivityDays: Value(notifInactivityDays),
+      notifSyncEnabled: Value(notifSyncEnabled),
     );
   }
 
@@ -4431,6 +4702,23 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastUploadSha256: serializer.fromJson<String?>(json['lastUploadSha256']),
       lastDownloadAt: serializer.fromJson<DateTime?>(json['lastDownloadAt']),
       lastServerOkAt: serializer.fromJson<DateTime?>(json['lastServerOkAt']),
+      notifOverdueEnabled: serializer.fromJson<bool>(
+        json['notifOverdueEnabled'],
+      ),
+      notifOverdueHour: serializer.fromJson<int>(json['notifOverdueHour']),
+      notifBalanceMilestoneEnabled: serializer.fromJson<bool>(
+        json['notifBalanceMilestoneEnabled'],
+      ),
+      notifBalanceMilestoneMinor: serializer.fromJson<int>(
+        json['notifBalanceMilestoneMinor'],
+      ),
+      notifInactivityEnabled: serializer.fromJson<bool>(
+        json['notifInactivityEnabled'],
+      ),
+      notifInactivityDays: serializer.fromJson<int>(
+        json['notifInactivityDays'],
+      ),
+      notifSyncEnabled: serializer.fromJson<bool>(json['notifSyncEnabled']),
     );
   }
   @override
@@ -4454,6 +4742,17 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'lastUploadSha256': serializer.toJson<String?>(lastUploadSha256),
       'lastDownloadAt': serializer.toJson<DateTime?>(lastDownloadAt),
       'lastServerOkAt': serializer.toJson<DateTime?>(lastServerOkAt),
+      'notifOverdueEnabled': serializer.toJson<bool>(notifOverdueEnabled),
+      'notifOverdueHour': serializer.toJson<int>(notifOverdueHour),
+      'notifBalanceMilestoneEnabled': serializer.toJson<bool>(
+        notifBalanceMilestoneEnabled,
+      ),
+      'notifBalanceMilestoneMinor': serializer.toJson<int>(
+        notifBalanceMilestoneMinor,
+      ),
+      'notifInactivityEnabled': serializer.toJson<bool>(notifInactivityEnabled),
+      'notifInactivityDays': serializer.toJson<int>(notifInactivityDays),
+      'notifSyncEnabled': serializer.toJson<bool>(notifSyncEnabled),
     };
   }
 
@@ -4473,6 +4772,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     Value<String?> lastUploadSha256 = const Value.absent(),
     Value<DateTime?> lastDownloadAt = const Value.absent(),
     Value<DateTime?> lastServerOkAt = const Value.absent(),
+    bool? notifOverdueEnabled,
+    int? notifOverdueHour,
+    bool? notifBalanceMilestoneEnabled,
+    int? notifBalanceMilestoneMinor,
+    bool? notifInactivityEnabled,
+    int? notifInactivityDays,
+    bool? notifSyncEnabled,
   }) => AppSetting(
     id: id ?? this.id,
     defaultCurrencyCode: defaultCurrencyCode ?? this.defaultCurrencyCode,
@@ -4498,6 +4804,16 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     lastServerOkAt: lastServerOkAt.present
         ? lastServerOkAt.value
         : this.lastServerOkAt,
+    notifOverdueEnabled: notifOverdueEnabled ?? this.notifOverdueEnabled,
+    notifOverdueHour: notifOverdueHour ?? this.notifOverdueHour,
+    notifBalanceMilestoneEnabled:
+        notifBalanceMilestoneEnabled ?? this.notifBalanceMilestoneEnabled,
+    notifBalanceMilestoneMinor:
+        notifBalanceMilestoneMinor ?? this.notifBalanceMilestoneMinor,
+    notifInactivityEnabled:
+        notifInactivityEnabled ?? this.notifInactivityEnabled,
+    notifInactivityDays: notifInactivityDays ?? this.notifInactivityDays,
+    notifSyncEnabled: notifSyncEnabled ?? this.notifSyncEnabled,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -4544,6 +4860,27 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastServerOkAt: data.lastServerOkAt.present
           ? data.lastServerOkAt.value
           : this.lastServerOkAt,
+      notifOverdueEnabled: data.notifOverdueEnabled.present
+          ? data.notifOverdueEnabled.value
+          : this.notifOverdueEnabled,
+      notifOverdueHour: data.notifOverdueHour.present
+          ? data.notifOverdueHour.value
+          : this.notifOverdueHour,
+      notifBalanceMilestoneEnabled: data.notifBalanceMilestoneEnabled.present
+          ? data.notifBalanceMilestoneEnabled.value
+          : this.notifBalanceMilestoneEnabled,
+      notifBalanceMilestoneMinor: data.notifBalanceMilestoneMinor.present
+          ? data.notifBalanceMilestoneMinor.value
+          : this.notifBalanceMilestoneMinor,
+      notifInactivityEnabled: data.notifInactivityEnabled.present
+          ? data.notifInactivityEnabled.value
+          : this.notifInactivityEnabled,
+      notifInactivityDays: data.notifInactivityDays.present
+          ? data.notifInactivityDays.value
+          : this.notifInactivityDays,
+      notifSyncEnabled: data.notifSyncEnabled.present
+          ? data.notifSyncEnabled.value
+          : this.notifSyncEnabled,
     );
   }
 
@@ -4564,13 +4901,22 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('lastUploadAt: $lastUploadAt, ')
           ..write('lastUploadSha256: $lastUploadSha256, ')
           ..write('lastDownloadAt: $lastDownloadAt, ')
-          ..write('lastServerOkAt: $lastServerOkAt')
+          ..write('lastServerOkAt: $lastServerOkAt, ')
+          ..write('notifOverdueEnabled: $notifOverdueEnabled, ')
+          ..write('notifOverdueHour: $notifOverdueHour, ')
+          ..write(
+            'notifBalanceMilestoneEnabled: $notifBalanceMilestoneEnabled, ',
+          )
+          ..write('notifBalanceMilestoneMinor: $notifBalanceMilestoneMinor, ')
+          ..write('notifInactivityEnabled: $notifInactivityEnabled, ')
+          ..write('notifInactivityDays: $notifInactivityDays, ')
+          ..write('notifSyncEnabled: $notifSyncEnabled')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     defaultCurrencyCode,
     contactsAutofillEnabled,
@@ -4586,7 +4932,14 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     lastUploadSha256,
     lastDownloadAt,
     lastServerOkAt,
-  );
+    notifOverdueEnabled,
+    notifOverdueHour,
+    notifBalanceMilestoneEnabled,
+    notifBalanceMilestoneMinor,
+    notifInactivityEnabled,
+    notifInactivityDays,
+    notifSyncEnabled,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4605,7 +4958,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.lastUploadAt == this.lastUploadAt &&
           other.lastUploadSha256 == this.lastUploadSha256 &&
           other.lastDownloadAt == this.lastDownloadAt &&
-          other.lastServerOkAt == this.lastServerOkAt);
+          other.lastServerOkAt == this.lastServerOkAt &&
+          other.notifOverdueEnabled == this.notifOverdueEnabled &&
+          other.notifOverdueHour == this.notifOverdueHour &&
+          other.notifBalanceMilestoneEnabled ==
+              this.notifBalanceMilestoneEnabled &&
+          other.notifBalanceMilestoneMinor == this.notifBalanceMilestoneMinor &&
+          other.notifInactivityEnabled == this.notifInactivityEnabled &&
+          other.notifInactivityDays == this.notifInactivityDays &&
+          other.notifSyncEnabled == this.notifSyncEnabled);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -4624,6 +4985,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String?> lastUploadSha256;
   final Value<DateTime?> lastDownloadAt;
   final Value<DateTime?> lastServerOkAt;
+  final Value<bool> notifOverdueEnabled;
+  final Value<int> notifOverdueHour;
+  final Value<bool> notifBalanceMilestoneEnabled;
+  final Value<int> notifBalanceMilestoneMinor;
+  final Value<bool> notifInactivityEnabled;
+  final Value<int> notifInactivityDays;
+  final Value<bool> notifSyncEnabled;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.defaultCurrencyCode = const Value.absent(),
@@ -4640,6 +5008,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastUploadSha256 = const Value.absent(),
     this.lastDownloadAt = const Value.absent(),
     this.lastServerOkAt = const Value.absent(),
+    this.notifOverdueEnabled = const Value.absent(),
+    this.notifOverdueHour = const Value.absent(),
+    this.notifBalanceMilestoneEnabled = const Value.absent(),
+    this.notifBalanceMilestoneMinor = const Value.absent(),
+    this.notifInactivityEnabled = const Value.absent(),
+    this.notifInactivityDays = const Value.absent(),
+    this.notifSyncEnabled = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -4657,6 +5032,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.lastUploadSha256 = const Value.absent(),
     this.lastDownloadAt = const Value.absent(),
     this.lastServerOkAt = const Value.absent(),
+    this.notifOverdueEnabled = const Value.absent(),
+    this.notifOverdueHour = const Value.absent(),
+    this.notifBalanceMilestoneEnabled = const Value.absent(),
+    this.notifBalanceMilestoneMinor = const Value.absent(),
+    this.notifInactivityEnabled = const Value.absent(),
+    this.notifInactivityDays = const Value.absent(),
+    this.notifSyncEnabled = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -4674,6 +5056,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? lastUploadSha256,
     Expression<DateTime>? lastDownloadAt,
     Expression<DateTime>? lastServerOkAt,
+    Expression<bool>? notifOverdueEnabled,
+    Expression<int>? notifOverdueHour,
+    Expression<bool>? notifBalanceMilestoneEnabled,
+    Expression<int>? notifBalanceMilestoneMinor,
+    Expression<bool>? notifInactivityEnabled,
+    Expression<int>? notifInactivityDays,
+    Expression<bool>? notifSyncEnabled,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -4694,6 +5083,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (lastUploadSha256 != null) 'last_upload_sha256': lastUploadSha256,
       if (lastDownloadAt != null) 'last_download_at': lastDownloadAt,
       if (lastServerOkAt != null) 'last_server_ok_at': lastServerOkAt,
+      if (notifOverdueEnabled != null)
+        'notif_overdue_enabled': notifOverdueEnabled,
+      if (notifOverdueHour != null) 'notif_overdue_hour': notifOverdueHour,
+      if (notifBalanceMilestoneEnabled != null)
+        'notif_balance_milestone_enabled': notifBalanceMilestoneEnabled,
+      if (notifBalanceMilestoneMinor != null)
+        'notif_balance_milestone_minor': notifBalanceMilestoneMinor,
+      if (notifInactivityEnabled != null)
+        'notif_inactivity_enabled': notifInactivityEnabled,
+      if (notifInactivityDays != null)
+        'notif_inactivity_days': notifInactivityDays,
+      if (notifSyncEnabled != null) 'notif_sync_enabled': notifSyncEnabled,
     });
   }
 
@@ -4713,6 +5114,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<String?>? lastUploadSha256,
     Value<DateTime?>? lastDownloadAt,
     Value<DateTime?>? lastServerOkAt,
+    Value<bool>? notifOverdueEnabled,
+    Value<int>? notifOverdueHour,
+    Value<bool>? notifBalanceMilestoneEnabled,
+    Value<int>? notifBalanceMilestoneMinor,
+    Value<bool>? notifInactivityEnabled,
+    Value<int>? notifInactivityDays,
+    Value<bool>? notifSyncEnabled,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -4731,6 +5139,16 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       lastUploadSha256: lastUploadSha256 ?? this.lastUploadSha256,
       lastDownloadAt: lastDownloadAt ?? this.lastDownloadAt,
       lastServerOkAt: lastServerOkAt ?? this.lastServerOkAt,
+      notifOverdueEnabled: notifOverdueEnabled ?? this.notifOverdueEnabled,
+      notifOverdueHour: notifOverdueHour ?? this.notifOverdueHour,
+      notifBalanceMilestoneEnabled:
+          notifBalanceMilestoneEnabled ?? this.notifBalanceMilestoneEnabled,
+      notifBalanceMilestoneMinor:
+          notifBalanceMilestoneMinor ?? this.notifBalanceMilestoneMinor,
+      notifInactivityEnabled:
+          notifInactivityEnabled ?? this.notifInactivityEnabled,
+      notifInactivityDays: notifInactivityDays ?? this.notifInactivityDays,
+      notifSyncEnabled: notifSyncEnabled ?? this.notifSyncEnabled,
     );
   }
 
@@ -4786,6 +5204,33 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (lastServerOkAt.present) {
       map['last_server_ok_at'] = Variable<DateTime>(lastServerOkAt.value);
     }
+    if (notifOverdueEnabled.present) {
+      map['notif_overdue_enabled'] = Variable<bool>(notifOverdueEnabled.value);
+    }
+    if (notifOverdueHour.present) {
+      map['notif_overdue_hour'] = Variable<int>(notifOverdueHour.value);
+    }
+    if (notifBalanceMilestoneEnabled.present) {
+      map['notif_balance_milestone_enabled'] = Variable<bool>(
+        notifBalanceMilestoneEnabled.value,
+      );
+    }
+    if (notifBalanceMilestoneMinor.present) {
+      map['notif_balance_milestone_minor'] = Variable<int>(
+        notifBalanceMilestoneMinor.value,
+      );
+    }
+    if (notifInactivityEnabled.present) {
+      map['notif_inactivity_enabled'] = Variable<bool>(
+        notifInactivityEnabled.value,
+      );
+    }
+    if (notifInactivityDays.present) {
+      map['notif_inactivity_days'] = Variable<int>(notifInactivityDays.value);
+    }
+    if (notifSyncEnabled.present) {
+      map['notif_sync_enabled'] = Variable<bool>(notifSyncEnabled.value);
+    }
     return map;
   }
 
@@ -4806,7 +5251,892 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('lastUploadAt: $lastUploadAt, ')
           ..write('lastUploadSha256: $lastUploadSha256, ')
           ..write('lastDownloadAt: $lastDownloadAt, ')
-          ..write('lastServerOkAt: $lastServerOkAt')
+          ..write('lastServerOkAt: $lastServerOkAt, ')
+          ..write('notifOverdueEnabled: $notifOverdueEnabled, ')
+          ..write('notifOverdueHour: $notifOverdueHour, ')
+          ..write(
+            'notifBalanceMilestoneEnabled: $notifBalanceMilestoneEnabled, ',
+          )
+          ..write('notifBalanceMilestoneMinor: $notifBalanceMilestoneMinor, ')
+          ..write('notifInactivityEnabled: $notifInactivityEnabled, ')
+          ..write('notifInactivityDays: $notifInactivityDays, ')
+          ..write('notifSyncEnabled: $notifSyncEnabled')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TransactionTemplatesTable extends TransactionTemplates
+    with TableInfo<$TransactionTemplatesTable, TransactionTemplate> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TransactionTemplatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _txTypeMeta = const VerificationMeta('txType');
+  @override
+  late final GeneratedColumn<int> txType = GeneratedColumn<int>(
+    'tx_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('DZD'),
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    label,
+    amountMinor,
+    txType,
+    currencyCode,
+    note,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'transaction_templates';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TransactionTemplate> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('tx_type')) {
+      context.handle(
+        _txTypeMeta,
+        txType.isAcceptableOrUnknown(data['tx_type']!, _txTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_txTypeMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TransactionTemplate map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TransactionTemplate(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      txType: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tx_type'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $TransactionTemplatesTable createAlias(String alias) {
+    return $TransactionTemplatesTable(attachedDatabase, alias);
+  }
+}
+
+class TransactionTemplate extends DataClass
+    implements Insertable<TransactionTemplate> {
+  final String id;
+  final String label;
+  final int amountMinor;
+  final int txType;
+  final String currencyCode;
+  final String? note;
+  final DateTime createdAt;
+  const TransactionTemplate({
+    required this.id,
+    required this.label,
+    required this.amountMinor,
+    required this.txType,
+    required this.currencyCode,
+    this.note,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['label'] = Variable<String>(label);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['tx_type'] = Variable<int>(txType);
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  TransactionTemplatesCompanion toCompanion(bool nullToAbsent) {
+    return TransactionTemplatesCompanion(
+      id: Value(id),
+      label: Value(label),
+      amountMinor: Value(amountMinor),
+      txType: Value(txType),
+      currencyCode: Value(currencyCode),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory TransactionTemplate.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TransactionTemplate(
+      id: serializer.fromJson<String>(json['id']),
+      label: serializer.fromJson<String>(json['label']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      txType: serializer.fromJson<int>(json['txType']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      note: serializer.fromJson<String?>(json['note']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'label': serializer.toJson<String>(label),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'txType': serializer.toJson<int>(txType),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'note': serializer.toJson<String?>(note),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  TransactionTemplate copyWith({
+    String? id,
+    String? label,
+    int? amountMinor,
+    int? txType,
+    String? currencyCode,
+    Value<String?> note = const Value.absent(),
+    DateTime? createdAt,
+  }) => TransactionTemplate(
+    id: id ?? this.id,
+    label: label ?? this.label,
+    amountMinor: amountMinor ?? this.amountMinor,
+    txType: txType ?? this.txType,
+    currencyCode: currencyCode ?? this.currencyCode,
+    note: note.present ? note.value : this.note,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  TransactionTemplate copyWithCompanion(TransactionTemplatesCompanion data) {
+    return TransactionTemplate(
+      id: data.id.present ? data.id.value : this.id,
+      label: data.label.present ? data.label.value : this.label,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      txType: data.txType.present ? data.txType.value : this.txType,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      note: data.note.present ? data.note.value : this.note,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransactionTemplate(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('txType: $txType, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    label,
+    amountMinor,
+    txType,
+    currencyCode,
+    note,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TransactionTemplate &&
+          other.id == this.id &&
+          other.label == this.label &&
+          other.amountMinor == this.amountMinor &&
+          other.txType == this.txType &&
+          other.currencyCode == this.currencyCode &&
+          other.note == this.note &&
+          other.createdAt == this.createdAt);
+}
+
+class TransactionTemplatesCompanion
+    extends UpdateCompanion<TransactionTemplate> {
+  final Value<String> id;
+  final Value<String> label;
+  final Value<int> amountMinor;
+  final Value<int> txType;
+  final Value<String> currencyCode;
+  final Value<String?> note;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const TransactionTemplatesCompanion({
+    this.id = const Value.absent(),
+    this.label = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.txType = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.note = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TransactionTemplatesCompanion.insert({
+    required String id,
+    required String label,
+    required int amountMinor,
+    required int txType,
+    this.currencyCode = const Value.absent(),
+    this.note = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       label = Value(label),
+       amountMinor = Value(amountMinor),
+       txType = Value(txType),
+       createdAt = Value(createdAt);
+  static Insertable<TransactionTemplate> custom({
+    Expression<String>? id,
+    Expression<String>? label,
+    Expression<int>? amountMinor,
+    Expression<int>? txType,
+    Expression<String>? currencyCode,
+    Expression<String>? note,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (label != null) 'label': label,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (txType != null) 'tx_type': txType,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (note != null) 'note': note,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TransactionTemplatesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? label,
+    Value<int>? amountMinor,
+    Value<int>? txType,
+    Value<String>? currencyCode,
+    Value<String?>? note,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return TransactionTemplatesCompanion(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      amountMinor: amountMinor ?? this.amountMinor,
+      txType: txType ?? this.txType,
+      currencyCode: currencyCode ?? this.currencyCode,
+      note: note ?? this.note,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (txType.present) {
+      map['tx_type'] = Variable<int>(txType.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransactionTemplatesCompanion(')
+          ..write('id: $id, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('txType: $txType, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('note: $note, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AuditLogTable extends AuditLog
+    with TableInfo<$AuditLogTable, AuditLogData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AuditLogTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actionMeta = const VerificationMeta('action');
+  @override
+  late final GeneratedColumn<String> action = GeneratedColumn<String>(
+    'action',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityTypeMeta = const VerificationMeta(
+    'entityType',
+  );
+  @override
+  late final GeneratedColumn<String> entityType = GeneratedColumn<String>(
+    'entity_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _entityIdMeta = const VerificationMeta(
+    'entityId',
+  );
+  @override
+  late final GeneratedColumn<String> entityId = GeneratedColumn<String>(
+    'entity_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _detailMeta = const VerificationMeta('detail');
+  @override
+  late final GeneratedColumn<String> detail = GeneratedColumn<String>(
+    'detail',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    action,
+    entityType,
+    entityId,
+    detail,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'audit_log';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AuditLogData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('action')) {
+      context.handle(
+        _actionMeta,
+        action.isAcceptableOrUnknown(data['action']!, _actionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_actionMeta);
+    }
+    if (data.containsKey('entity_type')) {
+      context.handle(
+        _entityTypeMeta,
+        entityType.isAcceptableOrUnknown(data['entity_type']!, _entityTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityTypeMeta);
+    }
+    if (data.containsKey('entity_id')) {
+      context.handle(
+        _entityIdMeta,
+        entityId.isAcceptableOrUnknown(data['entity_id']!, _entityIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityIdMeta);
+    }
+    if (data.containsKey('detail')) {
+      context.handle(
+        _detailMeta,
+        detail.isAcceptableOrUnknown(data['detail']!, _detailMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AuditLogData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AuditLogData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      action: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}action'],
+      )!,
+      entityType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_type'],
+      )!,
+      entityId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity_id'],
+      )!,
+      detail: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}detail'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AuditLogTable createAlias(String alias) {
+    return $AuditLogTable(attachedDatabase, alias);
+  }
+}
+
+class AuditLogData extends DataClass implements Insertable<AuditLogData> {
+  final String id;
+  final String action;
+  final String entityType;
+  final String entityId;
+  final String? detail;
+  final DateTime createdAt;
+  const AuditLogData({
+    required this.id,
+    required this.action,
+    required this.entityType,
+    required this.entityId,
+    this.detail,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['action'] = Variable<String>(action);
+    map['entity_type'] = Variable<String>(entityType);
+    map['entity_id'] = Variable<String>(entityId);
+    if (!nullToAbsent || detail != null) {
+      map['detail'] = Variable<String>(detail);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AuditLogCompanion toCompanion(bool nullToAbsent) {
+    return AuditLogCompanion(
+      id: Value(id),
+      action: Value(action),
+      entityType: Value(entityType),
+      entityId: Value(entityId),
+      detail: detail == null && nullToAbsent
+          ? const Value.absent()
+          : Value(detail),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AuditLogData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AuditLogData(
+      id: serializer.fromJson<String>(json['id']),
+      action: serializer.fromJson<String>(json['action']),
+      entityType: serializer.fromJson<String>(json['entityType']),
+      entityId: serializer.fromJson<String>(json['entityId']),
+      detail: serializer.fromJson<String?>(json['detail']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'action': serializer.toJson<String>(action),
+      'entityType': serializer.toJson<String>(entityType),
+      'entityId': serializer.toJson<String>(entityId),
+      'detail': serializer.toJson<String?>(detail),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AuditLogData copyWith({
+    String? id,
+    String? action,
+    String? entityType,
+    String? entityId,
+    Value<String?> detail = const Value.absent(),
+    DateTime? createdAt,
+  }) => AuditLogData(
+    id: id ?? this.id,
+    action: action ?? this.action,
+    entityType: entityType ?? this.entityType,
+    entityId: entityId ?? this.entityId,
+    detail: detail.present ? detail.value : this.detail,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  AuditLogData copyWithCompanion(AuditLogCompanion data) {
+    return AuditLogData(
+      id: data.id.present ? data.id.value : this.id,
+      action: data.action.present ? data.action.value : this.action,
+      entityType: data.entityType.present
+          ? data.entityType.value
+          : this.entityType,
+      entityId: data.entityId.present ? data.entityId.value : this.entityId,
+      detail: data.detail.present ? data.detail.value : this.detail,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AuditLogData(')
+          ..write('id: $id, ')
+          ..write('action: $action, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('detail: $detail, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, action, entityType, entityId, detail, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AuditLogData &&
+          other.id == this.id &&
+          other.action == this.action &&
+          other.entityType == this.entityType &&
+          other.entityId == this.entityId &&
+          other.detail == this.detail &&
+          other.createdAt == this.createdAt);
+}
+
+class AuditLogCompanion extends UpdateCompanion<AuditLogData> {
+  final Value<String> id;
+  final Value<String> action;
+  final Value<String> entityType;
+  final Value<String> entityId;
+  final Value<String?> detail;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AuditLogCompanion({
+    this.id = const Value.absent(),
+    this.action = const Value.absent(),
+    this.entityType = const Value.absent(),
+    this.entityId = const Value.absent(),
+    this.detail = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AuditLogCompanion.insert({
+    required String id,
+    required String action,
+    required String entityType,
+    required String entityId,
+    this.detail = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       action = Value(action),
+       entityType = Value(entityType),
+       entityId = Value(entityId),
+       createdAt = Value(createdAt);
+  static Insertable<AuditLogData> custom({
+    Expression<String>? id,
+    Expression<String>? action,
+    Expression<String>? entityType,
+    Expression<String>? entityId,
+    Expression<String>? detail,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (action != null) 'action': action,
+      if (entityType != null) 'entity_type': entityType,
+      if (entityId != null) 'entity_id': entityId,
+      if (detail != null) 'detail': detail,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AuditLogCompanion copyWith({
+    Value<String>? id,
+    Value<String>? action,
+    Value<String>? entityType,
+    Value<String>? entityId,
+    Value<String?>? detail,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return AuditLogCompanion(
+      id: id ?? this.id,
+      action: action ?? this.action,
+      entityType: entityType ?? this.entityType,
+      entityId: entityId ?? this.entityId,
+      detail: detail ?? this.detail,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (action.present) {
+      map['action'] = Variable<String>(action.value);
+    }
+    if (entityType.present) {
+      map['entity_type'] = Variable<String>(entityType.value);
+    }
+    if (entityId.present) {
+      map['entity_id'] = Variable<String>(entityId.value);
+    }
+    if (detail.present) {
+      map['detail'] = Variable<String>(detail.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AuditLogCompanion(')
+          ..write('id: $id, ')
+          ..write('action: $action, ')
+          ..write('entityType: $entityType, ')
+          ..write('entityId: $entityId, ')
+          ..write('detail: $detail, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -4828,6 +6158,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $PersonalFinanceEntriesTable personalFinanceEntries =
       $PersonalFinanceEntriesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $TransactionTemplatesTable transactionTemplates =
+      $TransactionTemplatesTable(this);
+  late final $AuditLogTable auditLog = $AuditLogTable(this);
   late final Index idxClientsArchivedAt = Index(
     'idx_clients_archived_at',
     'CREATE INDEX idx_clients_archived_at ON clients (archived_at)',
@@ -4848,6 +6181,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_personal_finance_kind_created',
     'CREATE INDEX idx_personal_finance_kind_created ON personal_finance_entries (kind, created_at)',
   );
+  late final Index idxAuditLogCreated = Index(
+    'idx_audit_log_created',
+    'CREATE INDEX idx_audit_log_created ON audit_log (created_at)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4861,11 +6198,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     quickActionUsages,
     personalFinanceEntries,
     appSettings,
+    transactionTemplates,
+    auditLog,
     idxClientsArchivedAt,
     idxClientTagsClient,
     idxTransactionsClientCreated,
     idxTxTagsTx,
     idxPersonalFinanceKindCreated,
+    idxAuditLogCreated,
   ];
 }
 
@@ -6234,6 +7574,7 @@ typedef $$LedgerTransactionsTableCreateCompanionBuilder =
       required DateTime updatedAt,
       Value<DateTime?> cancelledAt,
       Value<String?> note,
+      Value<DateTime?> dueAt,
       Value<int> rowid,
     });
 typedef $$LedgerTransactionsTableUpdateCompanionBuilder =
@@ -6259,6 +7600,7 @@ typedef $$LedgerTransactionsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<DateTime?> cancelledAt,
       Value<String?> note,
+      Value<DateTime?> dueAt,
       Value<int> rowid,
     });
 
@@ -6427,6 +7769,11 @@ class $$LedgerTransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$ClientsTableFilterComposer get clientId {
     final $$ClientsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -6585,6 +7932,11 @@ class $$LedgerTransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get dueAt => $composableBuilder(
+    column: $table.dueAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ClientsTableOrderingComposer get clientId {
     final $$ClientsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6698,6 +8050,9 @@ class $$LedgerTransactionsTableAnnotationComposer
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get dueAt =>
+      $composableBuilder(column: $table.dueAt, builder: (column) => column);
+
   $$ClientsTableAnnotationComposer get clientId {
     final $$ClientsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -6801,6 +8156,7 @@ class $$LedgerTransactionsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<DateTime?> cancelledAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerTransactionsCompanion(
                 id: id,
@@ -6824,6 +8180,7 @@ class $$LedgerTransactionsTableTableManager
                 updatedAt: updatedAt,
                 cancelledAt: cancelledAt,
                 note: note,
+                dueAt: dueAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6849,6 +8206,7 @@ class $$LedgerTransactionsTableTableManager
                 required DateTime updatedAt,
                 Value<DateTime?> cancelledAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<DateTime?> dueAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerTransactionsCompanion.insert(
                 id: id,
@@ -6872,6 +8230,7 @@ class $$LedgerTransactionsTableTableManager
                 updatedAt: updatedAt,
                 cancelledAt: cancelledAt,
                 note: note,
+                dueAt: dueAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7884,6 +9243,13 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<String?> lastUploadSha256,
       Value<DateTime?> lastDownloadAt,
       Value<DateTime?> lastServerOkAt,
+      Value<bool> notifOverdueEnabled,
+      Value<int> notifOverdueHour,
+      Value<bool> notifBalanceMilestoneEnabled,
+      Value<int> notifBalanceMilestoneMinor,
+      Value<bool> notifInactivityEnabled,
+      Value<int> notifInactivityDays,
+      Value<bool> notifSyncEnabled,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -7902,6 +9268,13 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<String?> lastUploadSha256,
       Value<DateTime?> lastDownloadAt,
       Value<DateTime?> lastServerOkAt,
+      Value<bool> notifOverdueEnabled,
+      Value<int> notifOverdueHour,
+      Value<bool> notifBalanceMilestoneEnabled,
+      Value<int> notifBalanceMilestoneMinor,
+      Value<bool> notifInactivityEnabled,
+      Value<int> notifInactivityDays,
+      Value<bool> notifSyncEnabled,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -7985,6 +9358,41 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get lastServerOkAt => $composableBuilder(
     column: $table.lastServerOkAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifOverdueEnabled => $composableBuilder(
+    column: $table.notifOverdueEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifOverdueHour => $composableBuilder(
+    column: $table.notifOverdueHour,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifBalanceMilestoneEnabled => $composableBuilder(
+    column: $table.notifBalanceMilestoneEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifBalanceMilestoneMinor => $composableBuilder(
+    column: $table.notifBalanceMilestoneMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifInactivityEnabled => $composableBuilder(
+    column: $table.notifInactivityEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifInactivityDays => $composableBuilder(
+    column: $table.notifInactivityDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifSyncEnabled => $composableBuilder(
+    column: $table.notifSyncEnabled,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -8072,6 +9480,41 @@ class $$AppSettingsTableOrderingComposer
     column: $table.lastServerOkAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get notifOverdueEnabled => $composableBuilder(
+    column: $table.notifOverdueEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifOverdueHour => $composableBuilder(
+    column: $table.notifOverdueHour,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notifBalanceMilestoneEnabled => $composableBuilder(
+    column: $table.notifBalanceMilestoneEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifBalanceMilestoneMinor => $composableBuilder(
+    column: $table.notifBalanceMilestoneMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notifInactivityEnabled => $composableBuilder(
+    column: $table.notifInactivityEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifInactivityDays => $composableBuilder(
+    column: $table.notifInactivityDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notifSyncEnabled => $composableBuilder(
+    column: $table.notifSyncEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -8155,6 +9598,41 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.lastServerOkAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get notifOverdueEnabled => $composableBuilder(
+    column: $table.notifOverdueEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notifOverdueHour => $composableBuilder(
+    column: $table.notifOverdueHour,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get notifBalanceMilestoneEnabled => $composableBuilder(
+    column: $table.notifBalanceMilestoneEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notifBalanceMilestoneMinor => $composableBuilder(
+    column: $table.notifBalanceMilestoneMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get notifInactivityEnabled => $composableBuilder(
+    column: $table.notifInactivityEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notifInactivityDays => $composableBuilder(
+    column: $table.notifInactivityDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get notifSyncEnabled => $composableBuilder(
+    column: $table.notifSyncEnabled,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -8203,6 +9681,13 @@ class $$AppSettingsTableTableManager
                 Value<String?> lastUploadSha256 = const Value.absent(),
                 Value<DateTime?> lastDownloadAt = const Value.absent(),
                 Value<DateTime?> lastServerOkAt = const Value.absent(),
+                Value<bool> notifOverdueEnabled = const Value.absent(),
+                Value<int> notifOverdueHour = const Value.absent(),
+                Value<bool> notifBalanceMilestoneEnabled = const Value.absent(),
+                Value<int> notifBalanceMilestoneMinor = const Value.absent(),
+                Value<bool> notifInactivityEnabled = const Value.absent(),
+                Value<int> notifInactivityDays = const Value.absent(),
+                Value<bool> notifSyncEnabled = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -8219,6 +9704,13 @@ class $$AppSettingsTableTableManager
                 lastUploadSha256: lastUploadSha256,
                 lastDownloadAt: lastDownloadAt,
                 lastServerOkAt: lastServerOkAt,
+                notifOverdueEnabled: notifOverdueEnabled,
+                notifOverdueHour: notifOverdueHour,
+                notifBalanceMilestoneEnabled: notifBalanceMilestoneEnabled,
+                notifBalanceMilestoneMinor: notifBalanceMilestoneMinor,
+                notifInactivityEnabled: notifInactivityEnabled,
+                notifInactivityDays: notifInactivityDays,
+                notifSyncEnabled: notifSyncEnabled,
               ),
           createCompanionCallback:
               ({
@@ -8237,6 +9729,13 @@ class $$AppSettingsTableTableManager
                 Value<String?> lastUploadSha256 = const Value.absent(),
                 Value<DateTime?> lastDownloadAt = const Value.absent(),
                 Value<DateTime?> lastServerOkAt = const Value.absent(),
+                Value<bool> notifOverdueEnabled = const Value.absent(),
+                Value<int> notifOverdueHour = const Value.absent(),
+                Value<bool> notifBalanceMilestoneEnabled = const Value.absent(),
+                Value<int> notifBalanceMilestoneMinor = const Value.absent(),
+                Value<bool> notifInactivityEnabled = const Value.absent(),
+                Value<int> notifInactivityDays = const Value.absent(),
+                Value<bool> notifSyncEnabled = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -8253,6 +9752,13 @@ class $$AppSettingsTableTableManager
                 lastUploadSha256: lastUploadSha256,
                 lastDownloadAt: lastDownloadAt,
                 lastServerOkAt: lastServerOkAt,
+                notifOverdueEnabled: notifOverdueEnabled,
+                notifOverdueHour: notifOverdueHour,
+                notifBalanceMilestoneEnabled: notifBalanceMilestoneEnabled,
+                notifBalanceMilestoneMinor: notifBalanceMilestoneMinor,
+                notifInactivityEnabled: notifInactivityEnabled,
+                notifInactivityDays: notifInactivityDays,
+                notifSyncEnabled: notifSyncEnabled,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -8279,6 +9785,485 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$TransactionTemplatesTableCreateCompanionBuilder =
+    TransactionTemplatesCompanion Function({
+      required String id,
+      required String label,
+      required int amountMinor,
+      required int txType,
+      Value<String> currencyCode,
+      Value<String?> note,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$TransactionTemplatesTableUpdateCompanionBuilder =
+    TransactionTemplatesCompanion Function({
+      Value<String> id,
+      Value<String> label,
+      Value<int> amountMinor,
+      Value<int> txType,
+      Value<String> currencyCode,
+      Value<String?> note,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$TransactionTemplatesTableFilterComposer
+    extends Composer<_$AppDatabase, $TransactionTemplatesTable> {
+  $$TransactionTemplatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get txType => $composableBuilder(
+    column: $table.txType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TransactionTemplatesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TransactionTemplatesTable> {
+  $$TransactionTemplatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get txType => $composableBuilder(
+    column: $table.txType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TransactionTemplatesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TransactionTemplatesTable> {
+  $$TransactionTemplatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get txType =>
+      $composableBuilder(column: $table.txType, builder: (column) => column);
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$TransactionTemplatesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TransactionTemplatesTable,
+          TransactionTemplate,
+          $$TransactionTemplatesTableFilterComposer,
+          $$TransactionTemplatesTableOrderingComposer,
+          $$TransactionTemplatesTableAnnotationComposer,
+          $$TransactionTemplatesTableCreateCompanionBuilder,
+          $$TransactionTemplatesTableUpdateCompanionBuilder,
+          (
+            TransactionTemplate,
+            BaseReferences<
+              _$AppDatabase,
+              $TransactionTemplatesTable,
+              TransactionTemplate
+            >,
+          ),
+          TransactionTemplate,
+          PrefetchHooks Function()
+        > {
+  $$TransactionTemplatesTableTableManager(
+    _$AppDatabase db,
+    $TransactionTemplatesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TransactionTemplatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TransactionTemplatesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TransactionTemplatesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<int> txType = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TransactionTemplatesCompanion(
+                id: id,
+                label: label,
+                amountMinor: amountMinor,
+                txType: txType,
+                currencyCode: currencyCode,
+                note: note,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String label,
+                required int amountMinor,
+                required int txType,
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => TransactionTemplatesCompanion.insert(
+                id: id,
+                label: label,
+                amountMinor: amountMinor,
+                txType: txType,
+                currencyCode: currencyCode,
+                note: note,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TransactionTemplatesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TransactionTemplatesTable,
+      TransactionTemplate,
+      $$TransactionTemplatesTableFilterComposer,
+      $$TransactionTemplatesTableOrderingComposer,
+      $$TransactionTemplatesTableAnnotationComposer,
+      $$TransactionTemplatesTableCreateCompanionBuilder,
+      $$TransactionTemplatesTableUpdateCompanionBuilder,
+      (
+        TransactionTemplate,
+        BaseReferences<
+          _$AppDatabase,
+          $TransactionTemplatesTable,
+          TransactionTemplate
+        >,
+      ),
+      TransactionTemplate,
+      PrefetchHooks Function()
+    >;
+typedef $$AuditLogTableCreateCompanionBuilder =
+    AuditLogCompanion Function({
+      required String id,
+      required String action,
+      required String entityType,
+      required String entityId,
+      Value<String?> detail,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$AuditLogTableUpdateCompanionBuilder =
+    AuditLogCompanion Function({
+      Value<String> id,
+      Value<String> action,
+      Value<String> entityType,
+      Value<String> entityId,
+      Value<String?> detail,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$AuditLogTableFilterComposer
+    extends Composer<_$AppDatabase, $AuditLogTable> {
+  $$AuditLogTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AuditLogTableOrderingComposer
+    extends Composer<_$AppDatabase, $AuditLogTable> {
+  $$AuditLogTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get action => $composableBuilder(
+    column: $table.action,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entityId => $composableBuilder(
+    column: $table.entityId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get detail => $composableBuilder(
+    column: $table.detail,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AuditLogTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AuditLogTable> {
+  $$AuditLogTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get action =>
+      $composableBuilder(column: $table.action, builder: (column) => column);
+
+  GeneratedColumn<String> get entityType => $composableBuilder(
+    column: $table.entityType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get entityId =>
+      $composableBuilder(column: $table.entityId, builder: (column) => column);
+
+  GeneratedColumn<String> get detail =>
+      $composableBuilder(column: $table.detail, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AuditLogTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AuditLogTable,
+          AuditLogData,
+          $$AuditLogTableFilterComposer,
+          $$AuditLogTableOrderingComposer,
+          $$AuditLogTableAnnotationComposer,
+          $$AuditLogTableCreateCompanionBuilder,
+          $$AuditLogTableUpdateCompanionBuilder,
+          (
+            AuditLogData,
+            BaseReferences<_$AppDatabase, $AuditLogTable, AuditLogData>,
+          ),
+          AuditLogData,
+          PrefetchHooks Function()
+        > {
+  $$AuditLogTableTableManager(_$AppDatabase db, $AuditLogTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AuditLogTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AuditLogTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AuditLogTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> action = const Value.absent(),
+                Value<String> entityType = const Value.absent(),
+                Value<String> entityId = const Value.absent(),
+                Value<String?> detail = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AuditLogCompanion(
+                id: id,
+                action: action,
+                entityType: entityType,
+                entityId: entityId,
+                detail: detail,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String action,
+                required String entityType,
+                required String entityId,
+                Value<String?> detail = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => AuditLogCompanion.insert(
+                id: id,
+                action: action,
+                entityType: entityType,
+                entityId: entityId,
+                detail: detail,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AuditLogTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AuditLogTable,
+      AuditLogData,
+      $$AuditLogTableFilterComposer,
+      $$AuditLogTableOrderingComposer,
+      $$AuditLogTableAnnotationComposer,
+      $$AuditLogTableCreateCompanionBuilder,
+      $$AuditLogTableUpdateCompanionBuilder,
+      (
+        AuditLogData,
+        BaseReferences<_$AppDatabase, $AuditLogTable, AuditLogData>,
+      ),
+      AuditLogData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8301,4 +10286,8 @@ class $AppDatabaseManager {
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$TransactionTemplatesTableTableManager get transactionTemplates =>
+      $$TransactionTemplatesTableTableManager(_db, _db.transactionTemplates);
+  $$AuditLogTableTableManager get auditLog =>
+      $$AuditLogTableTableManager(_db, _db.auditLog);
 }

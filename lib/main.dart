@@ -3,11 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/providers.dart';
 import 'router/app_router.dart';
+import 'services/cloud_sync_service.dart';
+import 'services/notification_service.dart';
 import 'services/periodic_sync.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await CloudSyncService.applyPendingRestoreIfAny();
+  await NotificationService.initialize();
   runApp(const ProviderScope(child: WexcomDebtApp()));
 }
 

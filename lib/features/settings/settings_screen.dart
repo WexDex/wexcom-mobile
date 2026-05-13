@@ -8,8 +8,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../data/ledger_repository.dart';
 import '../../providers/providers.dart';
-import '../../services/sync_service.dart';
+import '../../services/backup_service.dart';
+import '../../services/cloud_sync_service.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/money.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -31,8 +33,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _syncIntervalHours = 24;
   bool _settingsLoaded = false;
   bool _backupBusy = false;
-  String? _syncInlineStatus;
-  bool _syncInlineStatusIsError = false;
+  // Cloud sync card state
+  bool _syncPasswordVisible = false;
+  bool _cloudTestBusy = false;
+  bool _cloudUploadBusy = false;
+  bool _cloudDownloadBusy = false;
+  CloudServerStatus? _cloudStatus;
+  _CloudDotState _cloudDotState = _CloudDotState.unconfigured;
 
   @override
   void initState() {
@@ -64,6 +71,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _controller.dispose();
     _overdueController.dispose();
     _importPayloadController.dispose();
+    // Persist cloud fields whenever the screen is left, even without "Save"
+    final url = _syncUrlController.text.trim();
+    final user = _syncUsernameController.text.trim();
+    final pass = _syncPasswordController.text.trim();
+    if (url.isNotEmpty || user.isNotEmpty || pass.isNotEmpty) {
+      ref.read(ledgerRepositoryProvider).saveSyncSettings(
+            enabled: _syncEnabled,
+            serverUrl: url,
+            username: user,
+            password: pass,
+            intervalHours: _syncIntervalHours,
+            periodicEnabled: _syncPeriodicEnabled,
+          );
+    }
     _syncUrlController.dispose();
     _syncUsernameController.dispose();
     _syncPasswordController.dispose();
@@ -205,211 +226,352 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => context.push('/settings/stats'),
             ),
             const SizedBox(height: 10),
+            _buildImportExportSection(),
+            const SizedBox(height: 10),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.upload_file_outlined),
-              title: const Text('Export all data'),
-              subtitle: const Text('Export all clients and their transactions'),
-              trailing: _backupBusy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.chevron_right),
-              onTap: _backupBusy ? null : _exportAllData,
+              leading: const Icon(Icons.history_outlined),
+              title: const Text('Audit log'),
+              subtitle: const Text('View recent changes to clients and transactions'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/settings/audit-log'),
             ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.download_outlined),
-              title: const Text('Import data'),
-              subtitle: const Text(
-                'Adds imported data and resolves client conflicts',
-              ),
-              trailing: _backupBusy
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.chevron_right),
-              onTap: _backupBusy ? null : _openImportDialog,
-            ),
+            const Divider(height: 24),
+            _buildNotificationsSection(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSyncSection() {
-    final syncService = ref.watch(syncServiceProvider);
-    final statusAsync = syncService == null ? null : ref.watch(serverStatusProvider);
-    final settingsAsync = ref.watch(syncSettingsProvider);
-    final lastUploadAt = settingsAsync.valueOrNull?.lastUploadAt;
-    final liveStatus = statusAsync?.valueOrNull;
-    final statusText = statusAsync == null
-        ? 'not configured'
-        : statusAsync.when(
-            data: (_) => 'ok',
-            error: (_, _) => 'unreachable',
-            loading: () => 'checking...',
-          );
-    final statusColor = _syncInlineStatus == null
-        ? AppTheme.mutedFg
-        : (_syncInlineStatusIsError ? Theme.of(context).colorScheme.error : Colors.green);
-    final statusBgColor = _syncInlineStatus == null
-        ? Theme.of(context).colorScheme.surfaceContainerHighest
-        : (_syncInlineStatusIsError
-            ? Theme.of(context).colorScheme.errorContainer
-            : Colors.green.withValues(alpha: 0.12));
-    final statusIcon = _syncInlineStatus == null
-        ? Icons.info_outline
-        : (_syncInlineStatusIsError ? Icons.error_outline : Icons.check_circle_outline);
+  Widget _buildImportExportSection() {
+    final busy = _backupBusy;
+    Widget chevron = const Icon(Icons.chevron_right);
+    Widget spinner = const SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Sync server', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Import & Export',
+            style: Theme.of(context)
+                .textTheme
+                .titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ),
+        // ── JSON ─────────────────────────────────────────────────────────
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.upload_file_outlined),
+          title: const Text('Export JSON'),
+          subtitle: const Text('All clients & transactions as a portable .json file'),
+          trailing: busy ? spinner : chevron,
+          onTap: busy ? null : _exportAllData,
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.download_for_offline_outlined),
+          title: const Text('Import JSON'),
+          subtitle: const Text('Merge clients from a .json file (non-destructive)'),
+          trailing: busy ? spinner : chevron,
+          onTap: busy ? null : _openImportDialog,
+        ),
+        const Divider(height: 20),
+        // ── SQLite ───────────────────────────────────────────────────────
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.save_outlined),
+          title: const Text('Export SQLite backup (.wexcom)'),
+          subtitle: const Text('Raw database snapshot — fastest full restore'),
+          trailing: chevron,
+          onTap: _exportLocalBackup,
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.restore_outlined),
+          title: const Text('Import SQLite backup'),
+          subtitle: const Text('Restore from a .wexcom file — replaces all data'),
+          trailing: chevron,
+          onTap: _importLocalBackup,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationsSection() {
+    final s = ref.watch(appSettingsProvider).valueOrNull;
+    if (s == null) return const SizedBox.shrink();
+
+    void save({
+      bool? overdueEnabled,
+      int? overdueHour,
+      bool? milestoneEnabled,
+      int? milestoneMinor,
+      bool? inactivityEnabled,
+      int? inactivityDays,
+      bool? syncEnabled,
+    }) {
+      ref.read(ledgerRepositoryProvider).saveNotificationSettings(
+            overdueEnabled: overdueEnabled ?? s.notifOverdueEnabled,
+            overdueHour: overdueHour ?? s.notifOverdueHour,
+            balanceMilestoneEnabled:
+                milestoneEnabled ?? s.notifBalanceMilestoneEnabled,
+            balanceMilestoneMinor:
+                milestoneMinor ?? s.notifBalanceMilestoneMinor,
+            inactivityEnabled: inactivityEnabled ?? s.notifInactivityEnabled,
+            inactivityDays: inactivityDays ?? s.notifInactivityDays,
+            syncEnabled: syncEnabled ?? s.notifSyncEnabled,
+          );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('Notifications',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  )),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.warning_amber_outlined),
+          title: const Text('Overdue debt alert'),
+          subtitle: const Text('Daily reminder when you have overdue debts'),
+          value: s.notifOverdueEnabled,
+          onChanged: (v) => save(overdueEnabled: v),
+        ),
+        if (s.notifOverdueEnabled)
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 56),
+            title: Text('Alert time: ${s.notifOverdueHour}:00'),
+            trailing: const Icon(Icons.schedule_outlined, size: 18),
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(hour: s.notifOverdueHour, minute: 0),
+              );
+              if (picked != null) save(overdueHour: picked.hour);
+            },
+          ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.notifications_active_outlined),
+          title: const Text('Balance milestone'),
+          subtitle: Text(
+              'Alert when a client exceeds ${MoneyFormat.formatMinor(s.notifBalanceMilestoneMinor, 'DZD')}'),
+          value: s.notifBalanceMilestoneEnabled,
+          onChanged: (v) => save(milestoneEnabled: v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.hourglass_empty_outlined),
+          title: const Text('No activity reminder'),
+          subtitle: Text(
+              'After ${s.notifInactivityDays} days without transactions'),
+          value: s.notifInactivityEnabled,
+          onChanged: (v) => save(inactivityEnabled: v),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          secondary: const Icon(Icons.cloud_done_outlined),
+          title: const Text('Cloud sync notification'),
+          subtitle: const Text('Notify after a successful backup upload'),
+          value: s.notifSyncEnabled,
+          onChanged: (v) => save(syncEnabled: v),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSyncSection() {
+    final settingsAsync = ref.watch(syncSettingsProvider);
+    final lastUploadAt = settingsAsync.valueOrNull?.lastUploadAt;
+
+    final dotColor = switch (_cloudDotState) {
+      _CloudDotState.unconfigured => AppTheme.mutedFg,
+      _CloudDotState.untested => Colors.amber,
+      _CloudDotState.connected => Colors.greenAccent,
+      _CloudDotState.offline => Theme.of(context).colorScheme.error,
+    };
+    final dotLabel = switch (_cloudDotState) {
+      _CloudDotState.unconfigured => 'Not set up',
+      _CloudDotState.untested => 'Not tested',
+      _CloudDotState.connected => 'Connected',
+      _CloudDotState.offline => 'Offline',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cloud sync', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 6),
         Text(
-          'Optional online sync while keeping the app offline-first.',
+          'Upload the database to your PC server whenever you want a backup. '
+          'The app stays fully offline — sync is always opt-in.',
           style: TextStyle(color: AppTheme.mutedFg, fontSize: 13),
         ),
         const SizedBox(height: 12),
-        Card(
-          margin: EdgeInsets.zero,
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(
+              color: dotColor.withValues(alpha: _cloudDotState == _CloudDotState.unconfigured ? 0.15 : 0.3),
+            ),
+            boxShadow: _cloudDotState == _CloudDotState.connected
+                ? AppTheme.cardGlow(Colors.greenAccent, intensity: 0.08)
+                : null,
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Enable sync server'),
-                  subtitle: const Text('Allow upload/download through your optional PC server.'),
-                  value: _syncEnabled,
-                  onChanged: (value) => setState(() => _syncEnabled = value),
+                // ── Header row ──────────────────────────────────────────
+                Row(
+                  children: [
+                    const Icon(Icons.cloud_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Cloud Server',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: dotColor,
+                        shape: BoxShape.circle,
+                        boxShadow: _cloudDotState == _CloudDotState.connected
+                            ? [BoxShadow(color: Colors.greenAccent.withValues(alpha: 0.5), blurRadius: 6)]
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(dotLabel, style: TextStyle(color: dotColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ],
                 ),
+                const SizedBox(height: 14),
+                // ── Fields ───────────────────────────────────────────────
                 TextField(
                   controller: _syncUrlController,
+                  onChanged: (_) => _updateDotFromFields(),
                   decoration: const InputDecoration(
                     labelText: 'Server URL',
-                    hintText: 'https://your-sync-host.example.com',
+                    hintText: 'https://wexcom.wexdex.online',
+                    prefixIcon: Icon(Icons.dns_outlined),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _syncUsernameController,
+                  onChanged: (_) => _updateDotFromFields(),
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _syncPasswordController,
+                  obscureText: !_syncPasswordVisible,
+                  onChanged: (_) => _updateDotFromFields(),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_syncPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      onPressed: () => setState(() => _syncPasswordVisible = !_syncPasswordVisible),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // ── Test connection ───────────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _cloudTestBusy ? null : _testCloudConnection,
+                    icon: _cloudTestBusy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.wifi_tethering_rounded, size: 18),
+                    label: Text(_cloudTestBusy ? 'Testing…' : 'Test connection'),
+                  ),
+                ),
+                // ── Server info (when connected) ─────────────────────────
+                if (_cloudStatus != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.radius),
+                      color: Colors.greenAccent.withValues(alpha: 0.07),
+                      border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.2)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _InfoRow(
+                          label: 'Server backup',
+                          value: _cloudStatus!.dbReady
+                              ? '${_cloudStatus!.fileSizeLabel} — ${_formatMaybeTime(_cloudStatus!.lastUploadAt)}'
+                              : 'No backup yet',
+                        ),
+                        if (lastUploadAt != null)
+                          _InfoRow(label: 'Last local upload', value: _formatMaybeTime(lastUploadAt)),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                const Divider(height: 1),
+                const SizedBox(height: 14),
+                // ── Upload ───────────────────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    onPressed: _cloudUploadBusy || _cloudDownloadBusy ? null : _cloudUpload,
+                    icon: _cloudUploadBusy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.cloud_upload_outlined),
+                    label: Text(_cloudUploadBusy ? 'Uploading…' : '↑  Upload now'),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _syncUsernameController,
-                        decoration: const InputDecoration(labelText: 'Username'),
-                      ),
+                // ── Download & restore ───────────────────────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _cloudUploadBusy || _cloudDownloadBusy ? null : _cloudDownload,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Theme.of(context).colorScheme.error,
+                      side: BorderSide(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.4)),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _syncPasswordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(labelText: 'Password'),
-                      ),
-                    ),
-                  ],
+                    icon: _cloudDownloadBusy
+                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.cloud_download_outlined),
+                    label: Text(_cloudDownloadBusy ? 'Downloading…' : '↓  Download & restore'),
+                  ),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _syncEnabled && !_backupBusy ? _testSyncConnection : null,
-                      icon: const Icon(Icons.health_and_safety_outlined),
-                      label: const Text('Test connection'),
-                    ),
-                    FilledButton.tonalIcon(
-                      onPressed: _syncEnabled && !_backupBusy ? _uploadNow : null,
-                      icon: const Icon(Icons.cloud_upload_outlined),
-                      label: const Text('Upload now'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _syncEnabled && !_backupBusy ? _downloadAllFromServer : null,
-                      icon: const Icon(Icons.cloud_download_outlined),
-                      label: const Text('Download full data'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed:
-                          _syncEnabled && !_backupBusy ? _downloadSingleClientFromServer : null,
-                      icon: const Icon(Icons.download_for_offline_outlined),
-                      label: const Text('Download single client'),
-                    ),
-                    TextButton.icon(
-                      onPressed: !_backupBusy ? _resetSyncServerSettings : null,
-                      icon: const Icon(Icons.restart_alt_outlined),
-                      label: const Text('Reset'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
+                // ── Auto-upload toggle ────────────────────────────────────
                 SwitchListTile.adaptive(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Periodic upload (while app is open)'),
-                  subtitle: const Text('Uploads only when local export hash changed.'),
+                  dense: true,
+                  title: const Text('Auto-upload when app opens'),
+                  subtitle: const Text('Uploads only if data changed since last backup.'),
                   value: _syncPeriodicEnabled,
-                  onChanged: _syncEnabled
-                      ? (value) => setState(() => _syncPeriodicEnabled = value)
-                      : null,
-                ),
-                Row(
-                  children: [
-                    const Text('Interval'),
-                    const SizedBox(width: 8),
-                    DropdownButton<int>(
-                      value: _syncIntervalHours,
-                      items: const [1, 6, 12, 24, 48]
-                          .map(
-                            (h) => DropdownMenuItem<int>(
-                              value: h,
-                              child: Text('$h h'),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: !_syncEnabled
-                          ? null
-                          : (value) {
-                              if (value == null) return;
-                              setState(() => _syncIntervalHours = value);
-                            },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: statusBgColor,
-                    border: Border.all(
-                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Icon(statusIcon, size: 18, color: statusColor),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _syncInlineStatus ??
-                              'Server: $statusText • Current: ${liveStatus == null ? '-' : (liveStatus.current ? 'yes' : 'no')}\n'
-                                  'Last upload: ${_formatMaybeTime(lastUploadAt)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
+                  onChanged: (value) => setState(() => _syncPeriodicEnabled = value),
                 ),
               ],
             ),
@@ -419,218 +581,202 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  SyncService? _configuredSyncService() {
-    final config = SyncConnectionConfig(
-      serverUrl: _syncUrlController.text.trim(),
-      username: _syncUsernameController.text.trim(),
-      password: _syncPasswordController.text.trim(),
-    );
-    if (config.isValid) return SyncService(config);
-    if (mounted) {
-      setState(() {
-        _syncInlineStatus = 'Set sync server URL, username, and password first.';
-        _syncInlineStatusIsError = true;
-      });
-    }
-    return null;
+  void _updateDotFromFields() {
+    final hasFields = _syncUrlController.text.trim().isNotEmpty &&
+        _syncUsernameController.text.trim().isNotEmpty &&
+        _syncPasswordController.text.trim().isNotEmpty;
+    setState(() {
+      if (!hasFields) {
+        _cloudDotState = _CloudDotState.unconfigured;
+      } else if (_cloudDotState == _CloudDotState.unconfigured) {
+        _cloudDotState = _CloudDotState.untested;
+      }
+    });
   }
 
-  Future<void> _resetSyncServerSettings() async {
-    final username = _syncUsernameController.text.trim();
-    setState(() {
-      _syncUrlController.clear();
-      _syncPasswordController.clear();
-      _syncEnabled = false;
-      _syncPeriodicEnabled = false;
-      _syncInlineStatus = 'Sync reset. Username kept, password removed.';
-      _syncInlineStatusIsError = false;
-    });
-    await ref.read(ledgerRepositoryProvider).saveSyncSettings(
-          enabled: false,
-          serverUrl: '',
-          username: username,
-          password: '',
-          intervalHours: _syncIntervalHours,
-          periodicEnabled: false,
+  CloudSyncService? _buildCloudService() {
+    final url = _syncUrlController.text.trim();
+    final user = _syncUsernameController.text.trim();
+    final pass = _syncPasswordController.text.trim();
+    if (url.isEmpty || user.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fill in server URL, username, and password first.')),
+      );
+      return null;
+    }
+    return CloudSyncService(serverUrl: url, username: user, password: pass);
+  }
+
+  Future<void> _testCloudConnection() async {
+    final svc = _buildCloudService();
+    if (svc == null) return;
+    setState(() => _cloudTestBusy = true);
+    try {
+      final status = await svc.fetchStatus();
+      if (!mounted) return;
+      if (status == null) {
+        setState(() {
+          _cloudDotState = _CloudDotState.offline;
+          _cloudStatus = null;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Server unreachable or credentials rejected.')),
         );
-    ref.invalidate(syncSettingsProvider);
-    ref.invalidate(syncServiceProvider);
-    ref.invalidate(serverStatusProvider);
-  }
-
-  Future<void> _testSyncConnection() async {
-    final service = _configuredSyncService();
-    if (service == null) return;
-    setState(() {
-      _backupBusy = true;
-      _syncInlineStatus = 'Checking server connection...';
-      _syncInlineStatusIsError = false;
-    });
-    try {
-      final localSha = await ref.read(ledgerRepositoryProvider).currentExportSha256();
-      final status = await service.getStatus(localSha256: localSha);
-      await ref.read(ledgerRepositoryProvider).updateSyncServerOkMeta(DateTime.now().toUtc());
-      ref.invalidate(syncSettingsProvider);
-      ref.invalidate(serverStatusProvider);
-      if (!mounted) return;
-      setState(() {
-        _syncInlineStatus =
-            'Server ${status.ok ? 'ok' : 'unhealthy'}'
-            '${status.lastUploadAt != null ? ' • last upload ${_formatMaybeTime(status.lastUploadAt)}' : ''}';
-        _syncInlineStatusIsError = !status.ok;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _syncInlineStatus = 'Connection failed: $e';
-        _syncInlineStatusIsError = true;
-      });
+      } else {
+        setState(() {
+          _cloudDotState = _CloudDotState.connected;
+          _cloudStatus = status;
+        });
+      }
     } finally {
-      if (mounted) setState(() => _backupBusy = false);
+      if (mounted) setState(() => _cloudTestBusy = false);
     }
   }
 
-  Future<void> _uploadNow() async {
-    final service = _configuredSyncService();
-    if (service == null) return;
-    setState(() => _backupBusy = true);
+  Future<void> _cloudUpload() async {
+    final svc = _buildCloudService();
+    if (svc == null) return;
+    setState(() => _cloudUploadBusy = true);
     try {
-      final repo = ref.read(ledgerRepositoryProvider);
-      final json = await repo.exportAllClientsWithTransactionsJson();
-      final result = await service.uploadAll(json, deviceName: 'wexcom-mobile');
-      await repo.updateSyncUploadMeta(
-        uploadedAt: result.uploadedAt,
-        sha256Hex: result.sha256,
-      );
-      await repo.updateSyncServerOkMeta(DateTime.now().toUtc());
-      ref.invalidate(syncSettingsProvider);
-      ref.invalidate(serverStatusProvider);
+      final result = await svc.uploadDatabase();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Uploaded ${result.clients} clients / ${result.transactions} transactions',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Upload failed: $e')),
-      );
+      if (result.ok) {
+        final repo = ref.read(ledgerRepositoryProvider);
+        if (result.sha256 != null) {
+          await repo.updateSyncUploadMeta(
+            uploadedAt: result.uploadedAt ?? DateTime.now().toUtc(),
+            sha256Hex: result.sha256!,
+          );
+        }
+        ref.invalidate(syncSettingsProvider);
+        // Refresh server info
+        final status = await svc.fetchStatus();
+        if (!mounted) return;
+        setState(() => _cloudStatus = status);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uploaded — ${result.sizeBytes != null ? '${(result.sizeBytes! / (1024 * 1024)).toStringAsFixed(1)} MB' : 'done'}')),
+        );
+      } else {
+        setState(() => _cloudDotState = _CloudDotState.offline);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Upload failed')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _backupBusy = false);
+      if (mounted) setState(() => _cloudUploadBusy = false);
     }
   }
 
-  Future<void> _downloadAllFromServer() async {
-    final service = _configuredSyncService();
-    if (service == null) return;
-    setState(() => _backupBusy = true);
-    try {
-      final raw = await service.downloadAll();
-      await ref.read(ledgerRepositoryProvider).updateSyncDownloadMeta(DateTime.now().toUtc());
-      ref.invalidate(syncSettingsProvider);
-      if (!mounted) return;
-      await _openImportDialog(initialPayload: raw, initialSourceLabel: 'server:/all');
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Download failed: $e')),
-      );
-    } finally {
-      if (mounted) setState(() => _backupBusy = false);
-    }
-  }
+  Future<void> _cloudDownload() async {
+    final svc = _buildCloudService();
+    if (svc == null) return;
 
-  Future<void> _downloadSingleClientFromServer() async {
-    final service = _configuredSyncService();
-    if (service == null) return;
-    setState(() => _backupBusy = true);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Download & restore?'),
+        content: const Text(
+          'This will replace ALL local data with the server backup on the next app restart.\n\n'
+          'Current data will be overwritten. Make sure you have an export if needed.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Download & restore'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _cloudDownloadBusy = true);
     try {
-      final clients = await service.listClients();
+      final result = await svc.downloadDatabase();
       if (!mounted) return;
-      setState(() => _backupBusy = false);
-      final picked = await showDialog<ServerClient>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Download single client'),
-          content: SizedBox(
-            width: 420,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: clients.length,
-              itemBuilder: (_, index) {
-                final c = clients[index];
-                return ListTile(
-                  title: Text(c.fullName),
-                  subtitle: Text(c.phone ?? 'No phone'),
-                  trailing: Text('${c.balanceMinor}'),
-                  onTap: () => Navigator.pop(ctx, c),
-                );
-              },
-            ),
+      if (result.ok) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Restore ready'),
+            content: const Text('The backup has been downloaded. Restart the app to apply it.'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      );
-      if (picked == null) return;
-      final mode = await showDialog<SingleClientImportMode>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Import ${picked.fullName}'),
-          content: const Text('Choose how to handle conflicts for this client.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, SingleClientImportMode.mix),
-              child: const Text('Mix'),
-            ),
-            FilledButton.tonal(
-              onPressed: () => Navigator.pop(ctx, SingleClientImportMode.replace),
-              child: const Text('Replace'),
-            ),
-          ],
-        ),
-      );
-      if (mode == null) return;
-      setState(() => _backupBusy = true);
-      final raw = await service.downloadClient(picked.id);
-      final result = await ref.read(ledgerRepositoryProvider).importSingleClient(raw, mode: mode);
-      await ref.read(ledgerRepositoryProvider).updateSyncDownloadMeta(DateTime.now().toUtc());
-      ref.invalidate(syncSettingsProvider);
-      ref.invalidate(activeClientsProvider);
-      ref.invalidate(archivedClientsProvider);
-      ref.invalidate(allTransactionsProvider(null));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Client import done: +${result.addedTransactions} tx, skipped ${result.skippedDuplicateTransactions}',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Single-client import failed: $e')),
-      );
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Download failed')),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _backupBusy = false);
+      if (mounted) setState(() => _cloudDownloadBusy = false);
     }
   }
 
   String _formatMaybeTime(DateTime? time) {
     if (time == null) return '-';
     return time.toLocal().toString();
+  }
+
+  Future<void> _exportLocalBackup() async {
+    final result = await BackupService.exportBackup();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.ok
+            ? 'Backup saved'
+            : 'Export failed: ${result.message ?? 'unknown error'}'),
+      ),
+    );
+  }
+
+  Future<void> _importLocalBackup() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Import backup?'),
+        content: const Text(
+          'This will replace ALL local data with the backup on the next restart. Continue?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final result = await BackupService.importBackup();
+    if (!mounted) return;
+    if (result.ok) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Restore staged'),
+          content: const Text(
+              'Backup ready. Restart the app to apply it.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } else if (result.message != 'Cancelled') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import failed: ${result.message}')),
+      );
+    }
   }
 
   Future<void> _exportAllData() async {
@@ -1142,6 +1288,35 @@ class _MiniStatChip extends StatelessWidget {
             TextSpan(text: label),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+enum _CloudDotState { unconfigured, untested, connected, offline }
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label, style: TextStyle(color: AppTheme.mutedFg, fontSize: 12)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
   }

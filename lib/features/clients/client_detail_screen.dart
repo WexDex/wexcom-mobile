@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
+import '../../services/statement_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/balance_display.dart';
 import '../../utils/money.dart';
@@ -60,6 +61,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
         final archived = client.archivedAt != null;
         final code = currencyAsync.valueOrNull ?? 'DZD';
         final clientTagsAsync = ref.watch(clientTagsProvider(client.id));
+        final templates = ref.watch(transactionTemplatesProvider).valueOrNull ?? [];
 
         return Scaffold(
           appBar: AppBar(
@@ -73,6 +75,16 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
               ),
             ),
             actions: [
+              IconButton(
+                tooltip: 'Account statement PDF',
+                icon: const Icon(Icons.receipt_long_outlined),
+                onPressed: () => _exportClientStatement(
+                  context,
+                  client: client,
+                  txs: txsAsync.valueOrNull ?? [],
+                  currencyCode: code,
+                ),
+              ),
               IconButton(
                 tooltip: 'Export client summary PDF',
                 icon: const Icon(Icons.picture_as_pdf_outlined),
@@ -495,6 +507,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                                         note,
                                                         tagIds,
                                                         effectiveAt,
+                                                        dueAt,
                                                       ) async {
                                                         await ref
                                                             .read(
@@ -510,6 +523,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                                               tagIds: tagIds,
                                                               effectiveAt:
                                                                   effectiveAt,
+                                                              dueAt: dueAt,
                                                             );
                                                         if (context.mounted) {
                                                           Navigator.pop(ctx);
@@ -594,6 +608,18 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                           currencyCode: code,
                           currentBalanceMinor: client.balanceMinor,
                           availableTags: txTags,
+                          templates: templates,
+                          onSaveTemplate: (label, amount, type, note) => ref
+                              .read(ledgerRepositoryProvider)
+                              .saveTemplate(
+                                label: label,
+                                amountMinor: amount,
+                                type: type,
+                                note: note,
+                                currencyCode: code,
+                              ),
+                          onDeleteTemplate: (id) =>
+                              ref.read(ledgerRepositoryProvider).deleteTemplate(id),
                           onSubmit:
                               (
                                 amountMinor,
@@ -601,6 +627,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                 note,
                                 tagIds,
                                 effectiveAt,
+                                dueAt,
                               ) async {
                                 await ref
                                     .read(ledgerRepositoryProvider)
@@ -612,6 +639,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                       note: note,
                                       tagIds: tagIds,
                                       effectiveAt: effectiveAt,
+                                      dueAt: dueAt,
                                     );
                                 if (context.mounted) Navigator.pop(ctx);
                               },
@@ -663,7 +691,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
           initialEffectiveAt: t.effectiveAt ?? t.createdAt,
           availableTags: txTags,
           initialTagIds: selectedTags.map((e) => e.id).toList(),
-          onSubmit: (amountMinor, type, note, tagIds, effectiveAt) async {
+          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt) async {
             await ref
                 .read(ledgerRepositoryProvider)
                 .updateTransaction(
@@ -673,6 +701,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                   note: note,
                   tagIds: tagIds,
                   effectiveAt: effectiveAt,
+                  dueAt: dueAt,
                 );
             if (context.mounted) Navigator.pop(ctx);
           },
@@ -848,7 +877,57 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
       const SnackBar(content: Text('Client summary PDF exported')),
     );
   }
+
+  Future<void> _exportClientStatement(
+    BuildContext context, {
+    required Client client,
+    required List<LedgerTransaction> txs,
+    required String currencyCode,
+  }) async {
+    final now = DateTime.now();
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      initialDateRange: DateTimeRange(
+        start: DateTime(now.year, now.month, 1),
+        end: now,
+      ),
+      helpText: 'Select statement period',
+    );
+    if (range == null || !context.mounted) return;
+
+    final bytes = await StatementService.generate(
+      client: client,
+      allTransactions: txs,
+      from: range.start,
+      to: range.end,
+      currencyCode: currencyCode,
+    );
+
+    if (!context.mounted) return;
+    final location = await getSaveLocation(
+      suggestedName:
+          'statement_${client.fullName.replaceAll(' ', '_')}_${_yyyymmdd(range.start)}_${_yyyymmdd(range.end)}.pdf',
+      acceptedTypeGroups: const [
+        XTypeGroup(label: 'pdf', extensions: ['pdf']),
+      ],
+    );
+    if (location == null) return;
+    await XFile.fromData(
+      bytes,
+      mimeType: 'application/pdf',
+      name: 'statement.pdf',
+    ).saveTo(location.path);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Statement PDF exported')),
+    );
+  }
 }
+
+String _yyyymmdd(DateTime d) =>
+    '${d.year}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
 
 class _PinnedCompactSummaryBar extends StatelessWidget {
   const _PinnedCompactSummaryBar({

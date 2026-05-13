@@ -12,6 +12,8 @@ import '../../providers/providers.dart';
 import '../../services/export_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
+import '../../widgets/hud_empty_state.dart';
+import '../../widgets/skeleton_loaders.dart';
 import 'transaction_editor_sheet.dart';
 
 Color _tagColor(String hex) {
@@ -22,6 +24,8 @@ Color _tagColor(String hex) {
   return Color(0xFF000000 | value);
 }
 
+enum _TxTypeFilter { debt, payment, cancelled }
+
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
 
@@ -31,12 +35,51 @@ class TransactionsScreen extends ConsumerStatefulWidget {
 
 class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   String? _selectedClientId;
+  String _searchQuery = '';
+  final Set<_TxTypeFilter> _typeFilters = {};
+  final TextEditingController _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<LedgerTransactionWithClient> _filter(List<LedgerTransactionWithClient> rows) {
+    var result = rows;
+
+    // Type filter
+    if (_typeFilters.isNotEmpty) {
+      result = result.where((r) {
+        final type = LedgerTxType.fromInt(r.transaction.txType);
+        final status = LedgerTxStatus.fromInt(r.transaction.txStatus);
+        if (_typeFilters.contains(_TxTypeFilter.cancelled) && status == LedgerTxStatus.cancelled) return true;
+        if (_typeFilters.contains(_TxTypeFilter.debt) && type == LedgerTxType.debt && status == LedgerTxStatus.active) return true;
+        if (_typeFilters.contains(_TxTypeFilter.payment) && type == LedgerTxType.payment && status == LedgerTxStatus.active) return true;
+        return false;
+      }).toList();
+    }
+
+    // Text search
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      result = result.where((r) {
+        final tx = r.transaction;
+        return r.clientName.toLowerCase().contains(q) ||
+            (tx.note?.toLowerCase().contains(q) ?? false) ||
+            (tx.referenceNo?.toLowerCase().contains(q) ?? false);
+      }).toList();
+    }
+
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
     final txAsync = ref.watch(allTransactionsProvider(_selectedClientId));
     final clientsAsync = ref.watch(activeClientsProvider);
     final code = ref.watch(defaultCurrencyProvider).valueOrNull ?? 'DZD';
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -52,42 +95,97 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       ),
       body: Column(
         children: [
+          // ── Search bar ──────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: clientsAsync.when(
-              data: (clients) => DropdownButtonFormField<String?>(
-                initialValue: _selectedClientId,
-                decoration: const InputDecoration(labelText: 'Client filter'),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('All clients'),
-                  ),
-                  ...clients.map(
-                    (c) => DropdownMenuItem<String?>(
-                      value: c.id,
-                      child: Text(c.fullName),
-                    ),
-                  ),
-                ],
-                onChanged: (value) => setState(() => _selectedClientId = value),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              decoration: InputDecoration(
+                hintText: 'Search client, note, reference…',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
-              loading: () => const LinearProgressIndicator(),
-              error: (e, _) => Text('Error: $e'),
             ),
           ),
+          // ── Filter chips ─────────────────────────────────────────────────
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Row(
+              children: [
+                // Client filter chip
+                clientsAsync.when(
+                  data: (clients) {
+                    final clientName = _selectedClientId == null
+                        ? null
+                        : clients.firstWhere((c) => c.id == _selectedClientId, orElse: () => clients.first).fullName;
+                    return FilterChip(
+                      avatar: const Icon(Icons.person_outline, size: 16),
+                      label: Text(clientName ?? 'All clients'),
+                      selected: _selectedClientId != null,
+                      selectedColor: AppTheme.brandPrimary.withValues(alpha: 0.2),
+                      checkmarkColor: AppTheme.brandPrimary,
+                      onSelected: (_) => _pickClientFilter(context, clients),
+                      side: BorderSide(
+                        color: _selectedClientId != null
+                            ? AppTheme.brandPrimary.withValues(alpha: 0.6)
+                            : AppTheme.mutedFg.withValues(alpha: 0.35),
+                      ),
+                    );
+                  },
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 8),
+                _typeChip(theme, _TxTypeFilter.debt, 'Debt', AppTheme.ledgerDebt),
+                const SizedBox(width: 8),
+                _typeChip(theme, _TxTypeFilter.payment, 'Payment', AppTheme.ledgerPayment),
+                const SizedBox(width: 8),
+                _typeChip(theme, _TxTypeFilter.cancelled, 'Cancelled', AppTheme.ledgerCancel),
+                if (_typeFilters.isNotEmpty || _selectedClientId != null) ...[
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    label: const Text('Clear'),
+                    avatar: const Icon(Icons.filter_alt_off_outlined, size: 16),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      setState(() {
+                        _typeFilters.clear();
+                        _selectedClientId = null;
+                      });
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          // ── Transaction list ──────────────────────────────────────────────
           Expanded(
             child: txAsync.when(
               data: (rows) {
-                if (rows.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No transactions yet.',
-                      style: TextStyle(color: AppTheme.mutedFg),
-                    ),
+                final filtered = _filter(rows);
+                if (filtered.isEmpty) {
+                  return HudEmptyState(
+                    icon: Icons.receipt_long_outlined,
+                    message: rows.isEmpty ? 'No transactions yet' : 'No results found',
+                    subtitle: rows.isEmpty
+                        ? 'Tap + to add your first transaction'
+                        : 'Try adjusting your search or filters',
                   );
                 }
-                final grouped = _groupByDate(rows);
+                final grouped = _groupByDate(filtered);
                 final keys = grouped.keys.toList();
                 var runningIndex = 0;
                 return ListView.builder(
@@ -101,52 +199,185 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Text(
-                            key,
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
+                          child: Text(key, style: Theme.of(context).textTheme.titleSmall),
                         ),
-                        ...items.map(
-                          (row) {
-                            runningIndex += 1;
-                            return _TxCard(
+                        ...items.map((row) {
+                          runningIndex += 1;
+                          final isDebt = LedgerTxType.fromInt(row.transaction.txType) == LedgerTxType.debt;
+                          final isActive = LedgerTxStatus.fromInt(row.transaction.txStatus) == LedgerTxStatus.active;
+                          return Dismissible(
+                            key: ValueKey(row.transaction.id),
+                            direction: isActive ? DismissDirection.horizontal : DismissDirection.none,
+                            confirmDismiss: (direction) async {
+                              if (direction == DismissDirection.endToStart) {
+                                // Cancel
+                                return _confirmCancel(context, row);
+                              } else {
+                                // Settle — only for debt
+                                if (!isDebt) return false;
+                                return _confirmSettle(context, row);
+                              }
+                            },
+                            onDismissed: (_) {
+                              // Row already acted on in confirmDismiss; nothing extra needed
+                            },
+                            background: _SwipeBg(
+                              color: AppTheme.ledgerPayment,
+                              icon: Icons.check_circle_outline_rounded,
+                              label: 'Settle',
+                              alignment: Alignment.centerLeft,
+                            ),
+                            secondaryBackground: _SwipeBg(
+                              color: AppTheme.ledgerDebt,
+                              icon: Icons.cancel_outlined,
+                              label: 'Cancel',
+                              alignment: Alignment.centerRight,
+                            ),
+                            child: _TxCard(
                               index: runningIndex,
                               row: row,
                               currencyCode: code,
-                              tagsAsync: ref.watch(
-                                transactionTagsProvider(row.transaction.id),
-                              ),
-                              onEdit: () =>
-                                  _openEditor(context, editing: row.transaction),
+                              tagsAsync: ref.watch(transactionTagsProvider(row.transaction.id)),
+                              onEdit: () => _openEditor(context, editing: row.transaction),
                               onMarkPaid: () async {
-                                await ref
-                                    .read(ledgerRepositoryProvider)
-                                    .markDebtAsPaid(row.transaction.id);
+                                HapticFeedback.heavyImpact();
+                                await ref.read(ledgerRepositoryProvider).markDebtAsPaid(row.transaction.id);
                               },
                               onSettleFullDebt: () async {
-                                await ref
-                                    .read(ledgerRepositoryProvider)
-                                    .settleFullDebt(row.transaction.clientId);
+                                HapticFeedback.heavyImpact();
+                                await ref.read(ledgerRepositoryProvider).settleFullDebt(row.transaction.clientId);
                               },
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }),
                       ],
                     );
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => ListView(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
+                children: const [TransactionListSkeleton()],
+              ),
               error: (e, _) => Center(child: Text('Error: $e')),
             ),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openEditor(context),
+        onPressed: () {
+          HapticFeedback.mediumImpact();
+          _openEditor(context);
+        },
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Widget _typeChip(ThemeData theme, _TxTypeFilter filter, String label, Color color) {
+    final sel = _typeFilters.contains(filter);
+    return FilterChip(
+      label: Text(label),
+      selected: sel,
+      selectedColor: color.withValues(alpha: 0.2),
+      checkmarkColor: color,
+      labelStyle: TextStyle(
+        color: sel ? color : AppTheme.mutedFg,
+        fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+        fontSize: 13,
+      ),
+      side: BorderSide(color: sel ? color.withValues(alpha: 0.6) : AppTheme.mutedFg.withValues(alpha: 0.35)),
+      onSelected: (v) {
+        HapticFeedback.selectionClick();
+        setState(() {
+          if (v) {
+            _typeFilters.add(filter);
+          } else {
+            _typeFilters.remove(filter);
+          }
+        });
+      },
+    );
+  }
+
+  Future<void> _pickClientFilter(BuildContext context, List<Client> clients) async {
+    final picked = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('All clients'),
+              leading: const Icon(Icons.people_outline),
+              selected: _selectedClientId == null,
+              onTap: () => Navigator.pop(ctx, ''),
+            ),
+            ...clients.map((c) => ListTile(
+              title: Text(c.fullName),
+              selected: _selectedClientId == c.id,
+              onTap: () => Navigator.pop(ctx, c.id),
+            )),
+          ],
+        ),
+      ),
+    );
+    if (picked == null) return;
+    setState(() => _selectedClientId = picked.isEmpty ? null : picked);
+  }
+
+  Future<bool> _confirmCancel(BuildContext context, LedgerTransactionWithClient row) async {
+    HapticFeedback.mediumImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel transaction?'),
+        content: Text(
+          'Cancel the ${LedgerTxType.fromInt(row.transaction.txType).name} of '
+          '${MoneyFormat.formatMinor(row.transaction.amountMinor, ref.read(defaultCurrencyProvider).valueOrNull ?? 'DZD')} '
+          'for ${row.clientName}? This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.ledgerDebt),
+            child: const Text('Cancel it'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      HapticFeedback.heavyImpact();
+      await ref.read(ledgerRepositoryProvider).cancelTransaction(row.transaction.id);
+    }
+    return false; // Don't dismiss the Dismissible — list updates via stream
+  }
+
+  Future<bool> _confirmSettle(BuildContext context, LedgerTransactionWithClient row) async {
+    HapticFeedback.mediumImpact();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Settle debt?'),
+        content: Text(
+          'Mark the ${MoneyFormat.formatMinor(row.transaction.amountMinor, ref.read(defaultCurrencyProvider).valueOrNull ?? 'DZD')} '
+          'debt for ${row.clientName} as paid?',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Settle'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      HapticFeedback.heavyImpact();
+      await ref.read(ledgerRepositoryProvider).markDebtAsPaid(row.transaction.id);
+    }
+    return false;
   }
 
   Map<String, List<LedgerTransactionWithClient>> _groupByDate(
@@ -171,9 +402,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final tags = await ref.read(transactionScopeTagsProvider.future);
     final selectedTags = editing == null
         ? const <String>[]
-        : (await ref.read(
-            transactionTagsProvider(editing.id).future,
-          )).map((e) => e.id).toList();
+        : (await ref.read(transactionTagsProvider(editing.id).future)).map((e) => e.id).toList();
     String? targetClientId = editing?.clientId ?? _selectedClientId;
     if (targetClientId == null && clients.isNotEmpty) {
       targetClientId = clients.first.id;
@@ -193,9 +422,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
       isScrollControlled: true,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppTheme.radius),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
@@ -210,31 +437,45 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           availableTags: tags,
           initialTagIds: selectedTags,
           initialEffectiveAt: editing?.effectiveAt ?? editing?.createdAt,
-          currentBalanceMinor:
-              editing?.postedBalanceBeforeMinor ?? fallbackBalance,
-          onSubmit: (amountMinor, type, note, tagIds, effectiveAt) async {
+          currentBalanceMinor: editing?.postedBalanceBeforeMinor ?? fallbackBalance,
+          templates: editing == null
+              ? (ref.read(transactionTemplatesProvider).valueOrNull ?? [])
+              : [],
+          onSaveTemplate: editing == null
+              ? (label, amount, type, note) => ref
+                    .read(ledgerRepositoryProvider)
+                    .saveTemplate(
+                      label: label,
+                      amountMinor: amount,
+                      type: type,
+                      note: note,
+                      currencyCode: ref.read(defaultCurrencyProvider).valueOrNull ?? 'DZD',
+                    )
+              : null,
+          onDeleteTemplate: editing == null
+              ? (id) => ref.read(ledgerRepositoryProvider).deleteTemplate(id)
+              : null,
+          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt) async {
             if (editing == null) {
-              await ref
-                  .read(ledgerRepositoryProvider)
-                  .insertTransaction(
-                    clientId: targetClientId!,
-                    amountMinor: amountMinor,
-                    type: type,
-                    note: note,
-                    tagIds: tagIds,
-                    effectiveAt: effectiveAt,
-                  );
+              await ref.read(ledgerRepositoryProvider).insertTransaction(
+                clientId: targetClientId!,
+                amountMinor: amountMinor,
+                type: type,
+                note: note,
+                tagIds: tagIds,
+                effectiveAt: effectiveAt,
+                dueAt: dueAt,
+              );
             } else {
-              await ref
-                  .read(ledgerRepositoryProvider)
-                  .updateTransaction(
-                    id: editing.id,
-                    amountMinor: amountMinor,
-                    type: type,
-                    note: note,
-                    tagIds: tagIds,
-                    effectiveAt: effectiveAt,
-                  );
+              await ref.read(ledgerRepositoryProvider).updateTransaction(
+                id: editing.id,
+                amountMinor: amountMinor,
+                type: type,
+                note: note,
+                tagIds: tagIds,
+                effectiveAt: effectiveAt,
+                dueAt: dueAt,
+              );
             }
             if (ctx.mounted) Navigator.pop(ctx);
           },
@@ -243,10 +484,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
   }
 
-  Future<void> _exportCsv(
-    BuildContext context,
-    List<LedgerTransactionWithClient> rows,
-  ) async {
+  Future<void> _exportCsv(BuildContext context, List<LedgerTransactionWithClient> rows) async {
     final now = DateTime.now();
     final range = await showDateRangePicker(
       context: context,
@@ -288,11 +526,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     } else {
       try {
         final location = await getSaveLocation(
-          suggestedName:
-              'transactions_export_${DateTime.now().millisecondsSinceEpoch}.csv',
-          acceptedTypeGroups: const [
-            XTypeGroup(label: 'csv', extensions: ['csv']),
-          ],
+          suggestedName: 'transactions_export_${DateTime.now().millisecondsSinceEpoch}.csv',
+          acceptedTypeGroups: const [XTypeGroup(label: 'csv', extensions: ['csv'])],
         );
         if (location == null) return;
         final file = XFile.fromData(
@@ -305,11 +540,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
         await Clipboard.setData(ClipboardData(text: csv));
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'File save unavailable. Transactions CSV copied to clipboard instead.',
-            ),
-          ),
+          const SnackBar(content: Text('File save unavailable. CSV copied to clipboard instead.')),
         );
         return;
       }
@@ -317,15 +548,56 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          action == 'clipboard'
-              ? 'Transactions CSV copied to clipboard'
-              : 'Transactions CSV downloaded',
-        ),
+        content: Text(action == 'clipboard' ? 'Transactions CSV copied to clipboard' : 'Transactions CSV downloaded'),
       ),
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Swipe action background
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SwipeBg extends StatelessWidget {
+  const _SwipeBg({required this.color, required this.icon, required this.label, required this.alignment});
+
+  final Color color;
+  final IconData icon;
+  final String label;
+  final Alignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(AppTheme.radius),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      alignment: alignment,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (alignment == Alignment.centerLeft) ...[
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+          ] else ...[
+            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 6),
+            Icon(icon, color: color, size: 20),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Transaction card
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TxCard extends StatelessWidget {
   const _TxCard({
@@ -350,17 +622,20 @@ class _TxCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tx = row.transaction;
     final type = LedgerTxType.fromInt(tx.txType);
-    final color = type == LedgerTxType.debt
-        ? AppTheme.ledgerDebt
-        : AppTheme.ledgerPayment;
-    final isActive =
-        LedgerTxStatus.fromInt(tx.txStatus) == LedgerTxStatus.active;
+    final status = LedgerTxStatus.fromInt(tx.txStatus);
+    final isActive = status == LedgerTxStatus.active;
+    final color = status == LedgerTxStatus.cancelled
+        ? AppTheme.ledgerCancel
+        : type == LedgerTxType.debt
+            ? AppTheme.ledgerDebt
+            : AppTheme.ledgerPayment;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radius),
         border: Border.all(color: color.withValues(alpha: 0.4)),
+        boxShadow: isActive ? AppTheme.cardGlow(color, intensity: 0.06) : null,
       ),
       child: ListTile(
         title: Row(
@@ -370,9 +645,7 @@ class _TxCard extends StatelessWidget {
                 '#$index  ${row.clientName}',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(width: 8),
@@ -384,7 +657,7 @@ class _TxCard extends StatelessWidget {
                 border: Border.all(color: color.withValues(alpha: 0.45)),
               ),
               child: Text(
-                type.name.toUpperCase(),
+                status == LedgerTxStatus.cancelled ? 'CANCELLED' : type.name.toUpperCase(),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w700,
@@ -403,8 +676,7 @@ class _TxCard extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            if (tx.effectiveAt != null &&
-                tx.effectiveAt!.toUtc() != tx.createdAt.toUtc())
+            if (tx.effectiveAt != null && tx.effectiveAt!.toUtc() != tx.createdAt.toUtc())
               Text(
                 'Created ${MoneyFormat.formatDateTime(tx.createdAt)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -424,18 +696,9 @@ class _TxCard extends StatelessWidget {
                           .map(
                             (t) => Chip(
                               label: Text(t.name),
-                              avatar: CircleAvatar(
-                                radius: 4,
-                                backgroundColor: _tagColor(t.colorHex),
-                              ),
-                              backgroundColor: _tagColor(
-                                t.colorHex,
-                              ).withValues(alpha: 0.18),
-                              side: BorderSide(
-                                color: _tagColor(
-                                  t.colorHex,
-                                ).withValues(alpha: 0.75),
-                              ),
+                              avatar: CircleAvatar(radius: 4, backgroundColor: _tagColor(t.colorHex)),
+                              backgroundColor: _tagColor(t.colorHex).withValues(alpha: 0.18),
+                              side: BorderSide(color: _tagColor(t.colorHex).withValues(alpha: 0.75)),
                               shape: const StadiumBorder(),
                               visualDensity: VisualDensity.compact,
                             ),
@@ -457,10 +720,7 @@ class _TxCard extends StatelessWidget {
             const PopupMenuItem(value: 'edit', child: Text('Edit')),
             if (isActive && type == LedgerTxType.debt)
               const PopupMenuItem(value: 'paid', child: Text('Mark as paid')),
-            const PopupMenuItem(
-              value: 'settle',
-              child: Text('Settle full debt'),
-            ),
+            const PopupMenuItem(value: 'settle', child: Text('Settle full debt')),
           ],
         ),
       ),

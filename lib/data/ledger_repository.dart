@@ -519,6 +519,11 @@ class LedgerRepository {
             updatedAt: Value(now),
           ),
         );
+    await logAction(
+      archived ? 'archive_client' : 'restore_client',
+      'client',
+      id,
+    );
   }
 
   Future<void> insertTransaction({
@@ -531,6 +536,7 @@ class LedgerRepository {
     String channel = 'other',
     String? referenceNo,
     DateTime? effectiveAt,
+    DateTime? dueAt,
     int attachmentsCount = 0,
     List<String> tagIds = const [],
   }) async {
@@ -552,6 +558,7 @@ class LedgerRepository {
               channel: Value(channel),
               referenceNo: Value(referenceNo),
               effectiveAt: Value(effectiveAt ?? createdAt),
+              dueAt: Value(dueAt?.toUtc()),
               attachmentsCount: Value(attachmentsCount),
               txType: type.index,
               txStatus: LedgerTxStatus.active.index,
@@ -568,6 +575,11 @@ class LedgerRepository {
       await _recordQuickAction(type, amountMinor);
       await _refreshPostingSnapshots(clientId);
     });
+    await logAction('create_tx', 'transaction', id, detail: {
+      'clientId': clientId,
+      'amountMinor': amountMinor,
+      'type': type.name,
+    });
   }
 
   Future<void> updateTransaction({
@@ -577,6 +589,7 @@ class LedgerRepository {
     String? note,
     List<String>? tagIds,
     DateTime? effectiveAt,
+    DateTime? dueAt,
   }) async {
     if (amountMinor <= 0) {
       throw ArgumentError.value(amountMinor, 'amountMinor', 'must be positive');
@@ -594,6 +607,7 @@ class LedgerRepository {
               txType: Value(type.index),
               note: Value(note),
               effectiveAt: Value(effectiveAt),
+              dueAt: Value(dueAt?.toUtc()),
               updatedAt: Value(now),
             ),
           );
@@ -639,6 +653,8 @@ class LedgerRepository {
       type: LedgerTxType.payment,
       note: 'Settle full debt',
     );
+    await logAction('settle_tx', 'client', clientId,
+        detail: {'amountMinor': balance});
     await (_db.update(_db.ledgerTransactions)
           ..where(
             (t) =>
@@ -683,6 +699,7 @@ class LedgerRepository {
 
       await _refreshPostingSnapshots(tx.clientId);
     });
+    await logAction('cancel_tx', 'transaction', id);
   }
 
   Future<int> computeBalance(String clientId) => _computeBalance(clientId);
@@ -843,6 +860,34 @@ class LedgerRepository {
 
   Stream<SyncSettingsData> watchSyncSettings() {
     return _db.select(_db.appSettings).watchSingleOrNull().map(_mapSyncSettings);
+  }
+
+  Future<AppSetting?> getAppSettings() =>
+      _db.select(_db.appSettings).getSingleOrNull();
+
+  Stream<AppSetting?> watchAppSettings() =>
+      _db.select(_db.appSettings).watchSingleOrNull();
+
+  Future<void> saveNotificationSettings({
+    required bool overdueEnabled,
+    required int overdueHour,
+    required bool balanceMilestoneEnabled,
+    required int balanceMilestoneMinor,
+    required bool inactivityEnabled,
+    required int inactivityDays,
+    required bool syncEnabled,
+  }) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+      AppSettingsCompanion(
+        notifOverdueEnabled: Value(overdueEnabled),
+        notifOverdueHour: Value(overdueHour),
+        notifBalanceMilestoneEnabled: Value(balanceMilestoneEnabled),
+        notifBalanceMilestoneMinor: Value(balanceMilestoneMinor),
+        notifInactivityEnabled: Value(inactivityEnabled),
+        notifInactivityDays: Value(inactivityDays),
+        notifSyncEnabled: Value(syncEnabled),
+      ),
+    );
   }
 
   Future<void> saveSyncSettings({
@@ -1423,6 +1468,74 @@ class LedgerRepository {
         .whereType<Map>()
         .map((e) => _ImportedPersonalFinancePayload.fromMap(e.cast<String, dynamic>()))
         .toList();
+  }
+
+  // ── Audit log ─────────────────────────────────────────────────────────
+
+  Future<void> logAction(
+    String action,
+    String entityType,
+    String entityId, {
+    Map<String, dynamic>? detail,
+  }) async {
+    await _db.into(_db.auditLog).insert(
+      AuditLogCompanion.insert(
+        id: const Uuid().v4(),
+        action: action,
+        entityType: entityType,
+        entityId: entityId,
+        detail: Value(detail != null ? jsonEncode(detail) : null),
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
+    // Prune oldest entries beyond 500
+    final count = await _db.auditLog.count().getSingle();
+    if (count > 500) {
+      final oldest = await (_db.select(_db.auditLog)
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
+            ..limit(count - 500))
+          .get();
+      for (final row in oldest) {
+        await (_db.delete(_db.auditLog)..where((t) => t.id.equals(row.id))).go();
+      }
+    }
+  }
+
+  Stream<List<AuditLogData>> watchAuditLog() =>
+      (_db.select(_db.auditLog)
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+            ..limit(500))
+          .watch();
+
+  // ── Transaction templates ──────────────────────────────────────────────
+
+  Stream<List<TransactionTemplate>> watchTemplates() =>
+      _db.select(_db.transactionTemplates).watch();
+
+  Future<void> saveTemplate({
+    required String label,
+    required int amountMinor,
+    required LedgerTxType type,
+    String? note,
+    String currencyCode = 'DZD',
+  }) async {
+    await _db.into(_db.transactionTemplates).insert(
+      TransactionTemplatesCompanion.insert(
+        id: const Uuid().v4(),
+        label: label,
+        amountMinor: amountMinor,
+        txType: type.index,
+        currencyCode: Value(currencyCode),
+        note: Value(note),
+        createdAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<void> deleteTemplate(String id) async {
+    await (_db.delete(_db.transactionTemplates)
+          ..where((t) => t.id.equals(id)))
+        .go();
   }
 }
 

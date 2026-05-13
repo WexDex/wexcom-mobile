@@ -9,7 +9,12 @@ import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
+import '../../widgets/hud_empty_state.dart';
+import '../../widgets/hud_stat_card.dart';
+import '../../widgets/skeleton_loaders.dart';
+import 'dashboard_analytics.dart';
 import 'dashboard_charts.dart';
+import 'new_chart_painters.dart';
 
 String _formatChartDay(DateTime day) => DateFormat.yMMMd().format(day.toLocal());
 
@@ -29,7 +34,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     _rangeEnd = today;
@@ -128,6 +133,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final currencyAsync = ref.watch(defaultCurrencyProvider);
     final expenseAsync = ref.watch(personalFinanceEntriesProvider(PersonalFinanceKind.expense));
     final gainAsync = ref.watch(personalFinanceEntriesProvider(PersonalFinanceKind.gain));
+    final clientsAsync = ref.watch(activeClientsProvider);
     final code = currencyAsync.valueOrNull ?? 'DZD';
 
     final expList = expenseAsync.valueOrNull ?? const [];
@@ -148,6 +154,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             Tab(text: 'Debt & Payments'),
             Tab(text: 'Expenses & Gains'),
             Tab(text: 'Combined'),
+            Tab(text: 'Analytics'),
           ],
         ),
         actions: [
@@ -259,7 +266,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     rangeStart: _rangeStart,
                     rangeEnd: _rangeEnd,
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () => ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [StatCardSkeleton(), SizedBox(height: 16), ChartSkeleton(), SizedBox(height: 16), ChartSkeleton()],
+                  ),
                   error: (e, _) => Center(child: Text('Error: $e')),
                 ),
                 _ExpensesGainsTab(
@@ -280,7 +290,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     rangeStart: _rangeStart,
                     rangeEnd: _rangeEnd,
                   ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () => ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [ChartSkeleton()],
+                  ),
+                  error: (e, _) => Center(child: Text('Error: $e')),
+                ),
+                txAsync.when(
+                  data: (rows) => _AnalyticsTab(
+                    rows: rows,
+                    clients: clientsAsync.valueOrNull ?? const [],
+                    code: code,
+                  ),
+                  loading: () => ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [
+                      ChartSkeleton(),
+                      SizedBox(height: 16),
+                      ChartSkeleton(),
+                    ],
+                  ),
                   error: (e, _) => Center(child: Text('Error: $e')),
                 ),
               ],
@@ -332,9 +361,10 @@ class _CombinedDashboardTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 if (merged.isEmpty)
-                  const Text(
-                    'No days in selected range.',
-                    style: TextStyle(color: AppTheme.mutedFg),
+                  const HudEmptyState(
+                    icon: Icons.show_chart_rounded,
+                    message: 'No data in range',
+                    subtitle: 'Adjust the date range to see combined activity.',
                   )
                 else
                   ChartCard(
@@ -356,12 +386,72 @@ class _CombinedDashboardTab extends StatelessWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => ListView(padding: const EdgeInsets.all(16), children: const [ChartSkeleton()]),
           error: (e, _) => Center(child: Text('Error: $e')),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
+    );
+  }
+}
+
+class _AnalyticsTab extends StatelessWidget {
+  const _AnalyticsTab({
+    required this.rows,
+    required this.clients,
+    required this.code,
+  });
+
+  final List<LedgerTransactionWithClient> rows;
+  final List<Client> clients;
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final topClients = buildTopClientsByBalance(clients);
+    final monthlyFlow = buildMonthlyNetFlow(rows);
+    final heatmap = buildPaymentHeatmap(rows);
+    final ageBucket = buildDebtAgeBuckets(rows);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+      children: [
+        if (topClients.isNotEmpty) ...[
+          ChartCard(
+            title: 'Top clients by balance',
+            subtitle: 'Highest absolute balances — cyan = they owe you, red = you owe them',
+            accentColor: AppTheme.balanceReceivable,
+            child: TopClientsBarChart(points: topClients, currencyCode: code),
+          ),
+          const SizedBox(height: 20),
+        ],
+        ChartCard(
+          title: 'Monthly debt vs payments',
+          subtitle: 'Last 12 months — left bar: debt, right bar: payments',
+          accentColor: AppTheme.ledgerPayment,
+          child: MonthlyNetFlowChart(points: monthlyFlow, currencyCode: code),
+        ),
+        const SizedBox(height: 20),
+        ChartCard(
+          title: 'Payment day of week',
+          subtitle: 'Which days clients pay most often',
+          accentColor: AppTheme.ledgerPayment,
+          child: SizedBox(
+            height: 100,
+            child: PaymentHeatmapChart(cells: heatmap),
+          ),
+        ),
+        if (!ageBucket.isEmpty) ...[
+          const SizedBox(height: 20),
+          ChartCard(
+            title: 'Open debt age',
+            subtitle: 'How old your active debts are',
+            accentColor: AppTheme.ledgerDebt,
+            child: DebtAgeChart(bucket: ageBucket),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -405,31 +495,41 @@ class _DebtPaymentsTab extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _StatCard(
-                label: 'Total owed to you',
-                value: MoneyFormat.formatMinor(totalOwedToYou, code),
+              child: HudStatCard(
+                label: 'Owed to you',
+                displayText: MoneyFormat.formatMinor(totalOwedToYou, code),
+                numericValue: totalOwedToYou.toDouble(),
                 color: AppTheme.balanceReceivable,
+                icon: Icons.arrow_downward_rounded,
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _StatCard(
-                label: 'Total you owe',
-                value: MoneyFormat.formatMinor(totalYouOwe, code),
+              child: HudStatCard(
+                label: 'You owe',
+                displayText: MoneyFormat.formatMinor(totalYouOwe, code),
+                numericValue: totalYouOwe.toDouble(),
                 color: AppTheme.ledgerDebt,
+                icon: Icons.arrow_upward_rounded,
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
-        _StatCard(
+        HudStatCard(
           label: 'Net balance',
-          value: MoneyFormat.formatMinor(totalOwedToYou - totalYouOwe, code),
+          displayText: MoneyFormat.formatMinor(totalOwedToYou - totalYouOwe, code),
+          numericValue: (totalOwedToYou - totalYouOwe).toDouble(),
           color: AppTheme.receivableAccent,
+          icon: Icons.account_balance_outlined,
         ),
         const SizedBox(height: 20),
         if (daily.isEmpty)
-          const Text('No days in selected range.', style: TextStyle(color: AppTheme.mutedFg))
+          const HudEmptyState(
+            icon: Icons.bar_chart_rounded,
+            message: 'No data in range',
+            subtitle: 'Adjust the date range to see ledger activity.',
+          )
         else ...[
           ChartCard(
             title: 'Current balances (end of day)',
@@ -567,28 +667,34 @@ class _ExpensesGainsTab extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _StatCard(
+                      child: HudStatCard(
                         label: 'All-time expenses',
-                        value: MoneyFormat.formatMinor(expTotal, code),
+                        displayText: MoneyFormat.formatMinor(expTotal, code),
+                        numericValue: expTotal.toDouble(),
                         color: AppTheme.personalExpense,
+                        icon: Icons.shopping_bag_outlined,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: _StatCard(
+                      child: HudStatCard(
                         label: 'All-time gains',
-                        value: MoneyFormat.formatMinor(gainTotal, code),
+                        displayText: MoneyFormat.formatMinor(gainTotal, code),
+                        numericValue: gainTotal.toDouble(),
                         color: AppTheme.personalGain,
+                        icon: Icons.trending_up_rounded,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                _StatCard(
+                HudStatCard(
                   label: 'In selected range',
-                  value:
+                  displayText:
                       '−${MoneyFormat.formatMinor(rangeSumExpense, code)} · +${MoneyFormat.formatMinor(rangeSumGain, code)}',
+                  numericValue: (rangeSumGain - rangeSumExpense).toDouble(),
                   color: AppTheme.receivableAccent,
+                  icon: Icons.date_range_outlined,
                 ),
                 const SizedBox(height: 12),
                 Material(
@@ -624,7 +730,11 @@ class _ExpensesGainsTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 if (combined.isEmpty)
-                  const Text('No days in selected range.', style: TextStyle(color: AppTheme.mutedFg))
+                  const HudEmptyState(
+                    icon: Icons.trending_up_rounded,
+                    message: 'No data in range',
+                    subtitle: 'Adjust the date range to see finance activity.',
+                  )
                 else ...[
                   ChartCard(
                     title: 'Expenses and gains per day',
@@ -689,7 +799,7 @@ class _ExpensesGainsTab extends StatelessWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => ListView(padding: const EdgeInsets.all(16), children: const [ChartSkeleton()]),
           error: (e, _) => Center(child: Text('Error: $e')),
         );
       },
@@ -699,40 +809,3 @@ class _ExpensesGainsTab extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-        borderRadius: BorderRadius.circular(AppTheme.radius),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: AppTheme.mutedFg)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
