@@ -366,6 +366,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     ),
                     onPressed: () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final labelCtrl = TextEditingController();
                       final label = await showDialog<String>(
                         context: context,
@@ -392,7 +393,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                           ],
                         ),
                       );
-                      if (label != null && label.isNotEmpty && mounted) {
+                      if (label != null && label.isNotEmpty) {
                         await widget.onSaveTemplate!(
                           label,
                           parsedAmount,
@@ -400,7 +401,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                           _note.text.trim().isEmpty ? null : _note.text.trim(),
                         );
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             SnackBar(content: Text('Template "$label" saved')),
                           );
                         }

@@ -149,3 +149,48 @@ final auditLogProvider = StreamProvider.autoDispose<List<AuditLogData>>((ref) {
 final appSettingsProvider = StreamProvider<AppSetting?>((ref) {
   return ref.watch(ledgerRepositoryProvider).watchAppSettings();
 });
+
+// ── Part D — Expense categories ───────────────────────────────────────────
+
+final expenseCategoriesProvider = StreamProvider.autoDispose
+    .family<List<ExpenseCategory>, String>((ref, scope) {
+  return ref.watch(ledgerRepositoryProvider).watchCategories(scope);
+});
+
+final monthlySpendProvider = StreamProvider.autoDispose
+    .family<Map<String, int>, String>((ref, scope) {
+  final now = DateTime.now();
+  final monthStart = DateTime(now.year, now.month);
+  return ref.watch(ledgerRepositoryProvider).watchSpendPerCategory(scope, monthStart);
+});
+
+// ── Part E — Wishlist ────────────────────────────────────────────────────
+
+final wishlistItemsProvider = StreamProvider.autoDispose
+    .family<List<WishlistItem>, bool>((ref, purchased) {
+  return ref.watch(ledgerRepositoryProvider).watchWishlistItems(purchased: purchased);
+});
+
+// ── Part F — Wallet & Savings ────────────────────────────────────────────
+
+final walletAccountsProvider = StreamProvider.autoDispose<List<WalletAccount>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchWalletAccounts();
+});
+
+final savingsGoalsProvider = StreamProvider.autoDispose<List<SavingsGoal>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchSavingsGoals();
+});
+
+/// Net worth = sum(wallet balances) + sum(client receivables) − sum(client payables)
+final netWorthProvider = FutureProvider.autoDispose<int>((ref) async {
+  final wallets = ref.watch(walletAccountsProvider).valueOrNull ?? [];
+  final clients = ref.watch(activeClientsProvider).valueOrNull ?? [];
+  final walletTotal = wallets.fold(0, (sum, a) => sum + a.balanceMinor);
+  var receivable = 0;
+  var payable = 0;
+  for (final c in clients) {
+    if (c.balanceMinor > 0) receivable += c.balanceMinor;
+    if (c.balanceMinor < 0) payable += -c.balanceMinor;
+  }
+  return walletTotal + receivable - payable;
+});

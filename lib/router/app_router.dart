@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/analytics/analytics_screen.dart';
 import '../features/clients/archived_clients_screen.dart';
 import '../features/clients/client_detail_screen.dart';
 import '../features/clients/client_list_screen.dart';
-import '../features/dashboard/dashboard_screen.dart';
 import '../features/finance/personal_finance_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/settings/audit_log_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/tag_editor_screen.dart';
@@ -65,7 +66,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/home',
                 name: 'home',
-                pageBuilder: (context, state) => _tabPage(state, const DashboardScreen()),
+                pageBuilder: (context, state) => _tabPage(state, const HomeScreen()),
               ),
             ],
           ),
@@ -138,6 +139,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings/audit-log',
         name: 'audit-log',
         pageBuilder: (context, state) => _detailPage(state, const AuditLogScreen()),
+      ),
+      GoRoute(
+        path: '/analytics',
+        name: 'analytics',
+        pageBuilder: (context, state) => _detailPage(state, const AnalyticsScreen()),
       ),
     ],
   );

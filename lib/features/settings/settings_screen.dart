@@ -1,15 +1,20 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../data/ledger_repository.dart';
 import '../../providers/providers.dart';
 import '../../services/backup_service.dart';
 import '../../services/cloud_sync_service.dart';
+import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
 
@@ -277,6 +282,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         ListTile(
           contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.folder_open_outlined),
+          title: const Text('Saved exports'),
+          subtitle: const Text('Browse & share previously saved export files'),
+          trailing: chevron,
+          onTap: () => _openSavedExports(context),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.download_for_offline_outlined),
           title: const Text('Import JSON'),
           subtitle: const Text('Merge clients from a .json file (non-destructive)'),
@@ -341,13 +354,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     fontWeight: FontWeight.w700,
                   )),
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.warning_amber_outlined),
-          title: const Text('Overdue debt alert'),
-          subtitle: const Text('Daily reminder when you have overdue debts'),
+        _NotifRow(
+          icon: Icons.warning_amber_outlined,
+          title: 'Overdue debt alert',
+          subtitle: 'Daily reminder when you have overdue debts',
           value: s.notifOverdueEnabled,
           onChanged: (v) => save(overdueEnabled: v),
+          onTest: () async {
+            await NotificationService.showOverdueAlert(
+              overdueCount: 3,
+              criticalCount: 1,
+            );
+            _showTestSnack();
+          },
         ),
         if (s.notifOverdueEnabled)
           ListTile(
@@ -362,31 +381,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               if (picked != null) save(overdueHour: picked.hour);
             },
           ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.notifications_active_outlined),
-          title: const Text('Balance milestone'),
-          subtitle: Text(
-              'Alert when a client exceeds ${MoneyFormat.formatMinor(s.notifBalanceMilestoneMinor, 'DZD')}'),
+        _NotifRow(
+          icon: Icons.notifications_active_outlined,
+          title: 'Balance milestone',
+          subtitle:
+              'Alert when a client exceeds ${MoneyFormat.formatMinor(s.notifBalanceMilestoneMinor, 'DZD')}',
           value: s.notifBalanceMilestoneEnabled,
           onChanged: (v) => save(milestoneEnabled: v),
+          onTest: () async {
+            await NotificationService.showBalanceMilestone(
+              clientName: 'Test Client',
+              balanceMinor: s.notifBalanceMilestoneMinor,
+              currencyCode: 'DZD',
+              thresholdMinor: s.notifBalanceMilestoneMinor,
+            );
+            _showTestSnack();
+          },
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.hourglass_empty_outlined),
-          title: const Text('No activity reminder'),
-          subtitle: Text(
-              'After ${s.notifInactivityDays} days without transactions'),
+        _NotifRow(
+          icon: Icons.hourglass_empty_outlined,
+          title: 'No activity reminder',
+          subtitle: 'After ${s.notifInactivityDays} days without transactions',
           value: s.notifInactivityEnabled,
           onChanged: (v) => save(inactivityEnabled: v),
+          onTest: () async {
+            await NotificationService.showInactivityReminder(
+              daysSinceLast: s.notifInactivityDays,
+            );
+            _showTestSnack();
+          },
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          secondary: const Icon(Icons.cloud_done_outlined),
-          title: const Text('Cloud sync notification'),
-          subtitle: const Text('Notify after a successful backup upload'),
+        _NotifRow(
+          icon: Icons.cloud_done_outlined,
+          title: 'Cloud sync notification',
+          subtitle: 'Notify after a successful backup upload',
           value: s.notifSyncEnabled,
           onChanged: (v) => save(syncEnabled: v),
+          onTest: () async {
+            await NotificationService.showSyncSuccess(
+              sizeLabel: '1.2 MB',
+              uploadedAt: DateTime.now(),
+            );
+            _showTestSnack();
+          },
         ),
       ],
     );
@@ -578,6 +615,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _openSavedExports(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SavedExportsScreen(exportsDir: _exportsDir),
+      ),
+    );
+  }
+
+  void _showTestSnack() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Test notification sent')),
     );
   }
 
@@ -779,78 +831,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
+  /// Returns the `Documents/wexcom-exports/` directory, creating it if needed.
+  Future<Directory> _exportsDir() async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final dir = Directory('${docsDir.path}/wexcom-exports');
+    await dir.create(recursive: true);
+    return dir;
+  }
+
   Future<void> _exportAllData() async {
     setState(() => _backupBusy = true);
     try {
       final json = await ref
           .read(ledgerRepositoryProvider)
           .exportAllClientsWithTransactionsJson();
+      final bytes = utf8.encode(json);
+      final ts = DateFormat('yyyyMMdd-HHmm').format(DateTime.now());
+      final filename = 'wexcom-export-$ts.json';
+
       if (!mounted) return;
-      final action = await showModalBottomSheet<String>(
-        context: context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.copy_all_outlined),
-                title: const Text('Copy to clipboard'),
-                onTap: () => Navigator.pop(ctx, 'clipboard'),
-              ),
-              ListTile(
-                leading: const Icon(Icons.download_outlined),
-                title: const Text('Download JSON file'),
-                onTap: () => Navigator.pop(ctx, 'download'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (action == null) return;
-      if (action == 'clipboard') {
-        await Clipboard.setData(ClipboardData(text: json));
-      } else {
-        try {
-          final location = await getSaveLocation(
-            suggestedName:
-                'wexcom_backup_${DateTime.now().millisecondsSinceEpoch}.json',
-            acceptedTypeGroups: const [
-              XTypeGroup(label: 'json', extensions: ['json']),
-            ],
-          );
-          if (location == null) return;
-          final file = XFile.fromData(
-            Uint8List.fromList(utf8.encode(json)),
-            mimeType: 'application/json',
-            name: 'wexcom_backup.json',
-          );
-          await file.saveTo(location.path);
-        } catch (_) {
-          await Clipboard.setData(ClipboardData(text: json));
+
+      // Always save a local copy first (used for the Saved Exports browser)
+      final exportsDir = await _exportsDir();
+      final localFile = File('${exportsDir.path}/$filename');
+      await localFile.writeAsBytes(bytes);
+
+      if (!mounted) return;
+
+      // Try system file-picker so user can choose destination
+      bool pickerUsed = false;
+      try {
+        final loc = await getSaveLocation(
+          suggestedName: filename,
+          acceptedTypeGroups: const [
+            XTypeGroup(label: 'JSON', extensions: ['json'], mimeTypes: ['application/json']),
+          ],
+        );
+        if (loc != null) {
+          await File(loc.path).writeAsBytes(bytes);
+          pickerUsed = true;
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'File save is unavailable on this device. Export copied to clipboard instead.',
-              ),
-            ),
+            SnackBar(content: Text('Saved to ${loc.path}')),
           );
-          return;
         }
+      } catch (_) {
+        // Picker unavailable — fall through to local-only message
       }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            action == 'clipboard'
-                ? 'Export copied to clipboard'
-                : 'Export downloaded successfully',
+
+      if (!pickerUsed && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Saved to Documents/wexcom-exports/$filename'),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () => _openSavedExports(context),
+            ),
           ),
-        ),
-      );
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1296,6 +1335,196 @@ class _MiniStatChip extends StatelessWidget {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 enum _CloudDotState { unconfigured, untested, connected, offline }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notification row with toggle + test-fire button
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NotifRow extends StatelessWidget {
+  const _NotifRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    required this.onTest,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final VoidCallback onTest;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (value)
+            IconButton(
+              icon: const Icon(Icons.notifications_active_outlined, size: 18),
+              tooltip: 'Send test notification',
+              onPressed: onTest,
+            ),
+          Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Saved Exports browser
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SavedExportsScreen extends StatefulWidget {
+  const SavedExportsScreen({super.key, required this.exportsDir});
+
+  /// Callback that returns the exports directory (async, may need to create it).
+  final Future<Directory> Function() exportsDir;
+
+  @override
+  State<SavedExportsScreen> createState() => _SavedExportsScreenState();
+}
+
+class _SavedExportsScreenState extends State<SavedExportsScreen> {
+  List<FileSystemEntity>? _files;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final dir = await widget.exportsDir();
+      final all = dir.listSync()
+        ..sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+      if (mounted) setState(() { _files = all; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _files = []; _loading = false; });
+    }
+  }
+
+  String _fileSize(FileSystemEntity f) {
+    final bytes = f.statSync().size;
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Saved Exports'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _load,
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : (_files == null || _files!.isEmpty)
+              ? Center(
+                  child: Text(
+                    'No saved exports yet.\nExport JSON from Settings to create one.',
+                    textAlign: TextAlign.center,
+                    style: text.bodyMedium?.copyWith(color: AppTheme.mutedFg),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _files!.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final f = _files![i];
+                    final name = f.path.split(Platform.pathSeparator).last;
+                    final size = _fileSize(f);
+                    final modified = f.statSync().modified;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        border: Border.all(
+                          color: AppTheme.receivableAccent.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.description_outlined,
+                            color: AppTheme.receivableAccent),
+                        title: Text(name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          '$size · ${DateFormat('dd MMM yyyy HH:mm').format(modified)}',
+                          style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Share
+                            IconButton(
+                              icon: const Icon(Icons.share_outlined, size: 20),
+                              tooltip: 'Share',
+                              onPressed: () async {
+                                await Share.shareXFiles(
+                                  [XFile(f.path, mimeType: 'application/json')],
+                                  subject: name,
+                                );
+                              },
+                            ),
+                            // Delete
+                            IconButton(
+                              icon: Icon(Icons.delete_outline,
+                                  size: 20, color: AppTheme.ledgerDebt),
+                              tooltip: 'Delete',
+                              onPressed: () async {
+                                final ok = await showDialog<bool>(
+                                  context: context,
+                                  builder: (ctx) => AlertDialog(
+                                    title: const Text('Delete export?'),
+                                    content: Text(name),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      FilledButton(
+                                        onPressed: () => Navigator.pop(ctx, true),
+                                        child: const Text('Delete'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (ok == true) {
+                                  await f.delete();
+                                  _load();
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});

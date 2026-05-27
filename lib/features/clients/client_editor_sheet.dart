@@ -232,8 +232,26 @@ class _ClientEditorSheetState extends ConsumerState<ClientEditorSheet> {
                       'Use this field for client details or special terms.',
                 ),
               ),
-              if (widget.availableTags.isNotEmpty) ...[
-                const SizedBox(height: 12),
+              // ── Tags ────────────────────────────────────────────────────
+              const SizedBox(height: 12),
+              Text(
+                'Tags',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppTheme.mutedFg,
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (widget.availableTags.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 4),
+                  child: Text(
+                    'No client tags yet — create them in Settings → Tags',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: AppTheme.mutedFg,
+                    ),
+                  ),
+                )
+              else ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,

@@ -72,6 +72,27 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// Fires an immediate overdue notification for testing purposes.
+  static Future<void> showOverdueAlert({
+    required int overdueCount,
+    required int criticalCount,
+  }) async {
+    if (!_initialized) return;
+    try {
+      final body = criticalCount > 0
+          ? 'You have $overdueCount overdue debts — $criticalCount critical (90d+)'
+          : 'You have $overdueCount overdue debt${overdueCount == 1 ? '' : 's'}';
+      await _plugin.show(
+        1,
+        'Overdue Debts',
+        body,
+        _details(_channelOverdue, 'Overdue Debts', importance: Importance.high),
+      );
+    } catch (e) {
+      debugPrint('showOverdueAlert error: $e');
+    }
+  }
+
   // ── Client balance milestone ───────────────────────────────────────────
 
   static Future<void> showBalanceMilestone({

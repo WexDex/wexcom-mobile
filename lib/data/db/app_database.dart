@@ -132,8 +132,71 @@ class PersonalFinanceEntries extends Table {
   IntColumn get amountMinor => integer()();
   TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
   TextColumn get note => text().nullable()();
+  /// FK to ExpenseCategories (nullable — pre-existing entries have no category)
+  TextColumn get categoryId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Expense / gain categories with optional monthly budget.
+class ExpenseCategories extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get colorHex => text().withDefault(const Constant('#22C55E'))();
+  IntColumn get iconCodePoint => integer()();
+  IntColumn get budgetMinorPerMonth => integer().nullable()();
+  /// 'expense' or 'gain'
+  TextColumn get scope => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Wishlist / pending purchase items.
+class WishlistItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
+  TextColumn get note => text().nullable()();
+  TextColumn get categoryId => text().nullable()();
+  BoolColumn get isPurchased => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get purchasedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Manual wallet accounts (Cash, CCP, Baridimob, …).
+class WalletAccounts extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get emoji => text().withDefault(const Constant('💵'))();
+  IntColumn get balanceMinor => integer().withDefault(const Constant(0))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Savings goals (target + current amount).
+class SavingsGoals extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get emoji => text().withDefault(const Constant('🎯'))();
+  IntColumn get targetMinor => integer()();
+  IntColumn get savedMinor => integer().withDefault(const Constant(0))();
+  TextColumn get note => text().nullable()();
+  DateTimeColumn get deadline => dateTime().nullable()();
+  BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -182,18 +245,24 @@ class AppSettings extends Table {
     AppSettings,
     TransactionTemplates,
     AuditLog,
+    ExpenseCategories,
+    WishlistItems,
+    WalletAccounts,
+    SavingsGoals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
+          await _seedDefaultCategories();
+          await _seedDefaultWallet();
           await into(appSettings).insert(
             const AppSettingsCompanion(
               id: Value(1),
@@ -290,8 +359,22 @@ class AppDatabase extends _$AppDatabase {
               'ALTER TABLE app_settings ADD COLUMN notif_sync_enabled INTEGER NOT NULL DEFAULT 0',
             ];
             for (final s in sql) {
-              await m.issueCustomQuery(s);
+              await customStatement(s);
             }
+          }
+          if (from < 9) {
+            // Use Drift's own createTable so column types, CHECK constraints
+            // and defaults match the generated schema exactly.
+            await m.createTable(expenseCategories);
+            await m.createTable(wishlistItems);
+            await m.createTable(walletAccounts);
+            await m.createTable(savingsGoals);
+            await m.addColumn(
+              personalFinanceEntries,
+              personalFinanceEntries.categoryId,
+            );
+            await _seedDefaultCategories();
+            await _seedDefaultWallet();
           }
         },
       );
@@ -326,6 +409,54 @@ class AppDatabase extends _$AppDatabase {
     await insertIfMissing(name: 'Family', scope: 'client', colorHex: '#A855F7');
     await insertIfMissing(name: 'Flexy', scope: 'transaction', colorHex: '#F59E0B');
     await insertIfMissing(name: 'Loan', scope: 'transaction', colorHex: '#EF4444');
+  }
+
+  Future<void> _seedDefaultCategories() async {
+    final now = DateTime.now().toUtc();
+
+    Future<void> seed({
+      required String id,
+      required String name,
+      required String colorHex,
+      required int iconCodePoint,
+      required String scope,
+    }) async {
+      await into(expenseCategories).insertOnConflictUpdate(
+        ExpenseCategoriesCompanion.insert(
+          id: id,
+          name: name,
+          colorHex: Value(colorHex),
+          iconCodePoint: iconCodePoint,
+          scope: scope,
+          createdAt: now,
+        ),
+      );
+    }
+
+    await seed(id: 'cat-exp-food',      name: 'Food',      colorHex: '#F97316', iconCodePoint: 0xe532, scope: 'expense');
+    await seed(id: 'cat-exp-transport', name: 'Transport', colorHex: '#3B82F6', iconCodePoint: 0xe1b0, scope: 'expense');
+    await seed(id: 'cat-exp-bills',     name: 'Bills',     colorHex: '#EAB308', iconCodePoint: 0xe3e7, scope: 'expense');
+    await seed(id: 'cat-exp-health',    name: 'Health',    colorHex: '#EF4444', iconCodePoint: 0xe87e, scope: 'expense');
+    await seed(id: 'cat-exp-shopping',  name: 'Shopping',  colorHex: '#A855F7', iconCodePoint: 0xf1cc, scope: 'expense');
+    await seed(id: 'cat-exp-other',     name: 'Other',     colorHex: '#64748B', iconCodePoint: 0xe574, scope: 'expense');
+    await seed(id: 'cat-gain-salary',   name: 'Salary',    colorHex: '#22C55E', iconCodePoint: 0xe8f9, scope: 'gain');
+    await seed(id: 'cat-gain-freelance',name: 'Freelance', colorHex: '#38BDF8', iconCodePoint: 0xe86f, scope: 'gain');
+    await seed(id: 'cat-gain-other',    name: 'Other',     colorHex: '#64748B', iconCodePoint: 0xe574, scope: 'gain');
+  }
+
+  Future<void> _seedDefaultWallet() async {
+    final now = DateTime.now().toUtc();
+    await into(walletAccounts).insertOnConflictUpdate(
+      WalletAccountsCompanion.insert(
+        id: 'wallet-cash',
+        name: 'Cash',
+        emoji: const Value('💵'),
+        balanceMinor: const Value(0),
+        sortOrder: const Value(0),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   static QueryExecutor _openConnection() {

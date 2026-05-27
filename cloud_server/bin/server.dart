@@ -148,7 +148,13 @@ class _WexcomServer {
     ..get('/download/<id>', _handleDownloadById)
     ..delete('/snapshots/<id>', _handleDeleteSnapshot)
     ..get('/clients', _handleListClients)
-    ..get('/clients/<id>', _handleGetClient);
+    ..get('/clients/<id>', _handleGetClient)
+    // ── v9 data endpoints ───────────────────────────────────────────────────
+    ..get('/wallet', _handleListWallet)
+    ..get('/savings', _handleListSavings)
+    ..get('/categories', _handleListCategories)
+    ..get('/wishlist', _handleListWishlist)
+    ..get('/finance', _handleListFinanceEntries);
 
   // ── CORS middleware ───────────────────────────────────────────────────────
 
@@ -946,6 +952,255 @@ class _WexcomServer {
               'created_at': r['created_at'],
             }).toList(),
         'transaction_count': txRows.length,
+      });
+    } catch (e) {
+      return _jsonError(500, 'Query error: $e');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  // ── GET /wallet ───────────────────────────────────────────────────────────
+
+  Future<Response> _handleListWallet(Request request) async {
+    final (db, snapId, err) = _openLatestSnapshot();
+    if (err != null) return _jsonError(503, err);
+    try {
+      // Table may not exist in pre-v9 snapshots — guard with sqlite_master check
+      final hasTable = db!.select(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='wallet_accounts'",
+      ).isNotEmpty;
+      if (!hasTable) {
+        return _json({'ok': true, 'accounts': [], 'count': 0, 'snapshot_id': snapId,
+            'note': 'wallet_accounts table not found — snapshot predates v9'});
+      }
+
+      final rows = db.select(
+        'SELECT id, name, emoji, balance_minor, sort_order FROM wallet_accounts ORDER BY sort_order',
+      );
+      final totalBalance = rows.fold<int>(0, (s, r) => s + (r['balance_minor'] as int));
+
+      return _json({
+        'ok': true,
+        'snapshot_id': snapId,
+        'total_balance_minor': totalBalance,
+        'count': rows.length,
+        'accounts': rows.map((r) => {
+              'id': r['id'],
+              'name': r['name'],
+              'emoji': r['emoji'],
+              'balance_minor': r['balance_minor'],
+              'sort_order': r['sort_order'],
+            }).toList(),
+      });
+    } catch (e) {
+      return _jsonError(500, 'Query error: $e');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  // ── GET /savings ──────────────────────────────────────────────────────────
+
+  Future<Response> _handleListSavings(Request request) async {
+    final (db, snapId, err) = _openLatestSnapshot();
+    if (err != null) return _jsonError(503, err);
+    try {
+      final hasTable = db!.select(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='savings_goals'",
+      ).isNotEmpty;
+      if (!hasTable) {
+        return _json({'ok': true, 'goals': [], 'count': 0, 'snapshot_id': snapId,
+            'note': 'savings_goals table not found — snapshot predates v9'});
+      }
+
+      final rows = db.select(
+        'SELECT id, name, emoji, target_minor, saved_minor, note, deadline, is_completed '
+        'FROM savings_goals ORDER BY created_at',
+      );
+
+      return _json({
+        'ok': true,
+        'snapshot_id': snapId,
+        'count': rows.length,
+        'goals': rows.map((r) => {
+              'id': r['id'],
+              'name': r['name'],
+              'emoji': r['emoji'],
+              'target_minor': r['target_minor'],
+              'saved_minor': r['saved_minor'],
+              'note': r['note'],
+              'deadline': r['deadline'],
+              'is_completed': (r['is_completed'] as int) == 1,
+              'progress_pct': r['target_minor'] as int > 0
+                  ? ((r['saved_minor'] as int) * 100 ~/ (r['target_minor'] as int))
+                  : 0,
+            }).toList(),
+      });
+    } catch (e) {
+      return _jsonError(500, 'Query error: $e');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  // ── GET /categories ───────────────────────────────────────────────────────
+
+  Future<Response> _handleListCategories(Request request) async {
+    final (db, snapId, err) = _openLatestSnapshot();
+    if (err != null) return _jsonError(503, err);
+    try {
+      final hasTable = db!.select(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='expense_categories'",
+      ).isNotEmpty;
+      if (!hasTable) {
+        return _json({'ok': true, 'categories': [], 'count': 0, 'snapshot_id': snapId,
+            'note': 'expense_categories table not found — snapshot predates v9'});
+      }
+
+      // Optional ?scope= filter
+      final scope = request.url.queryParameters['scope']; // 'expense' | 'gain'
+      final rows = scope != null
+          ? db.select(
+              'SELECT id, name, color_hex, icon_code_point, budget_minor_per_month, scope '
+              'FROM expense_categories WHERE scope = ? ORDER BY name',
+              [scope],
+            )
+          : db.select(
+              'SELECT id, name, color_hex, icon_code_point, budget_minor_per_month, scope '
+              'FROM expense_categories ORDER BY scope, name',
+            );
+
+      return _json({
+        'ok': true,
+        'snapshot_id': snapId,
+        'count': rows.length,
+        'categories': rows.map((r) => {
+              'id': r['id'],
+              'name': r['name'],
+              'color_hex': r['color_hex'],
+              'icon_code_point': r['icon_code_point'],
+              'budget_minor_per_month': r['budget_minor_per_month'],
+              'scope': r['scope'],
+            }).toList(),
+      });
+    } catch (e) {
+      return _jsonError(500, 'Query error: $e');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  // ── GET /wishlist ─────────────────────────────────────────────────────────
+
+  Future<Response> _handleListWishlist(Request request) async {
+    final (db, snapId, err) = _openLatestSnapshot();
+    if (err != null) return _jsonError(503, err);
+    try {
+      final hasTable = db!.select(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='wishlist_items'",
+      ).isNotEmpty;
+      if (!hasTable) {
+        return _json({'ok': true, 'items': [], 'count': 0, 'snapshot_id': snapId,
+            'note': 'wishlist_items table not found — snapshot predates v9'});
+      }
+
+      // Optional ?purchased=true|false filter (default: all)
+      final purchasedParam = request.url.queryParameters['purchased'];
+      final List<Row> rows;
+      if (purchasedParam == 'true') {
+        rows = db.select(
+          'SELECT id, title, amount_minor, currency_code, note, category_id, is_purchased, created_at, purchased_at '
+          'FROM wishlist_items WHERE is_purchased = 1 ORDER BY purchased_at DESC',
+        );
+      } else if (purchasedParam == 'false') {
+        rows = db.select(
+          'SELECT id, title, amount_minor, currency_code, note, category_id, is_purchased, created_at, purchased_at '
+          'FROM wishlist_items WHERE is_purchased = 0 ORDER BY created_at DESC',
+        );
+      } else {
+        rows = db.select(
+          'SELECT id, title, amount_minor, currency_code, note, category_id, is_purchased, created_at, purchased_at '
+          'FROM wishlist_items ORDER BY is_purchased ASC, created_at DESC',
+        );
+      }
+
+      final totalEstimated = rows
+          .where((r) => (r['is_purchased'] as int) == 0)
+          .fold<int>(0, (s, r) => s + (r['amount_minor'] as int));
+
+      return _json({
+        'ok': true,
+        'snapshot_id': snapId,
+        'count': rows.length,
+        'pending_total_minor': totalEstimated,
+        'items': rows.map((r) => {
+              'id': r['id'],
+              'title': r['title'],
+              'amount_minor': r['amount_minor'],
+              'currency_code': r['currency_code'],
+              'note': r['note'],
+              'category_id': r['category_id'],
+              'is_purchased': (r['is_purchased'] as int) == 1,
+              'created_at': r['created_at'],
+              'purchased_at': r['purchased_at'],
+            }).toList(),
+      });
+    } catch (e) {
+      return _jsonError(500, 'Query error: $e');
+    } finally {
+      db?.dispose();
+    }
+  }
+
+  // ── GET /finance ──────────────────────────────────────────────────────────
+
+  Future<Response> _handleListFinanceEntries(Request request) async {
+    final (db, snapId, err) = _openLatestSnapshot();
+    if (err != null) return _jsonError(503, err);
+    try {
+      // Optional filters: ?kind=0|1  ?limit=N (default 100)
+      final kindParam = request.url.queryParameters['kind'];
+      final limit = int.tryParse(request.url.queryParameters['limit'] ?? '') ?? 100;
+
+      final List<Row> rows;
+      if (kindParam != null) {
+        rows = db!.select(
+          'SELECT id, kind, title, amount_minor, currency_code, note, category_id, created_at '
+          'FROM personal_finance_entries WHERE kind = ? ORDER BY created_at DESC LIMIT ?',
+          [int.tryParse(kindParam) ?? 0, limit],
+        );
+      } else {
+        rows = db!.select(
+          'SELECT id, kind, title, amount_minor, currency_code, note, category_id, created_at '
+          'FROM personal_finance_entries ORDER BY created_at DESC LIMIT ?',
+          [limit],
+        );
+      }
+
+      final totalExpense = rows
+          .where((r) => (r['kind'] as int) == 0)
+          .fold<int>(0, (s, r) => s + (r['amount_minor'] as int));
+      final totalGain = rows
+          .where((r) => (r['kind'] as int) == 1)
+          .fold<int>(0, (s, r) => s + (r['amount_minor'] as int));
+
+      return _json({
+        'ok': true,
+        'snapshot_id': snapId,
+        'count': rows.length,
+        'total_expense_minor': totalExpense,
+        'total_gain_minor': totalGain,
+        'entries': rows.map((r) => {
+              'id': r['id'],
+              'kind': r['kind'],        // 0=expense, 1=gain
+              'title': r['title'],
+              'amount_minor': r['amount_minor'],
+              'currency_code': r['currency_code'],
+              'note': r['note'],
+              'category_id': r['category_id'],
+              'created_at': r['created_at'],
+            }).toList(),
       });
     } catch (e) {
       return _jsonError(500, 'Query error: $e');

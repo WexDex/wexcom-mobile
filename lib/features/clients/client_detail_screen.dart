@@ -106,6 +106,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                       final availableTags = await ref.read(
                         clientScopeTagsProvider.future,
                       );
+                      if (!context.mounted) return;
                       await showModalBottomSheet<void>(
                         context: context,
                         isScrollControlled: true,
@@ -590,6 +591,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                     final txTags = await ref.read(
                       transactionScopeTagsProvider.future,
                     );
+                    if (!context.mounted) return;
                     await showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
@@ -670,6 +672,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
   ) async {
     final txTags = await ref.read(transactionScopeTagsProvider.future);
     final selectedTags = await ref.read(transactionTagsProvider(t.id).future);
+    if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

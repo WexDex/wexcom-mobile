@@ -211,6 +211,7 @@ class LedgerRepository {
     required int amountMinor,
     String? currencyCode,
     String? note,
+    String? categoryId,
     DateTime? createdAt,
   }) async {
     final now = DateTime.now().toUtc();
@@ -223,6 +224,7 @@ class LedgerRepository {
             amountMinor: amountMinor,
             currencyCode: Value(currencyCode ?? 'DZD'),
             note: Value(_normalizeNullable(note)),
+            categoryId: Value(categoryId),
             createdAt: at,
             updatedAt: now,
           ),
@@ -235,6 +237,8 @@ class LedgerRepository {
     required int amountMinor,
     String? currencyCode,
     String? note,
+    String? categoryId,
+    bool clearCategory = false,
     DateTime? createdAt,
   }) async {
     final now = DateTime.now().toUtc();
@@ -244,6 +248,7 @@ class LedgerRepository {
             amountMinor: Value(amountMinor),
             currencyCode: currencyCode == null ? const Value.absent() : Value(currencyCode),
             note: Value(_normalizeNullable(note)),
+            categoryId: clearCategory ? const Value(null) : Value(categoryId),
             updatedAt: Value(now),
             createdAt: createdAt == null ? const Value.absent() : Value(createdAt.toUtc()),
           ),
@@ -288,6 +293,22 @@ class LedgerRepository {
           ]))
         .get();
 
+    // ── v9 tables (full export only) ──────────────────────────────────────
+    final allCategories = clientId == null
+        ? await (_db.select(_db.expenseCategories)).get()
+        : <ExpenseCategory>[];
+    final allWishlist = clientId == null
+        ? await (_db.select(_db.wishlistItems)).get()
+        : <WishlistItem>[];
+    final allWalletAccounts = clientId == null
+        ? await (_db.select(_db.walletAccounts)).get()
+        : <WalletAccount>[];
+    final allSavingsGoals = clientId == null
+        ? await (_db.select(_db.savingsGoals)).get()
+        : <SavingsGoal>[];
+
+    final categoriesById = {for (final c in allCategories) c.id: c};
+
     final tagsById = {for (final t in allTags) t.id: t};
     final clientTagIdsByClient = <String, List<String>>{};
     for (final row in clientTagRows) {
@@ -303,11 +324,11 @@ class LedgerRepository {
     }
 
     final personalFinanceJson = clientId == null
-        ? await _personalFinanceExportRows()
+        ? await _personalFinanceExportRows(categoriesById: categoriesById)
         : <Map<String, dynamic>>[];
 
     return {
-      'version': 1,
+      'version': 2,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'clients': clients.map((client) {
         final clientTagNames = (clientTagIdsByClient[client.id] ?? const <String>[])
@@ -360,10 +381,66 @@ class LedgerRepository {
         };
       }).toList(),
       if (clientId == null) 'personalFinance': personalFinanceJson,
+      if (clientId == null)
+        'categories': allCategories
+            .map((c) => {
+                  'id': c.id,
+                  'name': c.name,
+                  'colorHex': c.colorHex,
+                  'iconCodePoint': c.iconCodePoint,
+                  'budgetMinorPerMonth': c.budgetMinorPerMonth,
+                  'scope': c.scope,
+                  'createdAt': c.createdAt.toIso8601String(),
+                })
+            .toList(),
+      if (clientId == null)
+        'wishlist': allWishlist
+            .map((w) => {
+                  'id': w.id,
+                  'title': w.title,
+                  'amountMinor': w.amountMinor,
+                  'currencyCode': w.currencyCode,
+                  'note': w.note,
+                  'categoryName': w.categoryId == null
+                      ? null
+                      : categoriesById[w.categoryId]?.name,
+                  'isPurchased': w.isPurchased ? 1 : 0,
+                  'createdAt': w.createdAt.toIso8601String(),
+                  'purchasedAt': w.purchasedAt?.toIso8601String(),
+                })
+            .toList(),
+      if (clientId == null)
+        'wallet': allWalletAccounts
+            .map((a) => {
+                  'id': a.id,
+                  'name': a.name,
+                  'emoji': a.emoji,
+                  'balanceMinor': a.balanceMinor,
+                  'sortOrder': a.sortOrder,
+                  'createdAt': a.createdAt.toIso8601String(),
+                  'updatedAt': a.updatedAt.toIso8601String(),
+                })
+            .toList(),
+      if (clientId == null)
+        'savings': allSavingsGoals
+            .map((g) => {
+                  'id': g.id,
+                  'name': g.name,
+                  'emoji': g.emoji,
+                  'targetMinor': g.targetMinor,
+                  'savedMinor': g.savedMinor,
+                  'note': g.note,
+                  'deadline': g.deadline?.toIso8601String(),
+                  'isCompleted': g.isCompleted ? 1 : 0,
+                  'createdAt': g.createdAt.toIso8601String(),
+                })
+            .toList(),
     };
   }
 
-  Future<List<Map<String, dynamic>>> _personalFinanceExportRows() async {
+  Future<List<Map<String, dynamic>>> _personalFinanceExportRows({
+    Map<String, ExpenseCategory> categoriesById = const {},
+  }) async {
     final rows = await (_db.select(_db.personalFinanceEntries)
           ..orderBy([
             (e) => OrderingTerm.asc(e.kind),
@@ -380,6 +457,9 @@ class LedgerRepository {
             'amountMinor': e.amountMinor,
             'currencyCode': e.currencyCode,
             'note': e.note,
+            'categoryName': e.categoryId == null
+                ? null
+                : categoriesById[e.categoryId]?.name,
             'createdAt': e.createdAt.toIso8601String(),
             'updatedAt': e.updatedAt.toIso8601String(),
           },
@@ -1111,6 +1191,94 @@ class LedgerRepository {
     var skippedDuplicateTransactions = 0;
 
     await _db.transaction(() async {
+      // ── Step 1: Upsert categories so their IDs are available for
+      //           finance entries and wishlist items below.
+      //           Strategy: match by (name, scope) — don't overwrite
+      //           existing user-customised categories (budget, colour).
+      final importedCategories = _tryParseV9Section<_ImportedCategoryPayload>(
+        rawJson, 'categories', _ImportedCategoryPayload.fromMap);
+      final categoryIdByNameScope = <String, String>{};
+      if (importedCategories != null) {
+        for (final cat in importedCategories) {
+          final existing = await (_db.select(_db.expenseCategories)
+                ..where(
+                  (c) =>
+                      c.name.equals(cat.name) & c.scope.equals(cat.scope),
+                )
+                ..limit(1))
+              .getSingleOrNull();
+          if (existing != null) {
+            categoryIdByNameScope['${cat.name}|${cat.scope}'] = existing.id;
+          } else {
+            await _db.into(_db.expenseCategories).insertOnConflictUpdate(
+                  ExpenseCategoriesCompanion.insert(
+                    id: cat.id,
+                    name: cat.name,
+                    colorHex: Value(cat.colorHex),
+                    iconCodePoint: cat.iconCodePoint,
+                    budgetMinorPerMonth: Value(cat.budgetMinorPerMonth),
+                    scope: cat.scope,
+                    createdAt: cat.createdAt,
+                  ),
+                );
+            categoryIdByNameScope['${cat.name}|${cat.scope}'] = cat.id;
+          }
+        }
+      }
+      // Supplement map with any pre-existing categories the import didn't
+      // contain (e.g. user created them locally).
+      final existingCats = await (_db.select(_db.expenseCategories)).get();
+      for (final c in existingCats) {
+        categoryIdByNameScope.putIfAbsent('${c.name}|${c.scope}', () => c.id);
+      }
+
+      // ── Step 2: Wallet accounts ──────────────────────────────────────────
+      final importedWallet = _tryParseV9Section<_ImportedWalletPayload>(
+        rawJson, 'wallet', _ImportedWalletPayload.fromMap);
+      if (importedWallet != null) {
+        for (final acc in importedWallet) {
+          // Insert only if id doesn't exist — don't overwrite live balances.
+          final existing = await (_db.select(_db.walletAccounts)
+                ..where((a) => a.id.equals(acc.id))
+                ..limit(1))
+              .getSingleOrNull();
+          if (existing == null) {
+            await _db.into(_db.walletAccounts).insertOnConflictUpdate(
+                  WalletAccountsCompanion.insert(
+                    id: acc.id,
+                    name: acc.name,
+                    emoji: Value(acc.emoji),
+                    balanceMinor: Value(acc.balanceMinor),
+                    sortOrder: Value(acc.sortOrder),
+                    createdAt: acc.createdAt,
+                    updatedAt: acc.createdAt,
+                  ),
+                );
+          }
+        }
+      }
+
+      // ── Step 3: Savings goals ────────────────────────────────────────────
+      final importedSavings = _tryParseV9Section<_ImportedSavingsPayload>(
+        rawJson, 'savings', _ImportedSavingsPayload.fromMap);
+      if (importedSavings != null) {
+        for (final goal in importedSavings) {
+          await _db.into(_db.savingsGoals).insertOnConflictUpdate(
+                SavingsGoalsCompanion.insert(
+                  id: goal.id,
+                  name: goal.name,
+                  emoji: Value(goal.emoji),
+                  targetMinor: goal.targetMinor,
+                  savedMinor: Value(goal.savedMinor),
+                  note: Value(goal.note),
+                  deadline: Value(goal.deadline),
+                  isCompleted: Value(goal.isCompleted),
+                  createdAt: goal.createdAt,
+                ),
+              );
+        }
+      }
+
       final existingClients = await (_db.select(_db.clients)).get();
       final existingAllTxs = await (_db.select(_db.ledgerTransactions)).get();
       final existingTxIdsGlobal = <String>{for (final tx in existingAllTxs) tx.id};
@@ -1314,10 +1482,21 @@ class LedgerRepository {
         await _refreshPostingSnapshots(targetClientId);
       }
 
+      // ── Step 4: Personal finance entries ──────────────────────────────────
       final importedPf = _tryParsePersonalFinanceFromJson(rawJson);
       if (importedPf != null) {
         for (final row in importedPf) {
           final id = row.id.isEmpty ? _uuid.v4() : row.id;
+          // Resolve categoryName → local categoryId (null if unknown)
+          String? resolvedCategoryId;
+          if (row.categoryName != null && row.categoryName!.isNotEmpty) {
+            // Try both scopes; expense entries have kind=0, gains kind=1
+            final scope = row.kind == 1 ? 'gain' : 'expense';
+            resolvedCategoryId =
+                categoryIdByNameScope['${row.categoryName}|$scope'] ??
+                    categoryIdByNameScope['${row.categoryName}|expense'] ??
+                    categoryIdByNameScope['${row.categoryName}|gain'];
+          }
           await _db.into(_db.personalFinanceEntries).insert(
                 PersonalFinanceEntriesCompanion.insert(
                   id: id,
@@ -1326,10 +1505,38 @@ class LedgerRepository {
                   amountMinor: row.amountMinor,
                   currencyCode: Value(row.currencyCode ?? 'DZD'),
                   note: Value(row.note),
+                  categoryId: Value(resolvedCategoryId),
                   createdAt: row.createdAt,
                   updatedAt: row.updatedAt,
                 ),
                 mode: InsertMode.insertOrReplace,
+              );
+        }
+      }
+
+      // ── Step 5: Wishlist items ─────────────────────────────────────────────
+      final importedWishlist = _tryParseV9Section<_ImportedWishlistPayload>(
+        rawJson, 'wishlist', _ImportedWishlistPayload.fromMap);
+      if (importedWishlist != null) {
+        for (final item in importedWishlist) {
+          String? resolvedCategoryId;
+          if (item.categoryName != null && item.categoryName!.isNotEmpty) {
+            resolvedCategoryId =
+                categoryIdByNameScope['${item.categoryName}|expense'] ??
+                    categoryIdByNameScope['${item.categoryName}|gain'];
+          }
+          await _db.into(_db.wishlistItems).insertOnConflictUpdate(
+                WishlistItemsCompanion.insert(
+                  id: item.id,
+                  title: item.title,
+                  amountMinor: item.amountMinor,
+                  currencyCode: Value(item.currencyCode),
+                  note: Value(item.note),
+                  categoryId: Value(resolvedCategoryId),
+                  isPurchased: Value(item.isPurchased),
+                  createdAt: item.createdAt,
+                  purchasedAt: Value(item.purchasedAt),
+                ),
               );
         }
       }
@@ -1455,18 +1662,28 @@ class LedgerRepository {
   List<_ImportedPersonalFinancePayload>? _tryParsePersonalFinanceFromJson(
     String rawJson,
   ) {
+    return _tryParseV9Section<_ImportedPersonalFinancePayload>(
+      rawJson, 'personalFinance', _ImportedPersonalFinancePayload.fromMap);
+  }
+
+  /// Generic optional-section parser for v9 additions.
+  /// Returns null when the key is absent (old backups) — callers skip gracefully.
+  /// Throws [FormatException] when the key exists but isn't a list.
+  List<T>? _tryParseV9Section<T>(
+    String rawJson,
+    String key,
+    T Function(Map<String, dynamic>) fromMap,
+  ) {
     final dynamic root = jsonDecode(rawJson);
     if (root is! Map) return null;
-    final node = root['personalFinance'];
+    final node = root[key];
     if (node == null) return null;
     if (node is! List) {
-      throw const FormatException(
-        'Invalid import format: "personalFinance" must be a list when provided',
-      );
+      throw FormatException('Invalid import format: "$key" must be a list when provided');
     }
     return node
         .whereType<Map>()
-        .map((e) => _ImportedPersonalFinancePayload.fromMap(e.cast<String, dynamic>()))
+        .map((e) => fromMap(e.cast<String, dynamic>()))
         .toList();
   }
 
@@ -1537,6 +1754,213 @@ class LedgerRepository {
           ..where((t) => t.id.equals(id)))
         .go();
   }
+
+  // ── Expense Categories (Part D) ──────────────────────────────────────────
+
+  Stream<List<ExpenseCategory>> watchCategories(String scope) {
+    return (_db.select(_db.expenseCategories)
+          ..where((c) => c.scope.equals(scope))
+          ..orderBy([(c) => OrderingTerm.asc(c.name)]))
+        .watch();
+  }
+
+  Future<String> saveCategory({
+    String? id,
+    required String name,
+    required String colorHex,
+    required int iconCodePoint,
+    int? budgetMinorPerMonth,
+    required String scope,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final catId = id ?? _uuid.v4();
+    await _db.into(_db.expenseCategories).insertOnConflictUpdate(
+          ExpenseCategoriesCompanion.insert(
+            id: catId,
+            name: name.trim(),
+            colorHex: Value(colorHex),
+            iconCodePoint: iconCodePoint,
+            budgetMinorPerMonth: Value(budgetMinorPerMonth),
+            scope: scope,
+            createdAt: now,
+          ),
+        );
+    return catId;
+  }
+
+  Future<void> deleteCategory(String id) async {
+    // Null out references in personal finance entries
+    await (_db.update(_db.personalFinanceEntries)
+          ..where((e) => e.categoryId.equals(id)))
+        .write(const PersonalFinanceEntriesCompanion(
+          categoryId: Value(null),
+        ));
+    await (_db.delete(_db.expenseCategories)..where((c) => c.id.equals(id)))
+        .go();
+  }
+
+  /// Returns spent amount (minor) per category id for a given month.
+  Stream<Map<String, int>> watchSpendPerCategory(
+      String scope, DateTime monthStart) {
+    final monthEnd = DateTime(monthStart.year, monthStart.month + 1);
+    return (_db.select(_db.personalFinanceEntries)
+          ..where(
+            (e) =>
+                e.kind.equals(scope == 'gain' ? 1 : 0) &
+                e.createdAt.isBiggerOrEqualValue(monthStart.toUtc()) &
+                e.createdAt.isSmallerThanValue(monthEnd.toUtc()),
+          ))
+        .watch()
+        .map((rows) {
+      final map = <String, int>{};
+      for (final r in rows) {
+        final key = r.categoryId ?? '__none__';
+        map[key] = (map[key] ?? 0) + r.amountMinor;
+      }
+      return map;
+    });
+  }
+
+  // ── Wishlist (Part E) ────────────────────────────────────────────────────
+
+  Stream<List<WishlistItem>> watchWishlistItems({bool purchased = false}) {
+    return (_db.select(_db.wishlistItems)
+          ..where((w) => w.isPurchased.equals(purchased))
+          ..orderBy([(w) => OrderingTerm.desc(w.createdAt)]))
+        .watch();
+  }
+
+  Future<String> addWishlistItem({
+    required String title,
+    required int amountMinor,
+    String? note,
+    String? categoryId,
+    String currencyCode = 'DZD',
+  }) async {
+    final id = _uuid.v4();
+    await _db.into(_db.wishlistItems).insert(
+          WishlistItemsCompanion.insert(
+            id: id,
+            title: title.trim(),
+            amountMinor: amountMinor,
+            currencyCode: Value(currencyCode),
+            note: Value(note?.trim()),
+            categoryId: Value(categoryId),
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+    return id;
+  }
+
+  Future<void> markWishlistPurchased(String id) async {
+    await (_db.update(_db.wishlistItems)..where((w) => w.id.equals(id))).write(
+          WishlistItemsCompanion(
+            isPurchased: const Value(true),
+            purchasedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+  }
+
+  Future<void> deleteWishlistItem(String id) async {
+    await (_db.delete(_db.wishlistItems)..where((w) => w.id.equals(id))).go();
+  }
+
+  // ── Wallet Accounts (Part F) ─────────────────────────────────────────────
+
+  Stream<List<WalletAccount>> watchWalletAccounts() {
+    return (_db.select(_db.walletAccounts)
+          ..orderBy([(a) => OrderingTerm.asc(a.sortOrder)]))
+        .watch();
+  }
+
+  Future<String> upsertWalletAccount({
+    String? id,
+    required String name,
+    required String emoji,
+    required int balanceMinor,
+    int sortOrder = 0,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final accId = id ?? _uuid.v4();
+    await _db.into(_db.walletAccounts).insertOnConflictUpdate(
+          WalletAccountsCompanion.insert(
+            id: accId,
+            name: name.trim(),
+            emoji: Value(emoji),
+            balanceMinor: Value(balanceMinor),
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    return accId;
+  }
+
+  Future<void> adjustAccountBalance(String id, int newBalanceMinor) async {
+    await (_db.update(_db.walletAccounts)..where((a) => a.id.equals(id))).write(
+          WalletAccountsCompanion(
+            balanceMinor: Value(newBalanceMinor),
+            updatedAt: Value(DateTime.now().toUtc()),
+          ),
+        );
+  }
+
+  Future<void> deleteWalletAccount(String id) async {
+    await (_db.delete(_db.walletAccounts)..where((a) => a.id.equals(id))).go();
+  }
+
+  // ── Savings Goals (Part F) ───────────────────────────────────────────────
+
+  Stream<List<SavingsGoal>> watchSavingsGoals() {
+    return (_db.select(_db.savingsGoals)
+          ..orderBy([(g) => OrderingTerm.asc(g.createdAt)]))
+        .watch();
+  }
+
+  Future<String> upsertSavingsGoal({
+    String? id,
+    required String name,
+    required String emoji,
+    required int targetMinor,
+    int savedMinor = 0,
+    String? note,
+    DateTime? deadline,
+  }) async {
+    final goalId = id ?? _uuid.v4();
+    await _db.into(_db.savingsGoals).insertOnConflictUpdate(
+          SavingsGoalsCompanion.insert(
+            id: goalId,
+            name: name.trim(),
+            emoji: Value(emoji),
+            targetMinor: targetMinor,
+            savedMinor: Value(savedMinor),
+            note: Value(note?.trim()),
+            deadline: Value(deadline?.toUtc()),
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+    return goalId;
+  }
+
+  Future<void> addToSavingsGoal(String id, int amountMinor) async {
+    final goal = await (_db.select(_db.savingsGoals)
+          ..where((g) => g.id.equals(id))
+          ..limit(1))
+        .getSingleOrNull();
+    if (goal == null) return;
+    final newSaved = goal.savedMinor + amountMinor;
+    final isCompleted = newSaved >= goal.targetMinor;
+    await (_db.update(_db.savingsGoals)..where((g) => g.id.equals(id))).write(
+          SavingsGoalsCompanion(
+            savedMinor: Value(newSaved),
+            isCompleted: Value(isCompleted),
+          ),
+        );
+  }
+
+  Future<void> deleteSavingsGoal(String id) async {
+    await (_db.delete(_db.savingsGoals)..where((g) => g.id.equals(id))).go();
+  }
 }
 
 class _ImportedPersonalFinancePayload {
@@ -1547,6 +1971,7 @@ class _ImportedPersonalFinancePayload {
     required this.amountMinor,
     required this.currencyCode,
     required this.note,
+    required this.categoryName,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -1557,6 +1982,8 @@ class _ImportedPersonalFinancePayload {
   final int amountMinor;
   final String? currencyCode;
   final String? note;
+  /// Human-readable category name carried across exports (v2+). Null in v1 exports.
+  final String? categoryName;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -1587,6 +2014,7 @@ class _ImportedPersonalFinancePayload {
       amountMinor: amountMinor,
       currencyCode: map['currencyCode']?.toString(),
       note: map['note']?.toString(),
+      categoryName: map['categoryName']?.toString(),
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -1734,6 +2162,177 @@ class _ImportedClientPayload {
       archivedAt: DateTime.tryParse((map['archivedAt'] ?? '').toString())?.toUtc(),
       clientTags: clientTags,
       transactions: txs,
+    );
+  }
+}
+
+// ── v9 import payload classes ──────────────────────────────────────────────
+
+class _ImportedCategoryPayload {
+  const _ImportedCategoryPayload({
+    required this.id,
+    required this.name,
+    required this.colorHex,
+    required this.iconCodePoint,
+    required this.budgetMinorPerMonth,
+    required this.scope,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String colorHex;
+  final int iconCodePoint;
+  final int? budgetMinorPerMonth;
+  final String scope;
+  final DateTime createdAt;
+
+  factory _ImportedCategoryPayload.fromMap(Map<String, dynamic> map) {
+    final name = (map['name'] ?? '').toString().trim();
+    final scope = (map['scope'] ?? '').toString().trim();
+    final iconCodePoint = (map['iconCodePoint'] as num?)?.toInt();
+    if (name.isEmpty || scope.isEmpty || iconCodePoint == null) {
+      throw const FormatException('Category has missing required fields');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ??
+            DateTime.now().toUtc();
+    return _ImportedCategoryPayload(
+      id: (map['id'] ?? const Uuid().v4()).toString().trim(),
+      name: name,
+      colorHex: (map['colorHex'] ?? '#22C55E').toString(),
+      iconCodePoint: iconCodePoint,
+      budgetMinorPerMonth: (map['budgetMinorPerMonth'] as num?)?.toInt(),
+      scope: scope,
+      createdAt: createdAt,
+    );
+  }
+}
+
+class _ImportedWishlistPayload {
+  const _ImportedWishlistPayload({
+    required this.id,
+    required this.title,
+    required this.amountMinor,
+    required this.currencyCode,
+    required this.note,
+    required this.categoryName,
+    required this.isPurchased,
+    required this.createdAt,
+    required this.purchasedAt,
+  });
+
+  final String id;
+  final String title;
+  final int amountMinor;
+  final String currencyCode;
+  final String? note;
+  final String? categoryName;
+  final bool isPurchased;
+  final DateTime createdAt;
+  final DateTime? purchasedAt;
+
+  factory _ImportedWishlistPayload.fromMap(Map<String, dynamic> map) {
+    final title = (map['title'] ?? '').toString().trim();
+    final amountMinor = (map['amountMinor'] as num?)?.toInt();
+    if (title.isEmpty || amountMinor == null || amountMinor <= 0) {
+      throw const FormatException('Wishlist item has missing required fields');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ??
+            DateTime.now().toUtc();
+    return _ImportedWishlistPayload(
+      id: (map['id'] ?? const Uuid().v4()).toString().trim(),
+      title: title,
+      amountMinor: amountMinor,
+      currencyCode: (map['currencyCode'] ?? 'DZD').toString(),
+      note: map['note']?.toString(),
+      categoryName: map['categoryName']?.toString(),
+      isPurchased: (map['isPurchased'] as num?)?.toInt() == 1,
+      createdAt: createdAt,
+      purchasedAt: DateTime.tryParse((map['purchasedAt'] ?? '').toString())?.toUtc(),
+    );
+  }
+}
+
+class _ImportedWalletPayload {
+  const _ImportedWalletPayload({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.balanceMinor,
+    required this.sortOrder,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String emoji;
+  final int balanceMinor;
+  final int sortOrder;
+  final DateTime createdAt;
+
+  factory _ImportedWalletPayload.fromMap(Map<String, dynamic> map) {
+    final name = (map['name'] ?? '').toString().trim();
+    if (name.isEmpty) {
+      throw const FormatException('Wallet account name is required');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ??
+            DateTime.now().toUtc();
+    return _ImportedWalletPayload(
+      id: (map['id'] ?? const Uuid().v4()).toString().trim(),
+      name: name,
+      emoji: (map['emoji'] ?? '💵').toString(),
+      balanceMinor: (map['balanceMinor'] as num?)?.toInt() ?? 0,
+      sortOrder: (map['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: createdAt,
+    );
+  }
+}
+
+class _ImportedSavingsPayload {
+  const _ImportedSavingsPayload({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.targetMinor,
+    required this.savedMinor,
+    required this.note,
+    required this.deadline,
+    required this.isCompleted,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String name;
+  final String emoji;
+  final int targetMinor;
+  final int savedMinor;
+  final String? note;
+  final DateTime? deadline;
+  final bool isCompleted;
+  final DateTime createdAt;
+
+  factory _ImportedSavingsPayload.fromMap(Map<String, dynamic> map) {
+    final name = (map['name'] ?? '').toString().trim();
+    final targetMinor = (map['targetMinor'] as num?)?.toInt();
+    if (name.isEmpty || targetMinor == null || targetMinor <= 0) {
+      throw const FormatException('Savings goal has missing required fields');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ??
+            DateTime.now().toUtc();
+    return _ImportedSavingsPayload(
+      id: (map['id'] ?? const Uuid().v4()).toString().trim(),
+      name: name,
+      emoji: (map['emoji'] ?? '🎯').toString(),
+      targetMinor: targetMinor,
+      savedMinor: (map['savedMinor'] as num?)?.toInt() ?? 0,
+      note: map['note']?.toString(),
+      deadline: DateTime.tryParse((map['deadline'] ?? '').toString())?.toUtc(),
+      isCompleted: (map['isCompleted'] as num?)?.toInt() == 1,
+      createdAt: createdAt,
     );
   }
 }
