@@ -1692,6 +1692,17 @@ class $LedgerTransactionsTable extends LedgerTransactions
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
+    'fromCurrencyJson',
+  );
+  @override
+  late final GeneratedColumn<String> fromCurrencyJson = GeneratedColumn<String>(
+    'from_currency_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1716,6 +1727,7 @@ class $LedgerTransactionsTable extends LedgerTransactions
     cancelledAt,
     note,
     dueAt,
+    fromCurrencyJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1906,6 +1918,15 @@ class $LedgerTransactionsTable extends LedgerTransactions
         dueAt.isAcceptableOrUnknown(data['due_at']!, _dueAtMeta),
       );
     }
+    if (data.containsKey('from_currency_json')) {
+      context.handle(
+        _fromCurrencyJsonMeta,
+        fromCurrencyJson.isAcceptableOrUnknown(
+          data['from_currency_json']!,
+          _fromCurrencyJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2003,6 +2024,10 @@ class $LedgerTransactionsTable extends LedgerTransactions
         DriftSqlType.dateTime,
         data['${effectivePrefix}due_at'],
       ),
+      fromCurrencyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_currency_json'],
+      ),
     );
   }
 
@@ -2036,6 +2061,9 @@ class LedgerTransaction extends DataClass
   final DateTime? cancelledAt;
   final String? note;
   final DateTime? dueAt;
+
+  /// Optional JSON: { code, rate, amount } — foreign clarification; amountMinor stays default total.
+  final String? fromCurrencyJson;
   const LedgerTransaction({
     required this.id,
     required this.clientId,
@@ -2059,6 +2087,7 @@ class LedgerTransaction extends DataClass
     this.cancelledAt,
     this.note,
     this.dueAt,
+    this.fromCurrencyJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2107,6 +2136,9 @@ class LedgerTransaction extends DataClass
     if (!nullToAbsent || dueAt != null) {
       map['due_at'] = Variable<DateTime>(dueAt);
     }
+    if (!nullToAbsent || fromCurrencyJson != null) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson);
+    }
     return map;
   }
 
@@ -2148,6 +2180,9 @@ class LedgerTransaction extends DataClass
       dueAt: dueAt == null && nullToAbsent
           ? const Value.absent()
           : Value(dueAt),
+      fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCurrencyJson),
     );
   }
 
@@ -2187,6 +2222,7 @@ class LedgerTransaction extends DataClass
       cancelledAt: serializer.fromJson<DateTime?>(json['cancelledAt']),
       note: serializer.fromJson<String?>(json['note']),
       dueAt: serializer.fromJson<DateTime?>(json['dueAt']),
+      fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
     );
   }
   @override
@@ -2223,6 +2259,7 @@ class LedgerTransaction extends DataClass
       'cancelledAt': serializer.toJson<DateTime?>(cancelledAt),
       'note': serializer.toJson<String?>(note),
       'dueAt': serializer.toJson<DateTime?>(dueAt),
+      'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
     };
   }
 
@@ -2249,6 +2286,7 @@ class LedgerTransaction extends DataClass
     Value<DateTime?> cancelledAt = const Value.absent(),
     Value<String?> note = const Value.absent(),
     Value<DateTime?> dueAt = const Value.absent(),
+    Value<String?> fromCurrencyJson = const Value.absent(),
   }) => LedgerTransaction(
     id: id ?? this.id,
     clientId: clientId ?? this.clientId,
@@ -2278,6 +2316,9 @@ class LedgerTransaction extends DataClass
     cancelledAt: cancelledAt.present ? cancelledAt.value : this.cancelledAt,
     note: note.present ? note.value : this.note,
     dueAt: dueAt.present ? dueAt.value : this.dueAt,
+    fromCurrencyJson: fromCurrencyJson.present
+        ? fromCurrencyJson.value
+        : this.fromCurrencyJson,
   );
   LedgerTransaction copyWithCompanion(LedgerTransactionsCompanion data) {
     return LedgerTransaction(
@@ -2323,6 +2364,9 @@ class LedgerTransaction extends DataClass
           : this.cancelledAt,
       note: data.note.present ? data.note.value : this.note,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
+      fromCurrencyJson: data.fromCurrencyJson.present
+          ? data.fromCurrencyJson.value
+          : this.fromCurrencyJson,
     );
   }
 
@@ -2350,7 +2394,8 @@ class LedgerTransaction extends DataClass
           ..write('updatedAt: $updatedAt, ')
           ..write('cancelledAt: $cancelledAt, ')
           ..write('note: $note, ')
-          ..write('dueAt: $dueAt')
+          ..write('dueAt: $dueAt, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson')
           ..write(')'))
         .toString();
   }
@@ -2379,6 +2424,7 @@ class LedgerTransaction extends DataClass
     cancelledAt,
     note,
     dueAt,
+    fromCurrencyJson,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -2405,7 +2451,8 @@ class LedgerTransaction extends DataClass
           other.updatedAt == this.updatedAt &&
           other.cancelledAt == this.cancelledAt &&
           other.note == this.note &&
-          other.dueAt == this.dueAt);
+          other.dueAt == this.dueAt &&
+          other.fromCurrencyJson == this.fromCurrencyJson);
 }
 
 class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
@@ -2431,6 +2478,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
   final Value<DateTime?> cancelledAt;
   final Value<String?> note;
   final Value<DateTime?> dueAt;
+  final Value<String?> fromCurrencyJson;
   final Value<int> rowid;
   const LedgerTransactionsCompanion({
     this.id = const Value.absent(),
@@ -2455,6 +2503,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     this.cancelledAt = const Value.absent(),
     this.note = const Value.absent(),
     this.dueAt = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LedgerTransactionsCompanion.insert({
@@ -2480,6 +2529,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     this.cancelledAt = const Value.absent(),
     this.note = const Value.absent(),
     this.dueAt = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        clientId = Value(clientId),
@@ -2513,6 +2563,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     Expression<DateTime>? cancelledAt,
     Expression<String>? note,
     Expression<DateTime>? dueAt,
+    Expression<String>? fromCurrencyJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2542,6 +2593,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
       if (cancelledAt != null) 'cancelled_at': cancelledAt,
       if (note != null) 'note': note,
       if (dueAt != null) 'due_at': dueAt,
+      if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2569,6 +2621,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     Value<DateTime?>? cancelledAt,
     Value<String?>? note,
     Value<DateTime?>? dueAt,
+    Value<String?>? fromCurrencyJson,
     Value<int>? rowid,
   }) {
     return LedgerTransactionsCompanion(
@@ -2598,6 +2651,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
       cancelledAt: cancelledAt ?? this.cancelledAt,
       note: note ?? this.note,
       dueAt: dueAt ?? this.dueAt,
+      fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2679,6 +2733,9 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
     if (dueAt.present) {
       map['due_at'] = Variable<DateTime>(dueAt.value);
     }
+    if (fromCurrencyJson.present) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2710,6 +2767,7 @@ class LedgerTransactionsCompanion extends UpdateCompanion<LedgerTransaction> {
           ..write('cancelledAt: $cancelledAt, ')
           ..write('note: $note, ')
           ..write('dueAt: $dueAt, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3481,6 +3539,17 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
+    'fromCurrencyJson',
+  );
+  @override
+  late final GeneratedColumn<String> fromCurrencyJson = GeneratedColumn<String>(
+    'from_currency_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -3512,6 +3581,7 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
     currencyCode,
     note,
     categoryId,
+    fromCurrencyJson,
     createdAt,
     updatedAt,
   ];
@@ -3580,6 +3650,15 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
         categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
       );
     }
+    if (data.containsKey('from_currency_json')) {
+      context.handle(
+        _fromCurrencyJsonMeta,
+        fromCurrencyJson.isAcceptableOrUnknown(
+          data['from_currency_json']!,
+          _fromCurrencyJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -3633,6 +3712,10 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
         DriftSqlType.string,
         data['${effectivePrefix}category_id'],
       ),
+      fromCurrencyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_currency_json'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -3663,6 +3746,7 @@ class PersonalFinanceEntry extends DataClass
 
   /// FK to ExpenseCategories (nullable — pre-existing entries have no category)
   final String? categoryId;
+  final String? fromCurrencyJson;
   final DateTime createdAt;
   final DateTime updatedAt;
   const PersonalFinanceEntry({
@@ -3673,6 +3757,7 @@ class PersonalFinanceEntry extends DataClass
     required this.currencyCode,
     this.note,
     this.categoryId,
+    this.fromCurrencyJson,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -3690,6 +3775,9 @@ class PersonalFinanceEntry extends DataClass
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
     }
+    if (!nullToAbsent || fromCurrencyJson != null) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -3706,6 +3794,9 @@ class PersonalFinanceEntry extends DataClass
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
+      fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCurrencyJson),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -3724,6 +3815,7 @@ class PersonalFinanceEntry extends DataClass
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       note: serializer.fromJson<String?>(json['note']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
+      fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -3739,6 +3831,7 @@ class PersonalFinanceEntry extends DataClass
       'currencyCode': serializer.toJson<String>(currencyCode),
       'note': serializer.toJson<String?>(note),
       'categoryId': serializer.toJson<String?>(categoryId),
+      'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -3752,6 +3845,7 @@ class PersonalFinanceEntry extends DataClass
     String? currencyCode,
     Value<String?> note = const Value.absent(),
     Value<String?> categoryId = const Value.absent(),
+    Value<String?> fromCurrencyJson = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => PersonalFinanceEntry(
@@ -3762,6 +3856,9 @@ class PersonalFinanceEntry extends DataClass
     currencyCode: currencyCode ?? this.currencyCode,
     note: note.present ? note.value : this.note,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    fromCurrencyJson: fromCurrencyJson.present
+        ? fromCurrencyJson.value
+        : this.fromCurrencyJson,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -3780,6 +3877,9 @@ class PersonalFinanceEntry extends DataClass
       categoryId: data.categoryId.present
           ? data.categoryId.value
           : this.categoryId,
+      fromCurrencyJson: data.fromCurrencyJson.present
+          ? data.fromCurrencyJson.value
+          : this.fromCurrencyJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -3795,6 +3895,7 @@ class PersonalFinanceEntry extends DataClass
           ..write('currencyCode: $currencyCode, ')
           ..write('note: $note, ')
           ..write('categoryId: $categoryId, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3810,6 +3911,7 @@ class PersonalFinanceEntry extends DataClass
     currencyCode,
     note,
     categoryId,
+    fromCurrencyJson,
     createdAt,
     updatedAt,
   );
@@ -3824,6 +3926,7 @@ class PersonalFinanceEntry extends DataClass
           other.currencyCode == this.currencyCode &&
           other.note == this.note &&
           other.categoryId == this.categoryId &&
+          other.fromCurrencyJson == this.fromCurrencyJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -3837,6 +3940,7 @@ class PersonalFinanceEntriesCompanion
   final Value<String> currencyCode;
   final Value<String?> note;
   final Value<String?> categoryId;
+  final Value<String?> fromCurrencyJson;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -3848,6 +3952,7 @@ class PersonalFinanceEntriesCompanion
     this.currencyCode = const Value.absent(),
     this.note = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -3860,6 +3965,7 @@ class PersonalFinanceEntriesCompanion
     this.currencyCode = const Value.absent(),
     this.note = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -3877,6 +3983,7 @@ class PersonalFinanceEntriesCompanion
     Expression<String>? currencyCode,
     Expression<String>? note,
     Expression<String>? categoryId,
+    Expression<String>? fromCurrencyJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -3889,6 +3996,7 @@ class PersonalFinanceEntriesCompanion
       if (currencyCode != null) 'currency_code': currencyCode,
       if (note != null) 'note': note,
       if (categoryId != null) 'category_id': categoryId,
+      if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -3903,6 +4011,7 @@ class PersonalFinanceEntriesCompanion
     Value<String>? currencyCode,
     Value<String?>? note,
     Value<String?>? categoryId,
+    Value<String?>? fromCurrencyJson,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -3915,6 +4024,7 @@ class PersonalFinanceEntriesCompanion
       currencyCode: currencyCode ?? this.currencyCode,
       note: note ?? this.note,
       categoryId: categoryId ?? this.categoryId,
+      fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -3945,6 +4055,9 @@ class PersonalFinanceEntriesCompanion
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
     }
+    if (fromCurrencyJson.present) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -3967,6 +4080,7 @@ class PersonalFinanceEntriesCompanion
           ..write('currencyCode: $currencyCode, ')
           ..write('note: $note, ')
           ..write('categoryId: $categoryId, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -4255,6 +4369,56 @@ class $AppSettingsTable extends AppSettings
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _clientSortFieldMeta = const VerificationMeta(
+    'clientSortField',
+  );
+  @override
+  late final GeneratedColumn<String> clientSortField = GeneratedColumn<String>(
+    'client_sort_field',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('name'),
+  );
+  static const VerificationMeta _clientSortAscendingMeta =
+      const VerificationMeta('clientSortAscending');
+  @override
+  late final GeneratedColumn<bool> clientSortAscending = GeneratedColumn<bool>(
+    'client_sort_ascending',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("client_sort_ascending" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _clientListLayoutMeta = const VerificationMeta(
+    'clientListLayout',
+  );
+  @override
+  late final GeneratedColumn<String> clientListLayout = GeneratedColumn<String>(
+    'client_list_layout',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('detailed'),
+  );
+  static const VerificationMeta _chartCurveStyleMeta = const VerificationMeta(
+    'chartCurveStyle',
+  );
+  @override
+  late final GeneratedColumn<String> chartCurveStyle = GeneratedColumn<String>(
+    'chart_curve_style',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('monotone'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4279,6 +4443,10 @@ class $AppSettingsTable extends AppSettings
     notifInactivityEnabled,
     notifInactivityDays,
     notifSyncEnabled,
+    clientSortField,
+    clientSortAscending,
+    clientListLayout,
+    chartCurveStyle,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4484,6 +4652,42 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('client_sort_field')) {
+      context.handle(
+        _clientSortFieldMeta,
+        clientSortField.isAcceptableOrUnknown(
+          data['client_sort_field']!,
+          _clientSortFieldMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_sort_ascending')) {
+      context.handle(
+        _clientSortAscendingMeta,
+        clientSortAscending.isAcceptableOrUnknown(
+          data['client_sort_ascending']!,
+          _clientSortAscendingMeta,
+        ),
+      );
+    }
+    if (data.containsKey('client_list_layout')) {
+      context.handle(
+        _clientListLayoutMeta,
+        clientListLayout.isAcceptableOrUnknown(
+          data['client_list_layout']!,
+          _clientListLayoutMeta,
+        ),
+      );
+    }
+    if (data.containsKey('chart_curve_style')) {
+      context.handle(
+        _chartCurveStyleMeta,
+        chartCurveStyle.isAcceptableOrUnknown(
+          data['chart_curve_style']!,
+          _chartCurveStyleMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4581,6 +4785,22 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.bool,
         data['${effectivePrefix}notif_sync_enabled'],
       )!,
+      clientSortField: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_sort_field'],
+      )!,
+      clientSortAscending: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}client_sort_ascending'],
+      )!,
+      clientListLayout: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}client_list_layout'],
+      )!,
+      chartCurveStyle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}chart_curve_style'],
+      )!,
     );
   }
 
@@ -4613,6 +4833,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool notifInactivityEnabled;
   final int notifInactivityDays;
   final bool notifSyncEnabled;
+  final String clientSortField;
+  final bool clientSortAscending;
+  final String clientListLayout;
+  final String chartCurveStyle;
   const AppSetting({
     required this.id,
     required this.defaultCurrencyCode,
@@ -4636,6 +4860,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.notifInactivityEnabled,
     required this.notifInactivityDays,
     required this.notifSyncEnabled,
+    required this.clientSortField,
+    required this.clientSortAscending,
+    required this.clientListLayout,
+    required this.chartCurveStyle,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4682,6 +4910,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['notif_inactivity_enabled'] = Variable<bool>(notifInactivityEnabled);
     map['notif_inactivity_days'] = Variable<int>(notifInactivityDays);
     map['notif_sync_enabled'] = Variable<bool>(notifSyncEnabled);
+    map['client_sort_field'] = Variable<String>(clientSortField);
+    map['client_sort_ascending'] = Variable<bool>(clientSortAscending);
+    map['client_list_layout'] = Variable<String>(clientListLayout);
+    map['chart_curve_style'] = Variable<String>(chartCurveStyle);
     return map;
   }
 
@@ -4725,6 +4957,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       notifInactivityEnabled: Value(notifInactivityEnabled),
       notifInactivityDays: Value(notifInactivityDays),
       notifSyncEnabled: Value(notifSyncEnabled),
+      clientSortField: Value(clientSortField),
+      clientSortAscending: Value(clientSortAscending),
+      clientListLayout: Value(clientListLayout),
+      chartCurveStyle: Value(chartCurveStyle),
     );
   }
 
@@ -4772,6 +5008,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         json['notifInactivityDays'],
       ),
       notifSyncEnabled: serializer.fromJson<bool>(json['notifSyncEnabled']),
+      clientSortField: serializer.fromJson<String>(json['clientSortField']),
+      clientSortAscending: serializer.fromJson<bool>(
+        json['clientSortAscending'],
+      ),
+      clientListLayout: serializer.fromJson<String>(json['clientListLayout']),
+      chartCurveStyle: serializer.fromJson<String>(json['chartCurveStyle']),
     );
   }
   @override
@@ -4806,6 +5048,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'notifInactivityEnabled': serializer.toJson<bool>(notifInactivityEnabled),
       'notifInactivityDays': serializer.toJson<int>(notifInactivityDays),
       'notifSyncEnabled': serializer.toJson<bool>(notifSyncEnabled),
+      'clientSortField': serializer.toJson<String>(clientSortField),
+      'clientSortAscending': serializer.toJson<bool>(clientSortAscending),
+      'clientListLayout': serializer.toJson<String>(clientListLayout),
+      'chartCurveStyle': serializer.toJson<String>(chartCurveStyle),
     };
   }
 
@@ -4832,6 +5078,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? notifInactivityEnabled,
     int? notifInactivityDays,
     bool? notifSyncEnabled,
+    String? clientSortField,
+    bool? clientSortAscending,
+    String? clientListLayout,
+    String? chartCurveStyle,
   }) => AppSetting(
     id: id ?? this.id,
     defaultCurrencyCode: defaultCurrencyCode ?? this.defaultCurrencyCode,
@@ -4867,6 +5117,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         notifInactivityEnabled ?? this.notifInactivityEnabled,
     notifInactivityDays: notifInactivityDays ?? this.notifInactivityDays,
     notifSyncEnabled: notifSyncEnabled ?? this.notifSyncEnabled,
+    clientSortField: clientSortField ?? this.clientSortField,
+    clientSortAscending: clientSortAscending ?? this.clientSortAscending,
+    clientListLayout: clientListLayout ?? this.clientListLayout,
+    chartCurveStyle: chartCurveStyle ?? this.chartCurveStyle,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -4934,6 +5188,18 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       notifSyncEnabled: data.notifSyncEnabled.present
           ? data.notifSyncEnabled.value
           : this.notifSyncEnabled,
+      clientSortField: data.clientSortField.present
+          ? data.clientSortField.value
+          : this.clientSortField,
+      clientSortAscending: data.clientSortAscending.present
+          ? data.clientSortAscending.value
+          : this.clientSortAscending,
+      clientListLayout: data.clientListLayout.present
+          ? data.clientListLayout.value
+          : this.clientListLayout,
+      chartCurveStyle: data.chartCurveStyle.present
+          ? data.chartCurveStyle.value
+          : this.chartCurveStyle,
     );
   }
 
@@ -4963,7 +5229,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('notifBalanceMilestoneMinor: $notifBalanceMilestoneMinor, ')
           ..write('notifInactivityEnabled: $notifInactivityEnabled, ')
           ..write('notifInactivityDays: $notifInactivityDays, ')
-          ..write('notifSyncEnabled: $notifSyncEnabled')
+          ..write('notifSyncEnabled: $notifSyncEnabled, ')
+          ..write('clientSortField: $clientSortField, ')
+          ..write('clientSortAscending: $clientSortAscending, ')
+          ..write('clientListLayout: $clientListLayout, ')
+          ..write('chartCurveStyle: $chartCurveStyle')
           ..write(')'))
         .toString();
   }
@@ -4992,6 +5262,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     notifInactivityEnabled,
     notifInactivityDays,
     notifSyncEnabled,
+    clientSortField,
+    clientSortAscending,
+    clientListLayout,
+    chartCurveStyle,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5019,7 +5293,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.notifBalanceMilestoneMinor == this.notifBalanceMilestoneMinor &&
           other.notifInactivityEnabled == this.notifInactivityEnabled &&
           other.notifInactivityDays == this.notifInactivityDays &&
-          other.notifSyncEnabled == this.notifSyncEnabled);
+          other.notifSyncEnabled == this.notifSyncEnabled &&
+          other.clientSortField == this.clientSortField &&
+          other.clientSortAscending == this.clientSortAscending &&
+          other.clientListLayout == this.clientListLayout &&
+          other.chartCurveStyle == this.chartCurveStyle);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -5045,6 +5323,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> notifInactivityEnabled;
   final Value<int> notifInactivityDays;
   final Value<bool> notifSyncEnabled;
+  final Value<String> clientSortField;
+  final Value<bool> clientSortAscending;
+  final Value<String> clientListLayout;
+  final Value<String> chartCurveStyle;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.defaultCurrencyCode = const Value.absent(),
@@ -5068,6 +5350,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.notifInactivityEnabled = const Value.absent(),
     this.notifInactivityDays = const Value.absent(),
     this.notifSyncEnabled = const Value.absent(),
+    this.clientSortField = const Value.absent(),
+    this.clientSortAscending = const Value.absent(),
+    this.clientListLayout = const Value.absent(),
+    this.chartCurveStyle = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -5092,6 +5378,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.notifInactivityEnabled = const Value.absent(),
     this.notifInactivityDays = const Value.absent(),
     this.notifSyncEnabled = const Value.absent(),
+    this.clientSortField = const Value.absent(),
+    this.clientSortAscending = const Value.absent(),
+    this.clientListLayout = const Value.absent(),
+    this.chartCurveStyle = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -5116,6 +5406,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? notifInactivityEnabled,
     Expression<int>? notifInactivityDays,
     Expression<bool>? notifSyncEnabled,
+    Expression<String>? clientSortField,
+    Expression<bool>? clientSortAscending,
+    Expression<String>? clientListLayout,
+    Expression<String>? chartCurveStyle,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -5148,6 +5442,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (notifInactivityDays != null)
         'notif_inactivity_days': notifInactivityDays,
       if (notifSyncEnabled != null) 'notif_sync_enabled': notifSyncEnabled,
+      if (clientSortField != null) 'client_sort_field': clientSortField,
+      if (clientSortAscending != null)
+        'client_sort_ascending': clientSortAscending,
+      if (clientListLayout != null) 'client_list_layout': clientListLayout,
+      if (chartCurveStyle != null) 'chart_curve_style': chartCurveStyle,
     });
   }
 
@@ -5174,6 +5473,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? notifInactivityEnabled,
     Value<int>? notifInactivityDays,
     Value<bool>? notifSyncEnabled,
+    Value<String>? clientSortField,
+    Value<bool>? clientSortAscending,
+    Value<String>? clientListLayout,
+    Value<String>? chartCurveStyle,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -5202,6 +5505,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           notifInactivityEnabled ?? this.notifInactivityEnabled,
       notifInactivityDays: notifInactivityDays ?? this.notifInactivityDays,
       notifSyncEnabled: notifSyncEnabled ?? this.notifSyncEnabled,
+      clientSortField: clientSortField ?? this.clientSortField,
+      clientSortAscending: clientSortAscending ?? this.clientSortAscending,
+      clientListLayout: clientListLayout ?? this.clientListLayout,
+      chartCurveStyle: chartCurveStyle ?? this.chartCurveStyle,
     );
   }
 
@@ -5284,6 +5591,18 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (notifSyncEnabled.present) {
       map['notif_sync_enabled'] = Variable<bool>(notifSyncEnabled.value);
     }
+    if (clientSortField.present) {
+      map['client_sort_field'] = Variable<String>(clientSortField.value);
+    }
+    if (clientSortAscending.present) {
+      map['client_sort_ascending'] = Variable<bool>(clientSortAscending.value);
+    }
+    if (clientListLayout.present) {
+      map['client_list_layout'] = Variable<String>(clientListLayout.value);
+    }
+    if (chartCurveStyle.present) {
+      map['chart_curve_style'] = Variable<String>(chartCurveStyle.value);
+    }
     return map;
   }
 
@@ -5313,7 +5632,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('notifBalanceMilestoneMinor: $notifBalanceMilestoneMinor, ')
           ..write('notifInactivityEnabled: $notifInactivityEnabled, ')
           ..write('notifInactivityDays: $notifInactivityDays, ')
-          ..write('notifSyncEnabled: $notifSyncEnabled')
+          ..write('notifSyncEnabled: $notifSyncEnabled, ')
+          ..write('clientSortField: $clientSortField, ')
+          ..write('clientSortAscending: $clientSortAscending, ')
+          ..write('clientListLayout: $clientListLayout, ')
+          ..write('chartCurveStyle: $chartCurveStyle')
           ..write(')'))
         .toString();
   }
@@ -6774,6 +7097,17 @@ class $WishlistItemsTable extends WishlistItems
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
+    'fromCurrencyJson',
+  );
+  @override
+  late final GeneratedColumn<String> fromCurrencyJson = GeneratedColumn<String>(
+    'from_currency_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6785,6 +7119,7 @@ class $WishlistItemsTable extends WishlistItems
     isPurchased,
     createdAt,
     purchasedAt,
+    fromCurrencyJson,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6869,6 +7204,15 @@ class $WishlistItemsTable extends WishlistItems
         ),
       );
     }
+    if (data.containsKey('from_currency_json')) {
+      context.handle(
+        _fromCurrencyJsonMeta,
+        fromCurrencyJson.isAcceptableOrUnknown(
+          data['from_currency_json']!,
+          _fromCurrencyJsonMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6914,6 +7258,10 @@ class $WishlistItemsTable extends WishlistItems
         DriftSqlType.dateTime,
         data['${effectivePrefix}purchased_at'],
       ),
+      fromCurrencyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_currency_json'],
+      ),
     );
   }
 
@@ -6933,6 +7281,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
   final bool isPurchased;
   final DateTime createdAt;
   final DateTime? purchasedAt;
+  final String? fromCurrencyJson;
   const WishlistItem({
     required this.id,
     required this.title,
@@ -6943,6 +7292,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
     required this.isPurchased,
     required this.createdAt,
     this.purchasedAt,
+    this.fromCurrencyJson,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6962,6 +7312,9 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
     if (!nullToAbsent || purchasedAt != null) {
       map['purchased_at'] = Variable<DateTime>(purchasedAt);
     }
+    if (!nullToAbsent || fromCurrencyJson != null) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson);
+    }
     return map;
   }
 
@@ -6980,6 +7333,9 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
       purchasedAt: purchasedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(purchasedAt),
+      fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCurrencyJson),
     );
   }
 
@@ -6998,6 +7354,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
       isPurchased: serializer.fromJson<bool>(json['isPurchased']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       purchasedAt: serializer.fromJson<DateTime?>(json['purchasedAt']),
+      fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
     );
   }
   @override
@@ -7013,6 +7370,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
       'isPurchased': serializer.toJson<bool>(isPurchased),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'purchasedAt': serializer.toJson<DateTime?>(purchasedAt),
+      'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
     };
   }
 
@@ -7026,6 +7384,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
     bool? isPurchased,
     DateTime? createdAt,
     Value<DateTime?> purchasedAt = const Value.absent(),
+    Value<String?> fromCurrencyJson = const Value.absent(),
   }) => WishlistItem(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -7036,6 +7395,9 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
     isPurchased: isPurchased ?? this.isPurchased,
     createdAt: createdAt ?? this.createdAt,
     purchasedAt: purchasedAt.present ? purchasedAt.value : this.purchasedAt,
+    fromCurrencyJson: fromCurrencyJson.present
+        ? fromCurrencyJson.value
+        : this.fromCurrencyJson,
   );
   WishlistItem copyWithCompanion(WishlistItemsCompanion data) {
     return WishlistItem(
@@ -7058,6 +7420,9 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
       purchasedAt: data.purchasedAt.present
           ? data.purchasedAt.value
           : this.purchasedAt,
+      fromCurrencyJson: data.fromCurrencyJson.present
+          ? data.fromCurrencyJson.value
+          : this.fromCurrencyJson,
     );
   }
 
@@ -7072,7 +7437,8 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
           ..write('categoryId: $categoryId, ')
           ..write('isPurchased: $isPurchased, ')
           ..write('createdAt: $createdAt, ')
-          ..write('purchasedAt: $purchasedAt')
+          ..write('purchasedAt: $purchasedAt, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson')
           ..write(')'))
         .toString();
   }
@@ -7088,6 +7454,7 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
     isPurchased,
     createdAt,
     purchasedAt,
+    fromCurrencyJson,
   );
   @override
   bool operator ==(Object other) =>
@@ -7101,7 +7468,8 @@ class WishlistItem extends DataClass implements Insertable<WishlistItem> {
           other.categoryId == this.categoryId &&
           other.isPurchased == this.isPurchased &&
           other.createdAt == this.createdAt &&
-          other.purchasedAt == this.purchasedAt);
+          other.purchasedAt == this.purchasedAt &&
+          other.fromCurrencyJson == this.fromCurrencyJson);
 }
 
 class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
@@ -7114,6 +7482,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
   final Value<bool> isPurchased;
   final Value<DateTime> createdAt;
   final Value<DateTime?> purchasedAt;
+  final Value<String?> fromCurrencyJson;
   final Value<int> rowid;
   const WishlistItemsCompanion({
     this.id = const Value.absent(),
@@ -7125,6 +7494,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
     this.isPurchased = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.purchasedAt = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   WishlistItemsCompanion.insert({
@@ -7137,6 +7507,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
     this.isPurchased = const Value.absent(),
     required DateTime createdAt,
     this.purchasedAt = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -7152,6 +7523,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
     Expression<bool>? isPurchased,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? purchasedAt,
+    Expression<String>? fromCurrencyJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7164,6 +7536,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
       if (isPurchased != null) 'is_purchased': isPurchased,
       if (createdAt != null) 'created_at': createdAt,
       if (purchasedAt != null) 'purchased_at': purchasedAt,
+      if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7178,6 +7551,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
     Value<bool>? isPurchased,
     Value<DateTime>? createdAt,
     Value<DateTime?>? purchasedAt,
+    Value<String?>? fromCurrencyJson,
     Value<int>? rowid,
   }) {
     return WishlistItemsCompanion(
@@ -7190,6 +7564,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
       isPurchased: isPurchased ?? this.isPurchased,
       createdAt: createdAt ?? this.createdAt,
       purchasedAt: purchasedAt ?? this.purchasedAt,
+      fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7224,6 +7599,9 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
     if (purchasedAt.present) {
       map['purchased_at'] = Variable<DateTime>(purchasedAt.value);
     }
+    if (fromCurrencyJson.present) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7242,6 +7620,7 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
           ..write('isPurchased: $isPurchased, ')
           ..write('createdAt: $createdAt, ')
           ..write('purchasedAt: $purchasedAt, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7281,6 +7660,18 @@ class $WalletAccountsTable extends WalletAccounts
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('💵'),
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('DZD'),
   );
   static const VerificationMeta _balanceMinorMeta = const VerificationMeta(
     'balanceMinor',
@@ -7333,6 +7724,7 @@ class $WalletAccountsTable extends WalletAccounts
     id,
     name,
     emoji,
+    currencyCode,
     balanceMinor,
     sortOrder,
     createdAt,
@@ -7367,6 +7759,15 @@ class $WalletAccountsTable extends WalletAccounts
       context.handle(
         _emojiMeta,
         emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
       );
     }
     if (data.containsKey('balance_minor')) {
@@ -7421,6 +7822,10 @@ class $WalletAccountsTable extends WalletAccounts
         DriftSqlType.string,
         data['${effectivePrefix}emoji'],
       )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
       balanceMinor: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}balance_minor'],
@@ -7450,6 +7855,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
   final String id;
   final String name;
   final String emoji;
+  final String currencyCode;
   final int balanceMinor;
   final int sortOrder;
   final DateTime createdAt;
@@ -7458,6 +7864,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
     required this.id,
     required this.name,
     required this.emoji,
+    required this.currencyCode,
     required this.balanceMinor,
     required this.sortOrder,
     required this.createdAt,
@@ -7469,6 +7876,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
     map['emoji'] = Variable<String>(emoji);
+    map['currency_code'] = Variable<String>(currencyCode);
     map['balance_minor'] = Variable<int>(balanceMinor);
     map['sort_order'] = Variable<int>(sortOrder);
     map['created_at'] = Variable<DateTime>(createdAt);
@@ -7481,6 +7889,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
       id: Value(id),
       name: Value(name),
       emoji: Value(emoji),
+      currencyCode: Value(currencyCode),
       balanceMinor: Value(balanceMinor),
       sortOrder: Value(sortOrder),
       createdAt: Value(createdAt),
@@ -7497,6 +7906,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       emoji: serializer.fromJson<String>(json['emoji']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
       balanceMinor: serializer.fromJson<int>(json['balanceMinor']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -7510,6 +7920,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
       'emoji': serializer.toJson<String>(emoji),
+      'currencyCode': serializer.toJson<String>(currencyCode),
       'balanceMinor': serializer.toJson<int>(balanceMinor),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -7521,6 +7932,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
     String? id,
     String? name,
     String? emoji,
+    String? currencyCode,
     int? balanceMinor,
     int? sortOrder,
     DateTime? createdAt,
@@ -7529,6 +7941,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
     id: id ?? this.id,
     name: name ?? this.name,
     emoji: emoji ?? this.emoji,
+    currencyCode: currencyCode ?? this.currencyCode,
     balanceMinor: balanceMinor ?? this.balanceMinor,
     sortOrder: sortOrder ?? this.sortOrder,
     createdAt: createdAt ?? this.createdAt,
@@ -7539,6 +7952,9 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       emoji: data.emoji.present ? data.emoji.value : this.emoji,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
       balanceMinor: data.balanceMinor.present
           ? data.balanceMinor.value
           : this.balanceMinor,
@@ -7554,6 +7970,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('emoji: $emoji, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('balanceMinor: $balanceMinor, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
@@ -7567,6 +7984,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
     id,
     name,
     emoji,
+    currencyCode,
     balanceMinor,
     sortOrder,
     createdAt,
@@ -7579,6 +7997,7 @@ class WalletAccount extends DataClass implements Insertable<WalletAccount> {
           other.id == this.id &&
           other.name == this.name &&
           other.emoji == this.emoji &&
+          other.currencyCode == this.currencyCode &&
           other.balanceMinor == this.balanceMinor &&
           other.sortOrder == this.sortOrder &&
           other.createdAt == this.createdAt &&
@@ -7589,6 +8008,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
   final Value<String> id;
   final Value<String> name;
   final Value<String> emoji;
+  final Value<String> currencyCode;
   final Value<int> balanceMinor;
   final Value<int> sortOrder;
   final Value<DateTime> createdAt;
@@ -7598,6 +8018,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.emoji = const Value.absent(),
+    this.currencyCode = const Value.absent(),
     this.balanceMinor = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -7608,6 +8029,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
     required String id,
     required String name,
     this.emoji = const Value.absent(),
+    this.currencyCode = const Value.absent(),
     this.balanceMinor = const Value.absent(),
     this.sortOrder = const Value.absent(),
     required DateTime createdAt,
@@ -7621,6 +8043,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
     Expression<String>? id,
     Expression<String>? name,
     Expression<String>? emoji,
+    Expression<String>? currencyCode,
     Expression<int>? balanceMinor,
     Expression<int>? sortOrder,
     Expression<DateTime>? createdAt,
@@ -7631,6 +8054,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (emoji != null) 'emoji': emoji,
+      if (currencyCode != null) 'currency_code': currencyCode,
       if (balanceMinor != null) 'balance_minor': balanceMinor,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (createdAt != null) 'created_at': createdAt,
@@ -7643,6 +8067,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
     Value<String>? id,
     Value<String>? name,
     Value<String>? emoji,
+    Value<String>? currencyCode,
     Value<int>? balanceMinor,
     Value<int>? sortOrder,
     Value<DateTime>? createdAt,
@@ -7653,6 +8078,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
       id: id ?? this.id,
       name: name ?? this.name,
       emoji: emoji ?? this.emoji,
+      currencyCode: currencyCode ?? this.currencyCode,
       balanceMinor: balanceMinor ?? this.balanceMinor,
       sortOrder: sortOrder ?? this.sortOrder,
       createdAt: createdAt ?? this.createdAt,
@@ -7672,6 +8098,9 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
     }
     if (emoji.present) {
       map['emoji'] = Variable<String>(emoji.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
     }
     if (balanceMinor.present) {
       map['balance_minor'] = Variable<int>(balanceMinor.value);
@@ -7697,6 +8126,7 @@ class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('emoji: $emoji, ')
+          ..write('currencyCode: $currencyCode, ')
           ..write('balanceMinor: $balanceMinor, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('createdAt: $createdAt, ')
@@ -8270,6 +8700,1381 @@ class SavingsGoalsCompanion extends UpdateCompanion<SavingsGoal> {
   }
 }
 
+class $WalletLedgerEntriesTable extends WalletLedgerEntries
+    with TableInfo<$WalletLedgerEntriesTable, WalletLedgerEntry> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WalletLedgerEntriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES wallet_accounts (id)',
+    ),
+  );
+  static const VerificationMeta _opTypeMeta = const VerificationMeta('opType');
+  @override
+  late final GeneratedColumn<String> opType = GeneratedColumn<String>(
+    'op_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceBeforeMinorMeta =
+      const VerificationMeta('balanceBeforeMinor');
+  @override
+  late final GeneratedColumn<int> balanceBeforeMinor = GeneratedColumn<int>(
+    'balance_before_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _balanceAfterMinorMeta = const VerificationMeta(
+    'balanceAfterMinor',
+  );
+  @override
+  late final GeneratedColumn<int> balanceAfterMinor = GeneratedColumn<int>(
+    'balance_after_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
+  static const VerificationMeta _referenceIdMeta = const VerificationMeta(
+    'referenceId',
+  );
+  @override
+  late final GeneratedColumn<String> referenceId = GeneratedColumn<String>(
+    'reference_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
+    'fromCurrencyJson',
+  );
+  @override
+  late final GeneratedColumn<String> fromCurrencyJson = GeneratedColumn<String>(
+    'from_currency_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    accountId,
+    opType,
+    amountMinor,
+    balanceBeforeMinor,
+    balanceAfterMinor,
+    note,
+    source,
+    referenceId,
+    fromCurrencyJson,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wallet_ledger_entries';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WalletLedgerEntry> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('op_type')) {
+      context.handle(
+        _opTypeMeta,
+        opType.isAcceptableOrUnknown(data['op_type']!, _opTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_opTypeMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('balance_before_minor')) {
+      context.handle(
+        _balanceBeforeMinorMeta,
+        balanceBeforeMinor.isAcceptableOrUnknown(
+          data['balance_before_minor']!,
+          _balanceBeforeMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_balanceBeforeMinorMeta);
+    }
+    if (data.containsKey('balance_after_minor')) {
+      context.handle(
+        _balanceAfterMinorMeta,
+        balanceAfterMinor.isAcceptableOrUnknown(
+          data['balance_after_minor']!,
+          _balanceAfterMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_balanceAfterMinorMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('reference_id')) {
+      context.handle(
+        _referenceIdMeta,
+        referenceId.isAcceptableOrUnknown(
+          data['reference_id']!,
+          _referenceIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('from_currency_json')) {
+      context.handle(
+        _fromCurrencyJsonMeta,
+        fromCurrencyJson.isAcceptableOrUnknown(
+          data['from_currency_json']!,
+          _fromCurrencyJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WalletLedgerEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WalletLedgerEntry(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      opType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}op_type'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      balanceBeforeMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_before_minor'],
+      )!,
+      balanceAfterMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_after_minor'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      referenceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_id'],
+      ),
+      fromCurrencyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_currency_json'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WalletLedgerEntriesTable createAlias(String alias) {
+    return $WalletLedgerEntriesTable(attachedDatabase, alias);
+  }
+}
+
+class WalletLedgerEntry extends DataClass
+    implements Insertable<WalletLedgerEntry> {
+  final String id;
+  final String accountId;
+  final String opType;
+  final int amountMinor;
+  final int balanceBeforeMinor;
+  final int balanceAfterMinor;
+  final String? note;
+  final String source;
+  final String? referenceId;
+  final String? fromCurrencyJson;
+  final DateTime createdAt;
+  const WalletLedgerEntry({
+    required this.id,
+    required this.accountId,
+    required this.opType,
+    required this.amountMinor,
+    required this.balanceBeforeMinor,
+    required this.balanceAfterMinor,
+    this.note,
+    required this.source,
+    this.referenceId,
+    this.fromCurrencyJson,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['account_id'] = Variable<String>(accountId);
+    map['op_type'] = Variable<String>(opType);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['balance_before_minor'] = Variable<int>(balanceBeforeMinor);
+    map['balance_after_minor'] = Variable<int>(balanceAfterMinor);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || referenceId != null) {
+      map['reference_id'] = Variable<String>(referenceId);
+    }
+    if (!nullToAbsent || fromCurrencyJson != null) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  WalletLedgerEntriesCompanion toCompanion(bool nullToAbsent) {
+    return WalletLedgerEntriesCompanion(
+      id: Value(id),
+      accountId: Value(accountId),
+      opType: Value(opType),
+      amountMinor: Value(amountMinor),
+      balanceBeforeMinor: Value(balanceBeforeMinor),
+      balanceAfterMinor: Value(balanceAfterMinor),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      source: Value(source),
+      referenceId: referenceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceId),
+      fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCurrencyJson),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory WalletLedgerEntry.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WalletLedgerEntry(
+      id: serializer.fromJson<String>(json['id']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      opType: serializer.fromJson<String>(json['opType']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      balanceBeforeMinor: serializer.fromJson<int>(json['balanceBeforeMinor']),
+      balanceAfterMinor: serializer.fromJson<int>(json['balanceAfterMinor']),
+      note: serializer.fromJson<String?>(json['note']),
+      source: serializer.fromJson<String>(json['source']),
+      referenceId: serializer.fromJson<String?>(json['referenceId']),
+      fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'accountId': serializer.toJson<String>(accountId),
+      'opType': serializer.toJson<String>(opType),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'balanceBeforeMinor': serializer.toJson<int>(balanceBeforeMinor),
+      'balanceAfterMinor': serializer.toJson<int>(balanceAfterMinor),
+      'note': serializer.toJson<String?>(note),
+      'source': serializer.toJson<String>(source),
+      'referenceId': serializer.toJson<String?>(referenceId),
+      'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  WalletLedgerEntry copyWith({
+    String? id,
+    String? accountId,
+    String? opType,
+    int? amountMinor,
+    int? balanceBeforeMinor,
+    int? balanceAfterMinor,
+    Value<String?> note = const Value.absent(),
+    String? source,
+    Value<String?> referenceId = const Value.absent(),
+    Value<String?> fromCurrencyJson = const Value.absent(),
+    DateTime? createdAt,
+  }) => WalletLedgerEntry(
+    id: id ?? this.id,
+    accountId: accountId ?? this.accountId,
+    opType: opType ?? this.opType,
+    amountMinor: amountMinor ?? this.amountMinor,
+    balanceBeforeMinor: balanceBeforeMinor ?? this.balanceBeforeMinor,
+    balanceAfterMinor: balanceAfterMinor ?? this.balanceAfterMinor,
+    note: note.present ? note.value : this.note,
+    source: source ?? this.source,
+    referenceId: referenceId.present ? referenceId.value : this.referenceId,
+    fromCurrencyJson: fromCurrencyJson.present
+        ? fromCurrencyJson.value
+        : this.fromCurrencyJson,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  WalletLedgerEntry copyWithCompanion(WalletLedgerEntriesCompanion data) {
+    return WalletLedgerEntry(
+      id: data.id.present ? data.id.value : this.id,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      opType: data.opType.present ? data.opType.value : this.opType,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      balanceBeforeMinor: data.balanceBeforeMinor.present
+          ? data.balanceBeforeMinor.value
+          : this.balanceBeforeMinor,
+      balanceAfterMinor: data.balanceAfterMinor.present
+          ? data.balanceAfterMinor.value
+          : this.balanceAfterMinor,
+      note: data.note.present ? data.note.value : this.note,
+      source: data.source.present ? data.source.value : this.source,
+      referenceId: data.referenceId.present
+          ? data.referenceId.value
+          : this.referenceId,
+      fromCurrencyJson: data.fromCurrencyJson.present
+          ? data.fromCurrencyJson.value
+          : this.fromCurrencyJson,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletLedgerEntry(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('opType: $opType, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('balanceBeforeMinor: $balanceBeforeMinor, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
+          ..write('note: $note, ')
+          ..write('source: $source, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    accountId,
+    opType,
+    amountMinor,
+    balanceBeforeMinor,
+    balanceAfterMinor,
+    note,
+    source,
+    referenceId,
+    fromCurrencyJson,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WalletLedgerEntry &&
+          other.id == this.id &&
+          other.accountId == this.accountId &&
+          other.opType == this.opType &&
+          other.amountMinor == this.amountMinor &&
+          other.balanceBeforeMinor == this.balanceBeforeMinor &&
+          other.balanceAfterMinor == this.balanceAfterMinor &&
+          other.note == this.note &&
+          other.source == this.source &&
+          other.referenceId == this.referenceId &&
+          other.fromCurrencyJson == this.fromCurrencyJson &&
+          other.createdAt == this.createdAt);
+}
+
+class WalletLedgerEntriesCompanion extends UpdateCompanion<WalletLedgerEntry> {
+  final Value<String> id;
+  final Value<String> accountId;
+  final Value<String> opType;
+  final Value<int> amountMinor;
+  final Value<int> balanceBeforeMinor;
+  final Value<int> balanceAfterMinor;
+  final Value<String?> note;
+  final Value<String> source;
+  final Value<String?> referenceId;
+  final Value<String?> fromCurrencyJson;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const WalletLedgerEntriesCompanion({
+    this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.opType = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.balanceBeforeMinor = const Value.absent(),
+    this.balanceAfterMinor = const Value.absent(),
+    this.note = const Value.absent(),
+    this.source = const Value.absent(),
+    this.referenceId = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WalletLedgerEntriesCompanion.insert({
+    required String id,
+    required String accountId,
+    required String opType,
+    required int amountMinor,
+    required int balanceBeforeMinor,
+    required int balanceAfterMinor,
+    this.note = const Value.absent(),
+    this.source = const Value.absent(),
+    this.referenceId = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       accountId = Value(accountId),
+       opType = Value(opType),
+       amountMinor = Value(amountMinor),
+       balanceBeforeMinor = Value(balanceBeforeMinor),
+       balanceAfterMinor = Value(balanceAfterMinor),
+       createdAt = Value(createdAt);
+  static Insertable<WalletLedgerEntry> custom({
+    Expression<String>? id,
+    Expression<String>? accountId,
+    Expression<String>? opType,
+    Expression<int>? amountMinor,
+    Expression<int>? balanceBeforeMinor,
+    Expression<int>? balanceAfterMinor,
+    Expression<String>? note,
+    Expression<String>? source,
+    Expression<String>? referenceId,
+    Expression<String>? fromCurrencyJson,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (accountId != null) 'account_id': accountId,
+      if (opType != null) 'op_type': opType,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (balanceBeforeMinor != null)
+        'balance_before_minor': balanceBeforeMinor,
+      if (balanceAfterMinor != null) 'balance_after_minor': balanceAfterMinor,
+      if (note != null) 'note': note,
+      if (source != null) 'source': source,
+      if (referenceId != null) 'reference_id': referenceId,
+      if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WalletLedgerEntriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? accountId,
+    Value<String>? opType,
+    Value<int>? amountMinor,
+    Value<int>? balanceBeforeMinor,
+    Value<int>? balanceAfterMinor,
+    Value<String?>? note,
+    Value<String>? source,
+    Value<String?>? referenceId,
+    Value<String?>? fromCurrencyJson,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return WalletLedgerEntriesCompanion(
+      id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
+      opType: opType ?? this.opType,
+      amountMinor: amountMinor ?? this.amountMinor,
+      balanceBeforeMinor: balanceBeforeMinor ?? this.balanceBeforeMinor,
+      balanceAfterMinor: balanceAfterMinor ?? this.balanceAfterMinor,
+      note: note ?? this.note,
+      source: source ?? this.source,
+      referenceId: referenceId ?? this.referenceId,
+      fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (opType.present) {
+      map['op_type'] = Variable<String>(opType.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (balanceBeforeMinor.present) {
+      map['balance_before_minor'] = Variable<int>(balanceBeforeMinor.value);
+    }
+    if (balanceAfterMinor.present) {
+      map['balance_after_minor'] = Variable<int>(balanceAfterMinor.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (referenceId.present) {
+      map['reference_id'] = Variable<String>(referenceId.value);
+    }
+    if (fromCurrencyJson.present) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletLedgerEntriesCompanion(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('opType: $opType, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('balanceBeforeMinor: $balanceBeforeMinor, ')
+          ..write('balanceAfterMinor: $balanceAfterMinor, ')
+          ..write('note: $note, ')
+          ..write('source: $source, ')
+          ..write('referenceId: $referenceId, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ManagedCurrenciesTable extends ManagedCurrencies
+    with TableInfo<$ManagedCurrenciesTable, ManagedCurrency> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ManagedCurrenciesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fractionDigitsMeta = const VerificationMeta(
+    'fractionDigits',
+  );
+  @override
+  late final GeneratedColumn<int> fractionDigits = GeneratedColumn<int>(
+    'fraction_digits',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [code, fractionDigits, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'managed_currencies';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ManagedCurrency> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('fraction_digits')) {
+      context.handle(
+        _fractionDigitsMeta,
+        fractionDigits.isAcceptableOrUnknown(
+          data['fraction_digits']!,
+          _fractionDigitsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {code};
+  @override
+  ManagedCurrency map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ManagedCurrency(
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      fractionDigits: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fraction_digits'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $ManagedCurrenciesTable createAlias(String alias) {
+    return $ManagedCurrenciesTable(attachedDatabase, alias);
+  }
+}
+
+class ManagedCurrency extends DataClass implements Insertable<ManagedCurrency> {
+  final String code;
+  final int fractionDigits;
+  final DateTime createdAt;
+  const ManagedCurrency({
+    required this.code,
+    required this.fractionDigits,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['code'] = Variable<String>(code);
+    map['fraction_digits'] = Variable<int>(fractionDigits);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  ManagedCurrenciesCompanion toCompanion(bool nullToAbsent) {
+    return ManagedCurrenciesCompanion(
+      code: Value(code),
+      fractionDigits: Value(fractionDigits),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory ManagedCurrency.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ManagedCurrency(
+      code: serializer.fromJson<String>(json['code']),
+      fractionDigits: serializer.fromJson<int>(json['fractionDigits']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'code': serializer.toJson<String>(code),
+      'fractionDigits': serializer.toJson<int>(fractionDigits),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  ManagedCurrency copyWith({
+    String? code,
+    int? fractionDigits,
+    DateTime? createdAt,
+  }) => ManagedCurrency(
+    code: code ?? this.code,
+    fractionDigits: fractionDigits ?? this.fractionDigits,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  ManagedCurrency copyWithCompanion(ManagedCurrenciesCompanion data) {
+    return ManagedCurrency(
+      code: data.code.present ? data.code.value : this.code,
+      fractionDigits: data.fractionDigits.present
+          ? data.fractionDigits.value
+          : this.fractionDigits,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManagedCurrency(')
+          ..write('code: $code, ')
+          ..write('fractionDigits: $fractionDigits, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(code, fractionDigits, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ManagedCurrency &&
+          other.code == this.code &&
+          other.fractionDigits == this.fractionDigits &&
+          other.createdAt == this.createdAt);
+}
+
+class ManagedCurrenciesCompanion extends UpdateCompanion<ManagedCurrency> {
+  final Value<String> code;
+  final Value<int> fractionDigits;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const ManagedCurrenciesCompanion({
+    this.code = const Value.absent(),
+    this.fractionDigits = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ManagedCurrenciesCompanion.insert({
+    required String code,
+    this.fractionDigits = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : code = Value(code),
+       createdAt = Value(createdAt);
+  static Insertable<ManagedCurrency> custom({
+    Expression<String>? code,
+    Expression<int>? fractionDigits,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (code != null) 'code': code,
+      if (fractionDigits != null) 'fraction_digits': fractionDigits,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ManagedCurrenciesCompanion copyWith({
+    Value<String>? code,
+    Value<int>? fractionDigits,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return ManagedCurrenciesCompanion(
+      code: code ?? this.code,
+      fractionDigits: fractionDigits ?? this.fractionDigits,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (fractionDigits.present) {
+      map['fraction_digits'] = Variable<int>(fractionDigits.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManagedCurrenciesCompanion(')
+          ..write('code: $code, ')
+          ..write('fractionDigits: $fractionDigits, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExchangeRateHistoryTable extends ExchangeRateHistory
+    with TableInfo<$ExchangeRateHistoryTable, ExchangeRateHistoryData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExchangeRateHistoryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES managed_currencies (code)',
+    ),
+  );
+  static const VerificationMeta _rateToDefaultMeta = const VerificationMeta(
+    'rateToDefault',
+  );
+  @override
+  late final GeneratedColumn<int> rateToDefault = GeneratedColumn<int>(
+    'rate_to_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rateScaleMeta = const VerificationMeta(
+    'rateScale',
+  );
+  @override
+  late final GeneratedColumn<int> rateScale = GeneratedColumn<int>(
+    'rate_scale',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _recordedAtMeta = const VerificationMeta(
+    'recordedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> recordedAt = GeneratedColumn<DateTime>(
+    'recorded_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    currencyCode,
+    rateToDefault,
+    rateScale,
+    recordedAt,
+    note,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'exchange_rate_history';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExchangeRateHistoryData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('rate_to_default')) {
+      context.handle(
+        _rateToDefaultMeta,
+        rateToDefault.isAcceptableOrUnknown(
+          data['rate_to_default']!,
+          _rateToDefaultMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_rateToDefaultMeta);
+    }
+    if (data.containsKey('rate_scale')) {
+      context.handle(
+        _rateScaleMeta,
+        rateScale.isAcceptableOrUnknown(data['rate_scale']!, _rateScaleMeta),
+      );
+    }
+    if (data.containsKey('recorded_at')) {
+      context.handle(
+        _recordedAtMeta,
+        recordedAt.isAcceptableOrUnknown(data['recorded_at']!, _recordedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_recordedAtMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExchangeRateHistoryData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExchangeRateHistoryData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      rateToDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rate_to_default'],
+      )!,
+      rateScale: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rate_scale'],
+      )!,
+      recordedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}recorded_at'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+    );
+  }
+
+  @override
+  $ExchangeRateHistoryTable createAlias(String alias) {
+    return $ExchangeRateHistoryTable(attachedDatabase, alias);
+  }
+}
+
+class ExchangeRateHistoryData extends DataClass
+    implements Insertable<ExchangeRateHistoryData> {
+  final String id;
+  final String currencyCode;
+  final int rateToDefault;
+  final int rateScale;
+  final DateTime recordedAt;
+  final String? note;
+  const ExchangeRateHistoryData({
+    required this.id,
+    required this.currencyCode,
+    required this.rateToDefault,
+    required this.rateScale,
+    required this.recordedAt,
+    this.note,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['currency_code'] = Variable<String>(currencyCode);
+    map['rate_to_default'] = Variable<int>(rateToDefault);
+    map['rate_scale'] = Variable<int>(rateScale);
+    map['recorded_at'] = Variable<DateTime>(recordedAt);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    return map;
+  }
+
+  ExchangeRateHistoryCompanion toCompanion(bool nullToAbsent) {
+    return ExchangeRateHistoryCompanion(
+      id: Value(id),
+      currencyCode: Value(currencyCode),
+      rateToDefault: Value(rateToDefault),
+      rateScale: Value(rateScale),
+      recordedAt: Value(recordedAt),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+    );
+  }
+
+  factory ExchangeRateHistoryData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExchangeRateHistoryData(
+      id: serializer.fromJson<String>(json['id']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      rateToDefault: serializer.fromJson<int>(json['rateToDefault']),
+      rateScale: serializer.fromJson<int>(json['rateScale']),
+      recordedAt: serializer.fromJson<DateTime>(json['recordedAt']),
+      note: serializer.fromJson<String?>(json['note']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'rateToDefault': serializer.toJson<int>(rateToDefault),
+      'rateScale': serializer.toJson<int>(rateScale),
+      'recordedAt': serializer.toJson<DateTime>(recordedAt),
+      'note': serializer.toJson<String?>(note),
+    };
+  }
+
+  ExchangeRateHistoryData copyWith({
+    String? id,
+    String? currencyCode,
+    int? rateToDefault,
+    int? rateScale,
+    DateTime? recordedAt,
+    Value<String?> note = const Value.absent(),
+  }) => ExchangeRateHistoryData(
+    id: id ?? this.id,
+    currencyCode: currencyCode ?? this.currencyCode,
+    rateToDefault: rateToDefault ?? this.rateToDefault,
+    rateScale: rateScale ?? this.rateScale,
+    recordedAt: recordedAt ?? this.recordedAt,
+    note: note.present ? note.value : this.note,
+  );
+  ExchangeRateHistoryData copyWithCompanion(ExchangeRateHistoryCompanion data) {
+    return ExchangeRateHistoryData(
+      id: data.id.present ? data.id.value : this.id,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      rateToDefault: data.rateToDefault.present
+          ? data.rateToDefault.value
+          : this.rateToDefault,
+      rateScale: data.rateScale.present ? data.rateScale.value : this.rateScale,
+      recordedAt: data.recordedAt.present
+          ? data.recordedAt.value
+          : this.recordedAt,
+      note: data.note.present ? data.note.value : this.note,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExchangeRateHistoryData(')
+          ..write('id: $id, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('rateToDefault: $rateToDefault, ')
+          ..write('rateScale: $rateScale, ')
+          ..write('recordedAt: $recordedAt, ')
+          ..write('note: $note')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, currencyCode, rateToDefault, rateScale, recordedAt, note);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExchangeRateHistoryData &&
+          other.id == this.id &&
+          other.currencyCode == this.currencyCode &&
+          other.rateToDefault == this.rateToDefault &&
+          other.rateScale == this.rateScale &&
+          other.recordedAt == this.recordedAt &&
+          other.note == this.note);
+}
+
+class ExchangeRateHistoryCompanion
+    extends UpdateCompanion<ExchangeRateHistoryData> {
+  final Value<String> id;
+  final Value<String> currencyCode;
+  final Value<int> rateToDefault;
+  final Value<int> rateScale;
+  final Value<DateTime> recordedAt;
+  final Value<String?> note;
+  final Value<int> rowid;
+  const ExchangeRateHistoryCompanion({
+    this.id = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.rateToDefault = const Value.absent(),
+    this.rateScale = const Value.absent(),
+    this.recordedAt = const Value.absent(),
+    this.note = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExchangeRateHistoryCompanion.insert({
+    required String id,
+    required String currencyCode,
+    required int rateToDefault,
+    this.rateScale = const Value.absent(),
+    required DateTime recordedAt,
+    this.note = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       currencyCode = Value(currencyCode),
+       rateToDefault = Value(rateToDefault),
+       recordedAt = Value(recordedAt);
+  static Insertable<ExchangeRateHistoryData> custom({
+    Expression<String>? id,
+    Expression<String>? currencyCode,
+    Expression<int>? rateToDefault,
+    Expression<int>? rateScale,
+    Expression<DateTime>? recordedAt,
+    Expression<String>? note,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (rateToDefault != null) 'rate_to_default': rateToDefault,
+      if (rateScale != null) 'rate_scale': rateScale,
+      if (recordedAt != null) 'recorded_at': recordedAt,
+      if (note != null) 'note': note,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExchangeRateHistoryCompanion copyWith({
+    Value<String>? id,
+    Value<String>? currencyCode,
+    Value<int>? rateToDefault,
+    Value<int>? rateScale,
+    Value<DateTime>? recordedAt,
+    Value<String?>? note,
+    Value<int>? rowid,
+  }) {
+    return ExchangeRateHistoryCompanion(
+      id: id ?? this.id,
+      currencyCode: currencyCode ?? this.currencyCode,
+      rateToDefault: rateToDefault ?? this.rateToDefault,
+      rateScale: rateScale ?? this.rateScale,
+      recordedAt: recordedAt ?? this.recordedAt,
+      note: note ?? this.note,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (rateToDefault.present) {
+      map['rate_to_default'] = Variable<int>(rateToDefault.value);
+    }
+    if (rateScale.present) {
+      map['rate_scale'] = Variable<int>(rateScale.value);
+    }
+    if (recordedAt.present) {
+      map['recorded_at'] = Variable<DateTime>(recordedAt.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExchangeRateHistoryCompanion(')
+          ..write('id: $id, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('rateToDefault: $rateToDefault, ')
+          ..write('rateScale: $rateScale, ')
+          ..write('recordedAt: $recordedAt, ')
+          ..write('note: $note, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8294,6 +10099,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WishlistItemsTable wishlistItems = $WishlistItemsTable(this);
   late final $WalletAccountsTable walletAccounts = $WalletAccountsTable(this);
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
+  late final $WalletLedgerEntriesTable walletLedgerEntries =
+      $WalletLedgerEntriesTable(this);
+  late final $ManagedCurrenciesTable managedCurrencies =
+      $ManagedCurrenciesTable(this);
+  late final $ExchangeRateHistoryTable exchangeRateHistory =
+      $ExchangeRateHistoryTable(this);
   late final Index idxClientsArchivedAt = Index(
     'idx_clients_archived_at',
     'CREATE INDEX idx_clients_archived_at ON clients (archived_at)',
@@ -8318,6 +10129,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'idx_audit_log_created',
     'CREATE INDEX idx_audit_log_created ON audit_log (created_at)',
   );
+  late final Index idxWalletLedgerAccountCreated = Index(
+    'idx_wallet_ledger_account_created',
+    'CREATE INDEX idx_wallet_ledger_account_created ON wallet_ledger_entries (account_id, created_at)',
+  );
+  late final Index idxExchangeRateCurrencyRecorded = Index(
+    'idx_exchange_rate_currency_recorded',
+    'CREATE INDEX idx_exchange_rate_currency_recorded ON exchange_rate_history (currency_code, recorded_at)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8337,12 +10156,17 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     wishlistItems,
     walletAccounts,
     savingsGoals,
+    walletLedgerEntries,
+    managedCurrencies,
+    exchangeRateHistory,
     idxClientsArchivedAt,
     idxClientTagsClient,
     idxTransactionsClientCreated,
     idxTxTagsTx,
     idxPersonalFinanceKindCreated,
     idxAuditLogCreated,
+    idxWalletLedgerAccountCreated,
+    idxExchangeRateCurrencyRecorded,
   ];
 }
 
@@ -9712,6 +11536,7 @@ typedef $$LedgerTransactionsTableCreateCompanionBuilder =
       Value<DateTime?> cancelledAt,
       Value<String?> note,
       Value<DateTime?> dueAt,
+      Value<String?> fromCurrencyJson,
       Value<int> rowid,
     });
 typedef $$LedgerTransactionsTableUpdateCompanionBuilder =
@@ -9738,6 +11563,7 @@ typedef $$LedgerTransactionsTableUpdateCompanionBuilder =
       Value<DateTime?> cancelledAt,
       Value<String?> note,
       Value<DateTime?> dueAt,
+      Value<String?> fromCurrencyJson,
       Value<int> rowid,
     });
 
@@ -9911,6 +11737,11 @@ class $$LedgerTransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$ClientsTableFilterComposer get clientId {
     final $$ClientsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -10074,6 +11905,11 @@ class $$LedgerTransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ClientsTableOrderingComposer get clientId {
     final $$ClientsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -10190,6 +12026,11 @@ class $$LedgerTransactionsTableAnnotationComposer
   GeneratedColumn<DateTime> get dueAt =>
       $composableBuilder(column: $table.dueAt, builder: (column) => column);
 
+  GeneratedColumn<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => column,
+  );
+
   $$ClientsTableAnnotationComposer get clientId {
     final $$ClientsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -10294,6 +12135,7 @@ class $$LedgerTransactionsTableTableManager
                 Value<DateTime?> cancelledAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerTransactionsCompanion(
                 id: id,
@@ -10318,6 +12160,7 @@ class $$LedgerTransactionsTableTableManager
                 cancelledAt: cancelledAt,
                 note: note,
                 dueAt: dueAt,
+                fromCurrencyJson: fromCurrencyJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -10344,6 +12187,7 @@ class $$LedgerTransactionsTableTableManager
                 Value<DateTime?> cancelledAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime?> dueAt = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerTransactionsCompanion.insert(
                 id: id,
@@ -10368,6 +12212,7 @@ class $$LedgerTransactionsTableTableManager
                 cancelledAt: cancelledAt,
                 note: note,
                 dueAt: dueAt,
+                fromCurrencyJson: fromCurrencyJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -11092,6 +12937,7 @@ typedef $$PersonalFinanceEntriesTableCreateCompanionBuilder =
       Value<String> currencyCode,
       Value<String?> note,
       Value<String?> categoryId,
+      Value<String?> fromCurrencyJson,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -11105,6 +12951,7 @@ typedef $$PersonalFinanceEntriesTableUpdateCompanionBuilder =
       Value<String> currencyCode,
       Value<String?> note,
       Value<String?> categoryId,
+      Value<String?> fromCurrencyJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -11151,6 +12998,11 @@ class $$PersonalFinanceEntriesTableFilterComposer
 
   ColumnFilters<String> get categoryId => $composableBuilder(
     column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -11209,6 +13061,11 @@ class $$PersonalFinanceEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -11253,6 +13110,11 @@ class $$PersonalFinanceEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get categoryId => $composableBuilder(
     column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
     builder: (column) => column,
   );
 
@@ -11316,6 +13178,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -11327,6 +13190,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 currencyCode: currencyCode,
                 note: note,
                 categoryId: categoryId,
+                fromCurrencyJson: fromCurrencyJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -11340,6 +13204,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -11351,6 +13216,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 currencyCode: currencyCode,
                 note: note,
                 categoryId: categoryId,
+                fromCurrencyJson: fromCurrencyJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -11408,6 +13274,10 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> notifInactivityEnabled,
       Value<int> notifInactivityDays,
       Value<bool> notifSyncEnabled,
+      Value<String> clientSortField,
+      Value<bool> clientSortAscending,
+      Value<String> clientListLayout,
+      Value<String> chartCurveStyle,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -11433,6 +13303,10 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> notifInactivityEnabled,
       Value<int> notifInactivityDays,
       Value<bool> notifSyncEnabled,
+      Value<String> clientSortField,
+      Value<bool> clientSortAscending,
+      Value<String> clientListLayout,
+      Value<String> chartCurveStyle,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -11551,6 +13425,26 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<bool> get notifSyncEnabled => $composableBuilder(
     column: $table.notifSyncEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientSortField => $composableBuilder(
+    column: $table.clientSortField,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get clientSortAscending => $composableBuilder(
+    column: $table.clientSortAscending,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get clientListLayout => $composableBuilder(
+    column: $table.clientListLayout,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get chartCurveStyle => $composableBuilder(
+    column: $table.chartCurveStyle,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11673,6 +13567,26 @@ class $$AppSettingsTableOrderingComposer
     column: $table.notifSyncEnabled,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get clientSortField => $composableBuilder(
+    column: $table.clientSortField,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get clientSortAscending => $composableBuilder(
+    column: $table.clientSortAscending,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get clientListLayout => $composableBuilder(
+    column: $table.clientListLayout,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get chartCurveStyle => $composableBuilder(
+    column: $table.chartCurveStyle,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -11791,6 +13705,26 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.notifSyncEnabled,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get clientSortField => $composableBuilder(
+    column: $table.clientSortField,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get clientSortAscending => $composableBuilder(
+    column: $table.clientSortAscending,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get clientListLayout => $composableBuilder(
+    column: $table.clientListLayout,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get chartCurveStyle => $composableBuilder(
+    column: $table.chartCurveStyle,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -11846,6 +13780,10 @@ class $$AppSettingsTableTableManager
                 Value<bool> notifInactivityEnabled = const Value.absent(),
                 Value<int> notifInactivityDays = const Value.absent(),
                 Value<bool> notifSyncEnabled = const Value.absent(),
+                Value<String> clientSortField = const Value.absent(),
+                Value<bool> clientSortAscending = const Value.absent(),
+                Value<String> clientListLayout = const Value.absent(),
+                Value<String> chartCurveStyle = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -11869,6 +13807,10 @@ class $$AppSettingsTableTableManager
                 notifInactivityEnabled: notifInactivityEnabled,
                 notifInactivityDays: notifInactivityDays,
                 notifSyncEnabled: notifSyncEnabled,
+                clientSortField: clientSortField,
+                clientSortAscending: clientSortAscending,
+                clientListLayout: clientListLayout,
+                chartCurveStyle: chartCurveStyle,
               ),
           createCompanionCallback:
               ({
@@ -11894,6 +13836,10 @@ class $$AppSettingsTableTableManager
                 Value<bool> notifInactivityEnabled = const Value.absent(),
                 Value<int> notifInactivityDays = const Value.absent(),
                 Value<bool> notifSyncEnabled = const Value.absent(),
+                Value<String> clientSortField = const Value.absent(),
+                Value<bool> clientSortAscending = const Value.absent(),
+                Value<String> clientListLayout = const Value.absent(),
+                Value<String> chartCurveStyle = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -11917,6 +13863,10 @@ class $$AppSettingsTableTableManager
                 notifInactivityEnabled: notifInactivityEnabled,
                 notifInactivityDays: notifInactivityDays,
                 notifSyncEnabled: notifSyncEnabled,
+                clientSortField: clientSortField,
+                clientSortAscending: clientSortAscending,
+                clientListLayout: clientListLayout,
+                chartCurveStyle: chartCurveStyle,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -12684,6 +14634,7 @@ typedef $$WishlistItemsTableCreateCompanionBuilder =
       Value<bool> isPurchased,
       required DateTime createdAt,
       Value<DateTime?> purchasedAt,
+      Value<String?> fromCurrencyJson,
       Value<int> rowid,
     });
 typedef $$WishlistItemsTableUpdateCompanionBuilder =
@@ -12697,6 +14648,7 @@ typedef $$WishlistItemsTableUpdateCompanionBuilder =
       Value<bool> isPurchased,
       Value<DateTime> createdAt,
       Value<DateTime?> purchasedAt,
+      Value<String?> fromCurrencyJson,
       Value<int> rowid,
     });
 
@@ -12751,6 +14703,11 @@ class $$WishlistItemsTableFilterComposer
 
   ColumnFilters<DateTime> get purchasedAt => $composableBuilder(
     column: $table.purchasedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12808,6 +14765,11 @@ class $$WishlistItemsTableOrderingComposer
     column: $table.purchasedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WishlistItemsTableAnnotationComposer
@@ -12855,6 +14817,11 @@ class $$WishlistItemsTableAnnotationComposer
     column: $table.purchasedAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => column,
+  );
 }
 
 class $$WishlistItemsTableTableManager
@@ -12897,6 +14864,7 @@ class $$WishlistItemsTableTableManager
                 Value<bool> isPurchased = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> purchasedAt = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WishlistItemsCompanion(
                 id: id,
@@ -12908,6 +14876,7 @@ class $$WishlistItemsTableTableManager
                 isPurchased: isPurchased,
                 createdAt: createdAt,
                 purchasedAt: purchasedAt,
+                fromCurrencyJson: fromCurrencyJson,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12921,6 +14890,7 @@ class $$WishlistItemsTableTableManager
                 Value<bool> isPurchased = const Value.absent(),
                 required DateTime createdAt,
                 Value<DateTime?> purchasedAt = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WishlistItemsCompanion.insert(
                 id: id,
@@ -12932,6 +14902,7 @@ class $$WishlistItemsTableTableManager
                 isPurchased: isPurchased,
                 createdAt: createdAt,
                 purchasedAt: purchasedAt,
+                fromCurrencyJson: fromCurrencyJson,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -12964,6 +14935,7 @@ typedef $$WalletAccountsTableCreateCompanionBuilder =
       required String id,
       required String name,
       Value<String> emoji,
+      Value<String> currencyCode,
       Value<int> balanceMinor,
       Value<int> sortOrder,
       required DateTime createdAt,
@@ -12975,12 +14947,46 @@ typedef $$WalletAccountsTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> name,
       Value<String> emoji,
+      Value<String> currencyCode,
       Value<int> balanceMinor,
       Value<int> sortOrder,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
+
+final class $$WalletAccountsTableReferences
+    extends BaseReferences<_$AppDatabase, $WalletAccountsTable, WalletAccount> {
+  $$WalletAccountsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$WalletLedgerEntriesTable, List<WalletLedgerEntry>>
+  _walletLedgerEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.walletLedgerEntries,
+        aliasName: $_aliasNameGenerator(
+          db.walletAccounts.id,
+          db.walletLedgerEntries.accountId,
+        ),
+      );
+
+  $$WalletLedgerEntriesTableProcessedTableManager get walletLedgerEntriesRefs {
+    final manager = $$WalletLedgerEntriesTableTableManager(
+      $_db,
+      $_db.walletLedgerEntries,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _walletLedgerEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$WalletAccountsTableFilterComposer
     extends Composer<_$AppDatabase, $WalletAccountsTable> {
@@ -13006,6 +15012,11 @@ class $$WalletAccountsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get balanceMinor => $composableBuilder(
     column: $table.balanceMinor,
     builder: (column) => ColumnFilters(column),
@@ -13025,6 +15036,31 @@ class $$WalletAccountsTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> walletLedgerEntriesRefs(
+    Expression<bool> Function($$WalletLedgerEntriesTableFilterComposer f) f,
+  ) {
+    final $$WalletLedgerEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.walletLedgerEntries,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletLedgerEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.walletLedgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$WalletAccountsTableOrderingComposer
@@ -13048,6 +15084,11 @@ class $$WalletAccountsTableOrderingComposer
 
   ColumnOrderings<String> get emoji => $composableBuilder(
     column: $table.emoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13090,6 +15131,11 @@ class $$WalletAccountsTableAnnotationComposer
   GeneratedColumn<String> get emoji =>
       $composableBuilder(column: $table.emoji, builder: (column) => column);
 
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get balanceMinor => $composableBuilder(
     column: $table.balanceMinor,
     builder: (column) => column,
@@ -13103,6 +15149,32 @@ class $$WalletAccountsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> walletLedgerEntriesRefs<T extends Object>(
+    Expression<T> Function($$WalletLedgerEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$WalletLedgerEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.walletLedgerEntries,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$WalletLedgerEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.walletLedgerEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$WalletAccountsTableTableManager
@@ -13116,12 +15188,9 @@ class $$WalletAccountsTableTableManager
           $$WalletAccountsTableAnnotationComposer,
           $$WalletAccountsTableCreateCompanionBuilder,
           $$WalletAccountsTableUpdateCompanionBuilder,
-          (
-            WalletAccount,
-            BaseReferences<_$AppDatabase, $WalletAccountsTable, WalletAccount>,
-          ),
+          (WalletAccount, $$WalletAccountsTableReferences),
           WalletAccount,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool walletLedgerEntriesRefs})
         > {
   $$WalletAccountsTableTableManager(
     _$AppDatabase db,
@@ -13141,6 +15210,7 @@ class $$WalletAccountsTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> emoji = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
                 Value<int> balanceMinor = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -13150,6 +15220,7 @@ class $$WalletAccountsTableTableManager
                 id: id,
                 name: name,
                 emoji: emoji,
+                currencyCode: currencyCode,
                 balanceMinor: balanceMinor,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
@@ -13161,6 +15232,7 @@ class $$WalletAccountsTableTableManager
                 required String id,
                 required String name,
                 Value<String> emoji = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
                 Value<int> balanceMinor = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 required DateTime createdAt,
@@ -13170,6 +15242,7 @@ class $$WalletAccountsTableTableManager
                 id: id,
                 name: name,
                 emoji: emoji,
+                currencyCode: currencyCode,
                 balanceMinor: balanceMinor,
                 sortOrder: sortOrder,
                 createdAt: createdAt,
@@ -13177,9 +15250,45 @@ class $$WalletAccountsTableTableManager
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WalletAccountsTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({walletLedgerEntriesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (walletLedgerEntriesRefs) db.walletLedgerEntries,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (walletLedgerEntriesRefs)
+                    await $_getPrefetchedData<
+                      WalletAccount,
+                      $WalletAccountsTable,
+                      WalletLedgerEntry
+                    >(
+                      currentTable: table,
+                      referencedTable: $$WalletAccountsTableReferences
+                          ._walletLedgerEntriesRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$WalletAccountsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).walletLedgerEntriesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.accountId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -13194,12 +15303,9 @@ typedef $$WalletAccountsTableProcessedTableManager =
       $$WalletAccountsTableAnnotationComposer,
       $$WalletAccountsTableCreateCompanionBuilder,
       $$WalletAccountsTableUpdateCompanionBuilder,
-      (
-        WalletAccount,
-        BaseReferences<_$AppDatabase, $WalletAccountsTable, WalletAccount>,
-      ),
+      (WalletAccount, $$WalletAccountsTableReferences),
       WalletAccount,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool walletLedgerEntriesRefs})
     >;
 typedef $$SavingsGoalsTableCreateCompanionBuilder =
     SavingsGoalsCompanion Function({
@@ -13483,6 +15589,1132 @@ typedef $$SavingsGoalsTableProcessedTableManager =
       SavingsGoal,
       PrefetchHooks Function()
     >;
+typedef $$WalletLedgerEntriesTableCreateCompanionBuilder =
+    WalletLedgerEntriesCompanion Function({
+      required String id,
+      required String accountId,
+      required String opType,
+      required int amountMinor,
+      required int balanceBeforeMinor,
+      required int balanceAfterMinor,
+      Value<String?> note,
+      Value<String> source,
+      Value<String?> referenceId,
+      Value<String?> fromCurrencyJson,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$WalletLedgerEntriesTableUpdateCompanionBuilder =
+    WalletLedgerEntriesCompanion Function({
+      Value<String> id,
+      Value<String> accountId,
+      Value<String> opType,
+      Value<int> amountMinor,
+      Value<int> balanceBeforeMinor,
+      Value<int> balanceAfterMinor,
+      Value<String?> note,
+      Value<String> source,
+      Value<String?> referenceId,
+      Value<String?> fromCurrencyJson,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$WalletLedgerEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $WalletLedgerEntriesTable,
+          WalletLedgerEntry
+        > {
+  $$WalletLedgerEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WalletAccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.walletAccounts.createAlias(
+        $_aliasNameGenerator(
+          db.walletLedgerEntries.accountId,
+          db.walletAccounts.id,
+        ),
+      );
+
+  $$WalletAccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<String>('account_id')!;
+
+    final manager = $$WalletAccountsTableTableManager(
+      $_db,
+      $_db.walletAccounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$WalletLedgerEntriesTableFilterComposer
+    extends Composer<_$AppDatabase, $WalletLedgerEntriesTable> {
+  $$WalletLedgerEntriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get opType => $composableBuilder(
+    column: $table.opType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get balanceBeforeMinor => $composableBuilder(
+    column: $table.balanceBeforeMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceId => $composableBuilder(
+    column: $table.referenceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WalletAccountsTableFilterComposer get accountId {
+    final $$WalletAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WalletLedgerEntriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $WalletLedgerEntriesTable> {
+  $$WalletLedgerEntriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get opType => $composableBuilder(
+    column: $table.opType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get balanceBeforeMinor => $composableBuilder(
+    column: $table.balanceBeforeMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceId => $composableBuilder(
+    column: $table.referenceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WalletAccountsTableOrderingComposer get accountId {
+    final $$WalletAccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WalletLedgerEntriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WalletLedgerEntriesTable> {
+  $$WalletLedgerEntriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get opType =>
+      $composableBuilder(column: $table.opType, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get balanceBeforeMinor => $composableBuilder(
+    column: $table.balanceBeforeMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get balanceAfterMinor => $composableBuilder(
+    column: $table.balanceAfterMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get referenceId => $composableBuilder(
+    column: $table.referenceId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$WalletAccountsTableAnnotationComposer get accountId {
+    final $$WalletAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$WalletLedgerEntriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WalletLedgerEntriesTable,
+          WalletLedgerEntry,
+          $$WalletLedgerEntriesTableFilterComposer,
+          $$WalletLedgerEntriesTableOrderingComposer,
+          $$WalletLedgerEntriesTableAnnotationComposer,
+          $$WalletLedgerEntriesTableCreateCompanionBuilder,
+          $$WalletLedgerEntriesTableUpdateCompanionBuilder,
+          (WalletLedgerEntry, $$WalletLedgerEntriesTableReferences),
+          WalletLedgerEntry,
+          PrefetchHooks Function({bool accountId})
+        > {
+  $$WalletLedgerEntriesTableTableManager(
+    _$AppDatabase db,
+    $WalletLedgerEntriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WalletLedgerEntriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WalletLedgerEntriesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$WalletLedgerEntriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String> opType = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<int> balanceBeforeMinor = const Value.absent(),
+                Value<int> balanceAfterMinor = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> referenceId = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WalletLedgerEntriesCompanion(
+                id: id,
+                accountId: accountId,
+                opType: opType,
+                amountMinor: amountMinor,
+                balanceBeforeMinor: balanceBeforeMinor,
+                balanceAfterMinor: balanceAfterMinor,
+                note: note,
+                source: source,
+                referenceId: referenceId,
+                fromCurrencyJson: fromCurrencyJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String accountId,
+                required String opType,
+                required int amountMinor,
+                required int balanceBeforeMinor,
+                required int balanceAfterMinor,
+                Value<String?> note = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<String?> referenceId = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WalletLedgerEntriesCompanion.insert(
+                id: id,
+                accountId: accountId,
+                opType: opType,
+                amountMinor: amountMinor,
+                balanceBeforeMinor: balanceBeforeMinor,
+                balanceAfterMinor: balanceAfterMinor,
+                note: note,
+                source: source,
+                referenceId: referenceId,
+                fromCurrencyJson: fromCurrencyJson,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WalletLedgerEntriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (accountId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.accountId,
+                                referencedTable:
+                                    $$WalletLedgerEntriesTableReferences
+                                        ._accountIdTable(db),
+                                referencedColumn:
+                                    $$WalletLedgerEntriesTableReferences
+                                        ._accountIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$WalletLedgerEntriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WalletLedgerEntriesTable,
+      WalletLedgerEntry,
+      $$WalletLedgerEntriesTableFilterComposer,
+      $$WalletLedgerEntriesTableOrderingComposer,
+      $$WalletLedgerEntriesTableAnnotationComposer,
+      $$WalletLedgerEntriesTableCreateCompanionBuilder,
+      $$WalletLedgerEntriesTableUpdateCompanionBuilder,
+      (WalletLedgerEntry, $$WalletLedgerEntriesTableReferences),
+      WalletLedgerEntry,
+      PrefetchHooks Function({bool accountId})
+    >;
+typedef $$ManagedCurrenciesTableCreateCompanionBuilder =
+    ManagedCurrenciesCompanion Function({
+      required String code,
+      Value<int> fractionDigits,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$ManagedCurrenciesTableUpdateCompanionBuilder =
+    ManagedCurrenciesCompanion Function({
+      Value<String> code,
+      Value<int> fractionDigits,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$ManagedCurrenciesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ManagedCurrenciesTable,
+          ManagedCurrency
+        > {
+  $$ManagedCurrenciesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $ExchangeRateHistoryTable,
+    List<ExchangeRateHistoryData>
+  >
+  _exchangeRateHistoryRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.exchangeRateHistory,
+        aliasName: $_aliasNameGenerator(
+          db.managedCurrencies.code,
+          db.exchangeRateHistory.currencyCode,
+        ),
+      );
+
+  $$ExchangeRateHistoryTableProcessedTableManager get exchangeRateHistoryRefs {
+    final manager =
+        $$ExchangeRateHistoryTableTableManager(
+          $_db,
+          $_db.exchangeRateHistory,
+        ).filter(
+          (f) => f.currencyCode.code.sqlEquals($_itemColumn<String>('code')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _exchangeRateHistoryRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ManagedCurrenciesTableFilterComposer
+    extends Composer<_$AppDatabase, $ManagedCurrenciesTable> {
+  $$ManagedCurrenciesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fractionDigits => $composableBuilder(
+    column: $table.fractionDigits,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> exchangeRateHistoryRefs(
+    Expression<bool> Function($$ExchangeRateHistoryTableFilterComposer f) f,
+  ) {
+    final $$ExchangeRateHistoryTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.code,
+      referencedTable: $db.exchangeRateHistory,
+      getReferencedColumn: (t) => t.currencyCode,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExchangeRateHistoryTableFilterComposer(
+            $db: $db,
+            $table: $db.exchangeRateHistory,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ManagedCurrenciesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ManagedCurrenciesTable> {
+  $$ManagedCurrenciesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fractionDigits => $composableBuilder(
+    column: $table.fractionDigits,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ManagedCurrenciesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ManagedCurrenciesTable> {
+  $$ManagedCurrenciesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<int> get fractionDigits => $composableBuilder(
+    column: $table.fractionDigits,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  Expression<T> exchangeRateHistoryRefs<T extends Object>(
+    Expression<T> Function($$ExchangeRateHistoryTableAnnotationComposer a) f,
+  ) {
+    final $$ExchangeRateHistoryTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.code,
+          referencedTable: $db.exchangeRateHistory,
+          getReferencedColumn: (t) => t.currencyCode,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExchangeRateHistoryTableAnnotationComposer(
+                $db: $db,
+                $table: $db.exchangeRateHistory,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ManagedCurrenciesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ManagedCurrenciesTable,
+          ManagedCurrency,
+          $$ManagedCurrenciesTableFilterComposer,
+          $$ManagedCurrenciesTableOrderingComposer,
+          $$ManagedCurrenciesTableAnnotationComposer,
+          $$ManagedCurrenciesTableCreateCompanionBuilder,
+          $$ManagedCurrenciesTableUpdateCompanionBuilder,
+          (ManagedCurrency, $$ManagedCurrenciesTableReferences),
+          ManagedCurrency,
+          PrefetchHooks Function({bool exchangeRateHistoryRefs})
+        > {
+  $$ManagedCurrenciesTableTableManager(
+    _$AppDatabase db,
+    $ManagedCurrenciesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ManagedCurrenciesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ManagedCurrenciesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ManagedCurrenciesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> code = const Value.absent(),
+                Value<int> fractionDigits = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ManagedCurrenciesCompanion(
+                code: code,
+                fractionDigits: fractionDigits,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String code,
+                Value<int> fractionDigits = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => ManagedCurrenciesCompanion.insert(
+                code: code,
+                fractionDigits: fractionDigits,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ManagedCurrenciesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({exchangeRateHistoryRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (exchangeRateHistoryRefs) db.exchangeRateHistory,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (exchangeRateHistoryRefs)
+                    await $_getPrefetchedData<
+                      ManagedCurrency,
+                      $ManagedCurrenciesTable,
+                      ExchangeRateHistoryData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$ManagedCurrenciesTableReferences
+                          ._exchangeRateHistoryRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$ManagedCurrenciesTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).exchangeRateHistoryRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.currencyCode == item.code,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ManagedCurrenciesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ManagedCurrenciesTable,
+      ManagedCurrency,
+      $$ManagedCurrenciesTableFilterComposer,
+      $$ManagedCurrenciesTableOrderingComposer,
+      $$ManagedCurrenciesTableAnnotationComposer,
+      $$ManagedCurrenciesTableCreateCompanionBuilder,
+      $$ManagedCurrenciesTableUpdateCompanionBuilder,
+      (ManagedCurrency, $$ManagedCurrenciesTableReferences),
+      ManagedCurrency,
+      PrefetchHooks Function({bool exchangeRateHistoryRefs})
+    >;
+typedef $$ExchangeRateHistoryTableCreateCompanionBuilder =
+    ExchangeRateHistoryCompanion Function({
+      required String id,
+      required String currencyCode,
+      required int rateToDefault,
+      Value<int> rateScale,
+      required DateTime recordedAt,
+      Value<String?> note,
+      Value<int> rowid,
+    });
+typedef $$ExchangeRateHistoryTableUpdateCompanionBuilder =
+    ExchangeRateHistoryCompanion Function({
+      Value<String> id,
+      Value<String> currencyCode,
+      Value<int> rateToDefault,
+      Value<int> rateScale,
+      Value<DateTime> recordedAt,
+      Value<String?> note,
+      Value<int> rowid,
+    });
+
+final class $$ExchangeRateHistoryTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExchangeRateHistoryTable,
+          ExchangeRateHistoryData
+        > {
+  $$ExchangeRateHistoryTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $ManagedCurrenciesTable _currencyCodeTable(_$AppDatabase db) =>
+      db.managedCurrencies.createAlias(
+        $_aliasNameGenerator(
+          db.exchangeRateHistory.currencyCode,
+          db.managedCurrencies.code,
+        ),
+      );
+
+  $$ManagedCurrenciesTableProcessedTableManager get currencyCode {
+    final $_column = $_itemColumn<String>('currency_code')!;
+
+    final manager = $$ManagedCurrenciesTableTableManager(
+      $_db,
+      $_db.managedCurrencies,
+    ).filter((f) => f.code.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_currencyCodeTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ExchangeRateHistoryTableFilterComposer
+    extends Composer<_$AppDatabase, $ExchangeRateHistoryTable> {
+  $$ExchangeRateHistoryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rateToDefault => $composableBuilder(
+    column: $table.rateToDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rateScale => $composableBuilder(
+    column: $table.rateScale,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$ManagedCurrenciesTableFilterComposer get currencyCode {
+    final $$ManagedCurrenciesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.currencyCode,
+      referencedTable: $db.managedCurrencies,
+      getReferencedColumn: (t) => t.code,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ManagedCurrenciesTableFilterComposer(
+            $db: $db,
+            $table: $db.managedCurrencies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExchangeRateHistoryTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExchangeRateHistoryTable> {
+  $$ExchangeRateHistoryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rateToDefault => $composableBuilder(
+    column: $table.rateToDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rateScale => $composableBuilder(
+    column: $table.rateScale,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$ManagedCurrenciesTableOrderingComposer get currencyCode {
+    final $$ManagedCurrenciesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.currencyCode,
+      referencedTable: $db.managedCurrencies,
+      getReferencedColumn: (t) => t.code,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ManagedCurrenciesTableOrderingComposer(
+            $db: $db,
+            $table: $db.managedCurrencies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExchangeRateHistoryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExchangeRateHistoryTable> {
+  $$ExchangeRateHistoryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get rateToDefault => $composableBuilder(
+    column: $table.rateToDefault,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rateScale =>
+      $composableBuilder(column: $table.rateScale, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get recordedAt => $composableBuilder(
+    column: $table.recordedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  $$ManagedCurrenciesTableAnnotationComposer get currencyCode {
+    final $$ManagedCurrenciesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.currencyCode,
+          referencedTable: $db.managedCurrencies,
+          getReferencedColumn: (t) => t.code,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ManagedCurrenciesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.managedCurrencies,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ExchangeRateHistoryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExchangeRateHistoryTable,
+          ExchangeRateHistoryData,
+          $$ExchangeRateHistoryTableFilterComposer,
+          $$ExchangeRateHistoryTableOrderingComposer,
+          $$ExchangeRateHistoryTableAnnotationComposer,
+          $$ExchangeRateHistoryTableCreateCompanionBuilder,
+          $$ExchangeRateHistoryTableUpdateCompanionBuilder,
+          (ExchangeRateHistoryData, $$ExchangeRateHistoryTableReferences),
+          ExchangeRateHistoryData,
+          PrefetchHooks Function({bool currencyCode})
+        > {
+  $$ExchangeRateHistoryTableTableManager(
+    _$AppDatabase db,
+    $ExchangeRateHistoryTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExchangeRateHistoryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExchangeRateHistoryTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ExchangeRateHistoryTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> rateToDefault = const Value.absent(),
+                Value<int> rateScale = const Value.absent(),
+                Value<DateTime> recordedAt = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExchangeRateHistoryCompanion(
+                id: id,
+                currencyCode: currencyCode,
+                rateToDefault: rateToDefault,
+                rateScale: rateScale,
+                recordedAt: recordedAt,
+                note: note,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String currencyCode,
+                required int rateToDefault,
+                Value<int> rateScale = const Value.absent(),
+                required DateTime recordedAt,
+                Value<String?> note = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExchangeRateHistoryCompanion.insert(
+                id: id,
+                currencyCode: currencyCode,
+                rateToDefault: rateToDefault,
+                rateScale: rateScale,
+                recordedAt: recordedAt,
+                note: note,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExchangeRateHistoryTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({currencyCode = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (currencyCode) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.currencyCode,
+                                referencedTable:
+                                    $$ExchangeRateHistoryTableReferences
+                                        ._currencyCodeTable(db),
+                                referencedColumn:
+                                    $$ExchangeRateHistoryTableReferences
+                                        ._currencyCodeTable(db)
+                                        .code,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExchangeRateHistoryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExchangeRateHistoryTable,
+      ExchangeRateHistoryData,
+      $$ExchangeRateHistoryTableFilterComposer,
+      $$ExchangeRateHistoryTableOrderingComposer,
+      $$ExchangeRateHistoryTableAnnotationComposer,
+      $$ExchangeRateHistoryTableCreateCompanionBuilder,
+      $$ExchangeRateHistoryTableUpdateCompanionBuilder,
+      (ExchangeRateHistoryData, $$ExchangeRateHistoryTableReferences),
+      ExchangeRateHistoryData,
+      PrefetchHooks Function({bool currencyCode})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -13517,4 +16749,10 @@ class $AppDatabaseManager {
       $$WalletAccountsTableTableManager(_db, _db.walletAccounts);
   $$SavingsGoalsTableTableManager get savingsGoals =>
       $$SavingsGoalsTableTableManager(_db, _db.savingsGoals);
+  $$WalletLedgerEntriesTableTableManager get walletLedgerEntries =>
+      $$WalletLedgerEntriesTableTableManager(_db, _db.walletLedgerEntries);
+  $$ManagedCurrenciesTableTableManager get managedCurrencies =>
+      $$ManagedCurrenciesTableTableManager(_db, _db.managedCurrencies);
+  $$ExchangeRateHistoryTableTableManager get exchangeRateHistory =>
+      $$ExchangeRateHistoryTableTableManager(_db, _db.exchangeRateHistory);
 }

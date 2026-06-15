@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
 import '../../widgets/hud_empty_state.dart';
@@ -460,7 +461,10 @@ class _LedgerTransactionTile extends ConsumerWidget {
         ? AppTheme.ledgerDebt
         : AppTheme.ledgerPayment;
     final typeLabel = type == LedgerTxType.debt ? 'Debt' : 'Payment';
-    final amountLabel = MoneyFormat.formatMinor(tx.amountMinor, currencyCode);
+    final snap = FromCurrencySnapshot.fromJsonString(tx.fromCurrencyJson);
+    final amountLabel = snap != null
+        ? '${snap.formatPrimary()} · ${snap.formatPreview(currencyCode, tx.amountMinor)}'
+        : MoneyFormat.formatMinor(tx.amountMinor, currencyCode);
     final text = Theme.of(context).textTheme;
 
     final borderColor = !active

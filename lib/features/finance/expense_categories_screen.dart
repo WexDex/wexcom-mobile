@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/db/app_database.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/category_icon.dart';
 import '../../utils/money.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -193,7 +194,7 @@ class _CategoryTile extends StatelessWidget {
       leading: CircleAvatar(
         backgroundColor: color.withValues(alpha: 0.18),
         child: Icon(
-          IconData(category.iconCodePoint, fontFamily: 'MaterialIcons'),
+          categoryIconData(category.iconCodePoint),
           color: color,
           size: 20,
         ),
@@ -356,7 +357,7 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        IconData(cp, fontFamily: 'MaterialIcons'),
+                        categoryIconData(cp),
                         size: 18,
                         color: selected ? AppTheme.brandPrimary : AppTheme.mutedFg,
                       ),

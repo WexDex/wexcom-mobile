@@ -11,6 +11,7 @@ import '../../providers/providers.dart';
 import '../../services/export_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/balance_display.dart';
+import '../../utils/client_list_prefs.dart';
 import '../../utils/money.dart';
 import '../../widgets/hud_empty_state.dart';
 import '../../widgets/skeleton_loaders.dart';
@@ -66,6 +67,8 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
   String _query = '';
   _ClientSortField _sortField = _ClientSortField.name;
   bool _sortAscending = true;
+  ClientListLayout _layout = ClientListLayout.detailed;
+  bool _prefsLoaded = false;
   bool _selectMode = false;
   final Set<String> _selected = {};
 
@@ -75,7 +78,66 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
     _search.addListener(
       () => setState(() => _query = _search.text.trim().toLowerCase()),
     );
+    Future.microtask(_loadPrefs);
   }
+
+  Future<void> _loadPrefs() async {
+    final s = await ref.read(ledgerRepositoryProvider).getAppSettings();
+    if (!mounted) return;
+    setState(() {
+      _sortField = _mapSortField(
+        ClientSortField.fromStorage(s?.clientSortField),
+      );
+      _sortAscending = s?.clientSortAscending ?? true;
+      _layout = ClientListLayout.fromStorage(s?.clientListLayout);
+      _prefsLoaded = true;
+    });
+  }
+
+  _ClientSortField _mapSortField(ClientSortField f) {
+    return switch (f) {
+      ClientSortField.byName => _ClientSortField.name,
+      ClientSortField.updatedAt => _ClientSortField.updatedAt,
+      ClientSortField.createdAt => _ClientSortField.createdAt,
+      ClientSortField.lastActivityAt => _ClientSortField.lastActivityAt,
+      ClientSortField.balance => _ClientSortField.balance,
+    };
+  }
+
+  ClientSortField _toStorageSort(_ClientSortField f) {
+    return switch (f) {
+      _ClientSortField.name => ClientSortField.byName,
+      _ClientSortField.updatedAt => ClientSortField.updatedAt,
+      _ClientSortField.createdAt => ClientSortField.createdAt,
+      _ClientSortField.lastActivityAt => ClientSortField.lastActivityAt,
+      _ClientSortField.balance => ClientSortField.balance,
+    };
+  }
+
+  Future<void> _persistPrefs() async {
+    await ref.read(ledgerRepositoryProvider).saveClientListPrefs(
+          sortField: _toStorageSort(_sortField),
+          sortAscending: _sortAscending,
+          layout: _layout,
+        );
+  }
+
+  void _cycleLayout() {
+    setState(() {
+      _layout = switch (_layout) {
+        ClientListLayout.detailed => ClientListLayout.compact,
+        ClientListLayout.compact => ClientListLayout.grid,
+        ClientListLayout.grid => ClientListLayout.detailed,
+      };
+    });
+    _persistPrefs();
+  }
+
+  IconData get _layoutIcon => switch (_layout) {
+        ClientListLayout.detailed => Icons.view_agenda_outlined,
+        ClientListLayout.compact => Icons.density_small,
+        ClientListLayout.grid => Icons.grid_view_rounded,
+      };
 
   @override
   void dispose() {
@@ -263,12 +325,16 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
                         );
                         if (selected != null && mounted) {
                           setState(() => _sortField = selected);
+                          _persistPrefs();
                         }
                       },
                     ),
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
-                      onPressed: () => setState(() => _sortAscending = !_sortAscending),
+                      onPressed: () {
+                        setState(() => _sortAscending = !_sortAscending);
+                        _persistPrefs();
+                      },
                       tooltip: _sortAscending ? 'Ascending' : 'Descending',
                       icon: Icon(
                         _sortAscending
@@ -276,120 +342,48 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
                             : Icons.arrow_downward_rounded,
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    IconButton.filledTonal(
+                      onPressed: _cycleLayout,
+                      tooltip: 'Layout: ${_layout.name}',
+                      icon: Icon(_layoutIcon),
+                    ),
                   ],
                 ),
               ),
               // ── List ─────────────────────────────────────────────────────
               Expanded(
-                child: filtered.isEmpty
+                child: !_prefsLoaded
+                    ? const Center(child: CircularProgressIndicator())
+                    : filtered.isEmpty
                     ? Center(
                         child: Text(
                           'No matches for your search.',
                           style: text.bodyLarge?.copyWith(color: AppTheme.mutedFg),
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, i) {
-                          final c = filtered[i];
-                          final balanceLabel = MoneyFormat.formatMinor(c.balanceMinor, code);
-                          final phrase = balanceSemanticsLine(c.balanceMinor);
-                          final accent = balanceColor(c.balanceMinor);
-                          final initials = _initials(c.fullName);
-                          final tagsAsync = ref.watch(clientTagsProvider(c.id));
-                          final insightAsync = ref.watch(clientInsightProvider(c.id));
-                          final overdueAsync = ref.watch(clientOverdueProvider(c.id));
-
-                          return GestureDetector(
-                            onLongPress: () {
-                              HapticFeedback.mediumImpact();
-                              setState(() {
-                                _selectMode = true;
-                                _selected.add(c.id);
-                              });
-                            },
-                            child: Stack(
-                              children: [
-                                _ClientCard(
-                                  name: c.fullName,
-                                  phone: c.phone,
-                                  phrase: phrase,
-                                  balanceLabel: balanceLabel,
-                                  lastActivityAt: c.lastInteractionAt,
-                                  accent: accent,
-                                  initials: initials,
-                                  isArchived: c.archivedAt != null,
-                                  tags: tagsAsync.valueOrNull ?? const [],
-                                  insight: insightAsync.valueOrNull ?? '',
-                                  overdue: overdueAsync.valueOrNull ?? false,
-                                  onTap: _selectMode
-                                      ? () => setState(() {
-                                            if (_selected.contains(c.id)) {
-                                              _selected.remove(c.id);
-                                            } else {
-                                              _selected.add(c.id);
-                                            }
-                                          })
-                                      : () => context.push('/client/${c.id}'),
-                                  onQuickAdd: _selectMode ? null : () async {
-                                    final txTags = await ref.read(
-                                      transactionScopeTagsProvider.future,
-                                    );
-                                    if (!context.mounted) return;
-                                    await showModalBottomSheet<void>(
-                                      context: context,
-                                      isScrollControlled: true,
-                                      backgroundColor: AppTheme.surface,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.vertical(
-                                          top: Radius.circular(AppTheme.radius),
-                                        ),
-                                      ),
-                                      builder: (ctx) => Padding(
-                                        padding: EdgeInsets.only(
-                                          bottom: MediaQuery.viewInsetsOf(ctx).bottom,
-                                        ),
-                                        child: TransactionEditorSheet(
-                                          title: 'Add transaction',
-                                          currencyCode: code,
-                                          currentBalanceMinor: c.balanceMinor,
-                                          availableTags: txTags,
-                                          onSubmit: (amount, type, note, tagIds, effectiveAt, dueAt) async {
-                                            await ref.read(ledgerRepositoryProvider).insertTransaction(
-                                              clientId: c.id,
-                                              amountMinor: amount,
-                                              type: type,
-                                              currencyCode: code,
-                                              note: note,
-                                              tagIds: tagIds,
-                                              effectiveAt: effectiveAt,
-                                              dueAt: dueAt,
-                                            );
-                                            if (ctx.mounted) Navigator.pop(ctx);
-                                          },
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                if (_selectMode)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: IgnorePointer(
-                                      child: Checkbox(
-                                        value: _selected.contains(c.id),
-                                        onChanged: null,
-                                      ),
-                                    ),
-                                  ),
-                              ],
+                    : _layout == ClientListLayout.grid
+                        ? GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                              childAspectRatio: 1.05,
                             ),
-                          );
-                        },
-                      ),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, i) =>
+                                _buildClientItem(context, filtered[i], code),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                SizedBox(height: _layout == ClientListLayout.compact ? 6 : 10),
+                            itemBuilder: (context, i) =>
+                                _buildClientItem(context, filtered[i], code),
+                          ),
               ),
             ],
           );
@@ -432,6 +426,113 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
           );
         },
         child: const Icon(Icons.person_add_alt_1_outlined),
+      ),
+    );
+  }
+
+  Widget _buildClientItem(BuildContext context, Client c, String code) {
+    final balanceLabel = MoneyFormat.formatMinor(c.balanceMinor, code);
+    final phrase = balanceSemanticsLine(c.balanceMinor);
+    final accent = balanceColor(c.balanceMinor);
+    final initials = _initials(c.fullName);
+    final tagsAsync = ref.watch(clientTagsProvider(c.id));
+    final insightAsync = ref.watch(clientInsightProvider(c.id));
+    final overdueAsync = ref.watch(clientOverdueProvider(c.id));
+
+  final card = _ClientCard(
+      name: c.fullName,
+      phone: c.phone,
+      phrase: phrase,
+      balanceLabel: balanceLabel,
+      lastActivityAt: c.lastInteractionAt,
+      accent: accent,
+      initials: initials,
+      isArchived: c.archivedAt != null,
+      tags: tagsAsync.valueOrNull ?? const [],
+      insight: insightAsync.valueOrNull ?? '',
+      overdue: overdueAsync.valueOrNull ?? false,
+      compact: _layout == ClientListLayout.compact,
+      grid: _layout == ClientListLayout.grid,
+      onTap: _selectMode
+          ? () => setState(() {
+                if (_selected.contains(c.id)) {
+                  _selected.remove(c.id);
+                } else {
+                  _selected.add(c.id);
+                }
+              })
+          : () => context.push('/client/${c.id}'),
+      onQuickAdd: _selectMode
+          ? null
+          : () async {
+              final txTags =
+                  await ref.read(transactionScopeTagsProvider.future);
+              if (!context.mounted) return;
+              final repo = ref.read(ledgerRepositoryProvider);
+              final foreign = await repo.foreignCurrencyEditorContext();
+              if (!context.mounted) return;
+              await showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: AppTheme.surface,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(AppTheme.radius),
+                  ),
+                ),
+                builder: (ctx) => Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.viewInsetsOf(ctx).bottom,
+                  ),
+                  child: TransactionEditorSheet(
+                    title: 'Add transaction',
+                    currencyCode: code,
+                    currentBalanceMinor: c.balanceMinor,
+                    availableTags: txTags,
+                    foreignCurrencyCodes: foreign.codes,
+                    foreignRates: foreign.rates,
+                    onSubmit: (amount, type, note, tagIds, effectiveAt, dueAt, [fromCurrency]) async {
+                      await repo.insertTransaction(
+                        clientId: c.id,
+                        amountMinor: amount,
+                        type: type,
+                        note: note,
+                        tagIds: tagIds,
+                        effectiveAt: effectiveAt,
+                        dueAt: dueAt,
+                        fromCurrency: fromCurrency,
+                      );
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ),
+                ),
+              );
+            },
+    );
+
+    return GestureDetector(
+      onLongPress: () {
+        HapticFeedback.mediumImpact();
+        setState(() {
+          _selectMode = true;
+          _selected.add(c.id);
+        });
+      },
+      child: Stack(
+        children: [
+          card,
+          if (_selectMode)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IgnorePointer(
+                child: Checkbox(
+                  value: _selected.contains(c.id),
+                  onChanged: null,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -663,6 +764,8 @@ class _ClientCard extends StatelessWidget {
     required this.overdue,
     required this.onTap,
     this.onQuickAdd,
+    this.compact = false,
+    this.grid = false,
   });
 
   final String name;
@@ -678,10 +781,52 @@ class _ClientCard extends StatelessWidget {
   final bool overdue;
   final VoidCallback onTap;
   final VoidCallback? onQuickAdd;
+  final bool compact;
+  final bool grid;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+
+    if (grid) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: accent.withValues(alpha: 0.18)),
+            ),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: accent.withValues(alpha: 0.18),
+                  child: Text(initials, style: TextStyle(color: accent, fontWeight: FontWeight.w800)),
+                ),
+                const Spacer(),
+                Text(name, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(balanceLabel,
+                    style: text.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: accent,
+                    )),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final pad = compact ? 8.0 : 12.0;
+    final avatarR = compact ? 20.0 : 26.0;
 
     return Material(
       color: Colors.transparent,
@@ -714,13 +859,12 @@ class _ClientCard extends StatelessWidget {
                   // ── Card body ─────────────────────────────────────────
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                      padding: EdgeInsets.fromLTRB(12, pad, 12, pad),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Avatar
                           CircleAvatar(
-                            radius: 26,
+                            radius: avatarR,
                             backgroundColor: accent.withValues(alpha: 0.18),
                             child: Text(
                               initials,
@@ -756,7 +900,7 @@ class _ClientCard extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 // Tag chips
-                                if (tags.isNotEmpty) ...[
+                                if (!compact && tags.isNotEmpty) ...[
                                   const SizedBox(height: 6),
                                   Wrap(
                                     spacing: 5,
@@ -781,7 +925,8 @@ class _ClientCard extends StatelessWidget {
                                 ],
                                 const SizedBox(height: 6),
                                 // Footer: phone · last seen
-                                Row(
+                                if (!compact)
+                                  Row(
                                   children: [
                                     if (phone != null && phone!.isNotEmpty) ...[
                                       Icon(Icons.phone_outlined, size: 12, color: AppTheme.mutedFg),

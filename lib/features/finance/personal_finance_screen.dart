@@ -6,10 +6,12 @@ import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/category_icon.dart';
 import '../../utils/money.dart';
 import '../dashboard/dashboard_charts.dart';
 import 'expense_categories_screen.dart';
-import 'wallet_section.dart';
+import 'wallet_tab.dart';
+import 'wishlist_wallet_sheet.dart';
 
 class PersonalFinanceScreen extends ConsumerStatefulWidget {
   const PersonalFinanceScreen({super.key});
@@ -26,7 +28,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
@@ -186,7 +188,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                                 padding: const EdgeInsets.only(right: 6),
                                 child: ChoiceChip(
                                   avatar: Icon(
-                                    IconData(cat.iconCodePoint, fontFamily: 'MaterialIcons'),
+                                    categoryIconData(cat.iconCodePoint),
                                     size: 16,
                                     color: isSelected ? catColor : AppTheme.mutedFg,
                                   ),
@@ -325,33 +327,27 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             Tab(text: 'Expenses'),
             Tab(text: 'Gains'),
             Tab(text: 'Wishlist'),
+            Tab(text: 'Wallet'),
           ],
         ),
       ),
-      body: Column(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          // Wallet preview strip — always visible above tabs
-          const WalletPreviewStrip(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _FinanceTabBody(
-                  kind: PersonalFinanceKind.expense,
-                  chartDays: _chartDays,
-                  onDaysChanged: (d) => setState(() => _chartDays = d),
-                  onOpenEditor: _openEditor,
-                ),
-                _FinanceTabBody(
-                  kind: PersonalFinanceKind.gain,
-                  chartDays: _chartDays,
-                  onDaysChanged: (d) => setState(() => _chartDays = d),
-                  onOpenEditor: _openEditor,
-                ),
-                _WishlistTabBody(onAddEntry: _openEditor),
-              ],
-            ),
+          _FinanceTabBody(
+            kind: PersonalFinanceKind.expense,
+            chartDays: _chartDays,
+            onDaysChanged: (d) => setState(() => _chartDays = d),
+            onOpenEditor: _openEditor,
           ),
+          _FinanceTabBody(
+            kind: PersonalFinanceKind.gain,
+            chartDays: _chartDays,
+            onDaysChanged: (d) => setState(() => _chartDays = d),
+            onOpenEditor: _openEditor,
+          ),
+          _WishlistTabBody(onAddEntry: _openEditor),
+          const WalletTabBody(),
         ],
       ),
       floatingActionButton: _tabController.index < 2
@@ -457,7 +453,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                           return Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: ChoiceChip(
-                              avatar: Icon(IconData(cat.iconCodePoint, fontFamily: 'MaterialIcons'),
+                              avatar: Icon(categoryIconData(cat.iconCodePoint),
                                   size: 16, color: isSelected ? catColor : AppTheme.mutedFg),
                               label: Text(cat.name),
                               selected: isSelected,
@@ -628,7 +624,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
                   child: Row(
                     children: [
                       Icon(
-                        IconData(cat.iconCodePoint, fontFamily: 'MaterialIcons'),
+                        categoryIconData(cat.iconCodePoint),
                         size: 16,
                         color: catColor,
                       ),
@@ -741,7 +737,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
                         padding: const EdgeInsets.only(right: 6),
                         child: FilterChip(
                           avatar: Icon(
-                            IconData(cat.iconCodePoint, fontFamily: 'MaterialIcons'),
+                            categoryIconData(cat.iconCodePoint),
                             size: 14,
                             color: isSelected ? catColor : AppTheme.mutedFg,
                           ),
@@ -1005,40 +1001,22 @@ class _WishlistItemCard extends ConsumerWidget {
   }
 
   Future<void> _markPurchased(BuildContext context, WidgetRef ref) async {
-    final logAsExpense = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Mark as purchased'),
-        content: Text('Log "${item.title}" as an expense entry?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('No'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yes'),
-          ),
-        ],
-      ),
-    );
-    if (!context.mounted) return;
     final repo = ref.read(ledgerRepositoryProvider);
     await repo.markWishlistPurchased(item.id);
-    if (logAsExpense == true && context.mounted) {
-      await repo.addPersonalFinanceEntry(
-        kind: PersonalFinanceKind.expense,
-        title: item.title,
-        amountMinor: item.amountMinor,
-        currencyCode: item.currencyCode,
-        note: item.note,
-        categoryId: item.categoryId,
+    await repo.addPersonalFinanceEntry(
+      kind: PersonalFinanceKind.expense,
+      title: item.title,
+      amountMinor: item.amountMinor,
+      currencyCode: item.currencyCode,
+      note: item.note,
+      categoryId: item.categoryId,
+    );
+    if (!context.mounted) return;
+    await showWishlistWalletSheet(context: context, ref: ref, item: item);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${item.title}" marked purchased')),
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('"${item.title}" logged as expense')),
-        );
-      }
     }
   }
 }

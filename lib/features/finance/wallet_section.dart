@@ -33,7 +33,7 @@ class WalletPreviewStrip extends ConsumerWidget {
           Expanded(
             child: accounts.isEmpty
                 ? GestureDetector(
-                    onTap: () => _openWalletManager(context, ref, code),
+                    onTap: () => openWalletManager(context, ref, code),
                     child: Row(
                       children: [
                         Icon(Icons.account_balance_wallet_outlined,
@@ -67,12 +67,9 @@ class WalletPreviewStrip extends ConsumerWidget {
                                       style:
                                           text.labelSmall?.copyWith(color: AppTheme.mutedFg),
                                     ),
-                                    Text(
-                                      MoneyFormat.formatMinor(a.balanceMinor, code),
-                                      style: text.labelMedium?.copyWith(
-                                        color: AppTheme.receivableAccent,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                    _WalletBalanceLabel(
+                                      account: a,
+                                      defaultCode: code,
                                     ),
                                   ],
                                 ),
@@ -108,7 +105,7 @@ class WalletPreviewStrip extends ConsumerWidget {
             icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
             tooltip: 'Manage wallet',
             color: AppTheme.brandPrimary,
-            onPressed: () => _openWalletManager(context, ref, code),
+            onPressed: () => openWalletManager(context, ref, code),
           ),
         ],
       ),
@@ -120,7 +117,7 @@ class WalletPreviewStrip extends ConsumerWidget {
 // Full wallet management bottom sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-Future<void> _openWalletManager(BuildContext context, WidgetRef ref, String code) {
+Future<void> openWalletManager(BuildContext context, WidgetRef ref, String code) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -607,4 +604,48 @@ Future<void> _openGoalEditor(
   emojiCtrl.dispose();
   targetCtrl.dispose();
   noteCtrl.dispose();
+}
+
+class _WalletBalanceLabel extends ConsumerWidget {
+  const _WalletBalanceLabel({
+    required this.account,
+    required this.defaultCode,
+  });
+
+  final WalletAccount account;
+  final String defaultCode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
+    final nativeCode = account.currencyCode.toUpperCase();
+    final isForeign = nativeCode != defaultCode.toUpperCase();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          MoneyFormat.formatMinor(account.balanceMinor, nativeCode),
+          style: text.labelMedium?.copyWith(
+            color: AppTheme.receivableAccent,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (isForeign)
+          FutureBuilder<int>(
+            future: ref.read(ledgerRepositoryProvider).convertWalletToDefaultMinor(
+                  account.balanceMinor,
+                  nativeCode,
+                ),
+            builder: (context, snap) {
+              if (!snap.hasData) return const SizedBox.shrink();
+              return Text(
+                '~= ${MoneyFormat.formatMinor(snap.data!, defaultCode)}',
+                style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
+              );
+            },
+          ),
+      ],
+    );
+  }
 }

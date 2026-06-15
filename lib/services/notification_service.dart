@@ -93,6 +93,91 @@ class NotificationService {
     }
   }
 
+  // ── Daily balance digest (scheduled) ───────────────────────────────────
+
+  static Future<void> scheduleBalanceDigest({required int hourOfDay}) async {
+    if (!_initialized) return;
+    try {
+      await _plugin.cancel(5);
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hourOfDay);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        5,
+        'Balance digest',
+        'Tap to see clients over your milestone',
+        scheduled,
+        _details(_channelBalance, 'Balance Milestones'),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint('scheduleBalanceDigest error: $e');
+    }
+  }
+
+  static Future<void> cancelBalanceDigest() async {
+    try {
+      await _plugin.cancel(5);
+    } catch (_) {}
+  }
+
+  static Future<void> showBalanceDigest({
+    required List<String> clientNames,
+    required int thresholdMinor,
+    required String currencyCode,
+  }) async {
+    if (!_initialized || clientNames.isEmpty) return;
+    final names = clientNames.take(3).join(', ');
+    final extra = clientNames.length > 3 ? ' +${clientNames.length - 3} more' : '';
+    await _plugin.show(
+      5,
+      'Clients over ${MoneyFormat.formatMinor(thresholdMinor, currencyCode)}',
+      '$names$extra',
+      _details(_channelBalance, 'Balance Milestones', importance: Importance.high),
+    );
+  }
+
+  static Future<void> scheduleInactivityReminder({
+    required int daysThreshold,
+    required int hourOfDay,
+  }) async {
+    if (!_initialized) return;
+    try {
+      await _plugin.cancel(6);
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hourOfDay);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        6,
+        'Activity check',
+        'Reminder after $daysThreshold days without transactions',
+        scheduled,
+        _details(_channelActivity, 'Activity Reminders'),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint('scheduleInactivityReminder error: $e');
+    }
+  }
+
+  static Future<void> cancelInactivityReminder() async {
+    try {
+      await _plugin.cancel(6);
+    } catch (_) {}
+  }
+
   // ── Client balance milestone ───────────────────────────────────────────
 
   static Future<void> showBalanceMilestone({
@@ -154,6 +239,37 @@ class NotificationService {
       );
     } catch (e) {
       debugPrint('showSyncSuccess error: $e');
+    }
+  }
+
+  static Future<bool> requestAndroidPermission() async {
+    if (!_initialized) return false;
+    try {
+      final android = _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android == null) return true;
+      return await android.requestNotificationsPermission() ?? true;
+    } catch (e) {
+      debugPrint('requestAndroidPermission error: $e');
+      return false;
+    }
+  }
+
+  static Future<void> showDebtRoulette({
+    required String clientName,
+    required int balanceMinor,
+    required String currencyCode,
+  }) async {
+    if (!_initialized) return;
+    try {
+      await _plugin.show(
+        7,
+        'Debt roulette',
+        '$clientName owes ${MoneyFormat.formatMinor(balanceMinor, currencyCode)}',
+        _details(_channelOverdue, 'Debt Roulette', importance: Importance.high),
+      );
+    } catch (e) {
+      debugPrint('showDebtRoulette error: $e');
     }
   }
 

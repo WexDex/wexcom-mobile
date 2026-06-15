@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/exchange_rate.dart';
 import '../../utils/money.dart';
 
 typedef OnSaveTemplate =
@@ -16,8 +18,9 @@ typedef TransactionSubmit =
       String? note,
       List<String> tagIds,
       DateTime effectiveAt,
-      DateTime? dueAt,
-    );
+      DateTime? dueAt, [
+      FromCurrencySnapshot? fromCurrency,
+    ]);
 
 class TransactionEditorSheet extends StatefulWidget {
   const TransactionEditorSheet({
@@ -36,6 +39,8 @@ class TransactionEditorSheet extends StatefulWidget {
     this.templates = const [],
     this.onSaveTemplate,
     this.onDeleteTemplate,
+    this.foreignCurrencyCodes = const [],
+    this.foreignRates = const {},
   });
 
   final String title;
@@ -52,6 +57,8 @@ class TransactionEditorSheet extends StatefulWidget {
   final List<TransactionTemplate> templates;
   final OnSaveTemplate? onSaveTemplate;
   final Future<void> Function(String id)? onDeleteTemplate;
+  final List<String> foreignCurrencyCodes;
+  final Map<String, num> foreignRates;
 
   @override
   State<TransactionEditorSheet> createState() => _TransactionEditorSheetState();
@@ -60,6 +67,10 @@ class TransactionEditorSheet extends StatefulWidget {
 class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _amount;
+  bool _useForeign = false;
+  String? _foreignCode;
+  final _foreignAmount = TextEditingController();
+  final _foreignRate = TextEditingController();
   LedgerTxType _type = LedgerTxType.debt;
   late final TextEditingController _note = TextEditingController(
     text: widget.initialNote ?? '',
@@ -109,6 +120,8 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
     _amount.removeListener(_onAmountChanged);
     _amount.dispose();
     _note.dispose();
+    _foreignAmount.dispose();
+    _foreignRate.dispose();
     super.dispose();
   }
 
@@ -238,6 +251,65 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 ),
                 const SizedBox(height: 8),
               ],
+              if (widget.foreignCurrencyCodes.isNotEmpty)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Foreign currency'),
+                  value: _useForeign,
+                  onChanged: (v) {
+                    setState(() {
+                      _useForeign = v;
+                      if (v && _foreignCode == null) {
+                        _foreignCode = widget.foreignCurrencyCodes.first;
+                        final rate = widget.foreignRates[_foreignCode!];
+                        if (rate != null) {
+                          _foreignRate.text = '$rate';
+                        }
+                      }
+                    });
+                  },
+                ),
+              if (_useForeign && widget.foreignCurrencyCodes.isNotEmpty) ...[
+                DropdownButtonFormField<String>(
+                  value: _foreignCode ?? widget.foreignCurrencyCodes.first,
+                  items: widget.foreignCurrencyCodes
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() {
+                    _foreignCode = v;
+                    final rate = widget.foreignRates[v];
+                    if (rate != null) _foreignRate.text = '$rate';
+                  }),
+                ),
+                TextFormField(
+                  controller: _foreignAmount,
+                  decoration: const InputDecoration(labelText: 'Foreign amount'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                TextFormField(
+                  controller: _foreignRate,
+                  decoration: InputDecoration(
+                    labelText: 'Rate (1 unit = ? ${widget.currencyCode})',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+                Builder(
+                  builder: (context) {
+                    final major = num.tryParse(_foreignAmount.text) ?? 0;
+                    final rate = num.tryParse(_foreignRate.text) ?? 0;
+                    final preview = convertMajorToDefaultMinor(
+                      majorAmount: major,
+                      rate: rate,
+                      defaultFractionDigits: 0,
+                    );
+                    return Text(
+                      'Preview: ${MoneyFormat.formatMinor(preview, widget.currencyCode)}',
+                      style: TextStyle(color: AppTheme.mutedFg),
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+              ] else
               TextFormField(
                 controller: _amount,
                 keyboardType: TextInputType.number,
@@ -448,9 +520,25 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                     ? null
                     : () async {
                         if (!_formKey.currentState!.validate()) return;
-                        final minor = MoneyFormat.parseMinorUnits(
-                          _amount.text,
-                        )!;
+                        FromCurrencySnapshot? snap;
+                        final int minor;
+                        if (_useForeign) {
+                          final major = num.tryParse(_foreignAmount.text.trim()) ?? 0;
+                          final rate = num.tryParse(_foreignRate.text.trim()) ?? 0;
+                          if (major <= 0 || rate <= 0 || _foreignCode == null) return;
+                          minor = convertMajorToDefaultMinor(
+                            majorAmount: major,
+                            rate: rate,
+                            defaultFractionDigits: 0,
+                          );
+                          snap = FromCurrencySnapshot(
+                            code: _foreignCode!,
+                            rate: rate,
+                            amount: major,
+                          );
+                        } else {
+                          minor = MoneyFormat.parseMinorUnits(_amount.text)!;
+                        }
                         setState(() => _busy = true);
                         try {
                           await widget.onSubmit(
@@ -462,6 +550,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                             _selectedTagIds.toList(growable: false),
                             _effectiveAt.toUtc(),
                             _type == LedgerTxType.debt ? _dueAt?.toUtc() : null,
+                            snap,
                           );
                         } finally {
                           if (mounted) setState(() => _busy = false);

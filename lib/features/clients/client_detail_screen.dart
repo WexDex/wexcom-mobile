@@ -476,6 +476,9 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                               transactionScopeTagsProvider.future,
                                             );
                                             if (!context.mounted) return;
+                                            final repo = ref.read(ledgerRepositoryProvider);
+                                            final foreign = await repo.foreignCurrencyEditorContext();
+                                            if (!context.mounted) return;
                                             await showModalBottomSheet<void>(
                                               context: context,
                                               isScrollControlled: true,
@@ -501,6 +504,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                                   currentBalanceMinor:
                                                       client.balanceMinor,
                                                   availableTags: txTags,
+                                                  foreignCurrencyCodes: foreign.codes,
+                                                  foreignRates: foreign.rates,
                                                   onSubmit:
                                                       (
                                                         amountMinor,
@@ -508,24 +513,19 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                                         note,
                                                         tagIds,
                                                         effectiveAt,
-                                                        dueAt,
-                                                      ) async {
-                                                        await ref
-                                                            .read(
-                                                              ledgerRepositoryProvider,
-                                                            )
-                                                            .insertTransaction(
-                                                              clientId: client.id,
-                                                              amountMinor:
-                                                                  amountMinor,
-                                                              type: type,
-                                                              currencyCode: code,
-                                                              note: note,
-                                                              tagIds: tagIds,
-                                                              effectiveAt:
-                                                                  effectiveAt,
-                                                              dueAt: dueAt,
-                                                            );
+                                                        dueAt, [
+                                                        fromCurrency,
+                                                      ]) async {
+                                                        await repo.insertTransaction(
+                                                          clientId: client.id,
+                                                          amountMinor: amountMinor,
+                                                          type: type,
+                                                          note: note,
+                                                          tagIds: tagIds,
+                                                          effectiveAt: effectiveAt,
+                                                          dueAt: dueAt,
+                                                          fromCurrency: fromCurrency,
+                                                        );
                                                         if (context.mounted) {
                                                           Navigator.pop(ctx);
                                                         }
@@ -592,6 +592,9 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                       transactionScopeTagsProvider.future,
                     );
                     if (!context.mounted) return;
+                    final repo = ref.read(ledgerRepositoryProvider);
+                    final foreign = await repo.foreignCurrencyEditorContext();
+                    if (!context.mounted) return;
                     await showModalBottomSheet<void>(
                       context: context,
                       isScrollControlled: true,
@@ -610,6 +613,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                           currencyCode: code,
                           currentBalanceMinor: client.balanceMinor,
                           availableTags: txTags,
+                          foreignCurrencyCodes: foreign.codes,
+                          foreignRates: foreign.rates,
                           templates: templates,
                           onSaveTemplate: (label, amount, type, note) => ref
                               .read(ledgerRepositoryProvider)
@@ -629,20 +634,19 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                                 note,
                                 tagIds,
                                 effectiveAt,
-                                dueAt,
-                              ) async {
-                                await ref
-                                    .read(ledgerRepositoryProvider)
-                                    .insertTransaction(
-                                      clientId: client.id,
-                                      amountMinor: amountMinor,
-                                      type: type,
-                                      currencyCode: code,
-                                      note: note,
-                                      tagIds: tagIds,
-                                      effectiveAt: effectiveAt,
-                                      dueAt: dueAt,
-                                    );
+                                dueAt, [
+                                fromCurrency,
+                              ]) async {
+                                await repo.insertTransaction(
+                                  clientId: client.id,
+                                  amountMinor: amountMinor,
+                                  type: type,
+                                  note: note,
+                                  tagIds: tagIds,
+                                  effectiveAt: effectiveAt,
+                                  dueAt: dueAt,
+                                  fromCurrency: fromCurrency,
+                                );
                                 if (context.mounted) Navigator.pop(ctx);
                               },
                         ),
@@ -694,7 +698,7 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
           initialEffectiveAt: t.effectiveAt ?? t.createdAt,
           availableTags: txTags,
           initialTagIds: selectedTags.map((e) => e.id).toList(),
-          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt) async {
+          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt, [fromCurrency]) async {
             await ref
                 .read(ledgerRepositoryProvider)
                 .updateTransaction(

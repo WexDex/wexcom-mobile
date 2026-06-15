@@ -7,6 +7,7 @@ import '../../data/db/app_database.dart';
 import '../../data/ledger_repository.dart';
 import '../../data/ledger_types.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/chart_curve.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers
@@ -452,13 +453,19 @@ void _drawHudGrid(Canvas canvas, Size size, {int hLines = 4, int vLines = 0}) {
 }
 
 /// Gradient fill under a polyline. Draw BEFORE the glow line.
-void _drawGradientFill(Canvas canvas, Size size, List<Offset> pts, Color color) {
+void _drawGradientFill(
+  Canvas canvas,
+  Size size,
+  List<Offset> pts,
+  Color color, {
+  ChartCurveStyle? curveStyle,
+}) {
   if (pts.length < 2) return;
-  final fillPath = Path()..moveTo(pts[0].dx, size.height);
-  for (final p in pts) {
-    fillPath.lineTo(p.dx, p.dy);
-  }
-  fillPath
+  final style = curveStyle ?? currentChartCurveStyle;
+  final linePath = buildSeriesPath(pts, style);
+  final fillPath = Path()
+    ..moveTo(pts.first.dx, size.height)
+    ..addPath(linePath, Offset.zero)
     ..lineTo(pts.last.dx, size.height)
     ..close();
   final gradient = LinearGradient(
@@ -480,15 +487,13 @@ void _drawGlowPolyline(
   List<Offset> pts,
   Color color, {
   double progress = 1.0,
+  ChartCurveStyle? curveStyle,
 }) {
   if (pts.length < 2) return;
   final clipped = _clipProgressPts(pts, progress);
   if (clipped.length < 2) return;
 
-  final path = Path()..moveTo(clipped[0].dx, clipped[0].dy);
-  for (var i = 1; i < clipped.length; i++) {
-    path.lineTo(clipped[i].dx, clipped[i].dy);
-  }
+  final path = buildSeriesPath(clipped, curveStyle ?? currentChartCurveStyle);
 
   // Pass 1: outer aura
   canvas.drawPath(

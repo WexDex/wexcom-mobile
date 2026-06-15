@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="quick_widget_description">Quick transaction, debt, payment, and debt roulette</string>
+    <string name="rate_widget_description">Current exchange rate — tap to edit in app</string>
+</resources>

@@ -11,6 +11,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/balance_display.dart';
 import '../../utils/money.dart';
 import '../../widgets/hud_empty_state.dart';
+import 'home_exchange_rates_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -84,6 +85,9 @@ class HomeScreen extends ConsumerWidget {
                   activeCount: clients.length,
                   code: code,
                 ),
+                const SizedBox(height: 16),
+
+                HomeExchangeRatesCard(defaultCode: code),
                 const SizedBox(height: 16),
 
                 // ── Wallet preview — always shown so user can set it up ──

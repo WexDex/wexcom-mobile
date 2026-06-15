@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,6 +18,8 @@ import '../../services/backup_service.dart';
 import '../../services/cloud_sync_service.dart';
 import '../../services/notification_service.dart';
 import '../../theme/app_theme.dart';
+import '../../services/notification_scheduler.dart';
+import '../../utils/chart_curve.dart';
 import '../../utils/money.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -242,6 +246,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () => context.push('/settings/audit-log'),
             ),
             const Divider(height: 24),
+            _buildChartCurveSection(),
+            const Divider(height: 24),
             _buildNotificationsSection(),
           ],
         ),
@@ -318,6 +324,54 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  Widget _buildChartCurveSection() {
+    final s = ref.watch(appSettingsProvider).valueOrNull;
+    if (s == null) return const SizedBox.shrink();
+    final current = ChartCurveStyle.fromStorage(s.chartCurveStyle);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Chart curves',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
+        ...ChartCurveStyle.values.map((style) {
+          return RadioListTile<ChartCurveStyle>(
+            contentPadding: EdgeInsets.zero,
+            title: Text(style.name),
+            value: style,
+            groupValue: current,
+            onChanged: (v) async {
+              if (v == null) return;
+              currentChartCurveStyle = v;
+              await ref.read(ledgerRepositoryProvider).saveChartCurveStyle(v);
+              if (mounted) setState(() {});
+            },
+          );
+        }),
+        SizedBox(
+          height: 72,
+          child: CustomPaint(
+            painter: _CurvePreviewPainter(style: current),
+            child: const SizedBox.expand(),
+          ),
+        ),
+        Text(
+          'Monotone avoids overshoot between points — best for balances.',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppTheme.mutedFg,
+              ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildNotificationsSection() {
     final s = ref.watch(appSettingsProvider).valueOrNull;
     if (s == null) return const SizedBox.shrink();
@@ -330,8 +384,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       bool? inactivityEnabled,
       int? inactivityDays,
       bool? syncEnabled,
-    }) {
-      ref.read(ledgerRepositoryProvider).saveNotificationSettings(
+    }) async {
+      await ref.read(ledgerRepositoryProvider).saveNotificationSettings(
             overdueEnabled: overdueEnabled ?? s.notifOverdueEnabled,
             overdueHour: overdueHour ?? s.notifOverdueHour,
             balanceMilestoneEnabled:
@@ -342,6 +396,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             inactivityDays: inactivityDays ?? s.notifInactivityDays,
             syncEnabled: syncEnabled ?? s.notifSyncEnabled,
           );
+      await refreshScheduledNotifications(ref.read(ledgerRepositoryProvider));
     }
 
     return Column(
@@ -1549,4 +1604,34 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CurvePreviewPainter extends CustomPainter {
+  _CurvePreviewPainter({required this.style});
+
+  final ChartCurveStyle style;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pts = List<Offset>.generate(
+      5,
+      (i) => Offset(
+        size.width * i / 4,
+        size.height * (0.7 - 0.5 * (i % 3) / 2),
+      ),
+    );
+    final path = buildSeriesPath(pts, style);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = AppTheme.brandPrimary
+        ..strokeWidth = 2.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CurvePreviewPainter oldDelegate) =>
+      oldDelegate.style != style;
 }

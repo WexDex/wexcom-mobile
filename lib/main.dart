@@ -1,12 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'providers/providers.dart';
 import 'router/app_router.dart';
 import 'services/cloud_sync_service.dart';
+import 'services/home_widget_service.dart';
+import 'services/notification_scheduler.dart';
 import 'services/notification_service.dart';
 import 'services/periodic_sync.dart';
 import 'theme/app_theme.dart';
+import 'utils/chart_curve.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +43,31 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
       _periodicSync = PeriodicSync(ref)..start();
     }
     Future.microtask(_maybeRequestContactsPermissionAtStartup);
+    Future.microtask(_bootstrapApp);
+  }
+
+  Future<void> _bootstrapApp() async {
+    final repo = ref.read(ledgerRepositoryProvider);
+    final s = await repo.getAppSettings();
+    if (s != null) {
+      currentChartCurveStyle = ChartCurveStyle.fromStorage(s.chartCurveStyle);
+    }
+    await refreshScheduledNotifications(repo);
+    await runNotificationChecks(repo);
+    if (Platform.isAndroid) {
+      await NotificationService.requestAndroidPermission();
+      await HomeWidgetService.init(
+        repo,
+        onLaunch: (uri) {
+          final router = ref.read(goRouterProvider);
+          if (uri.host == 'transactions') {
+            router.go(Uri(path: '/transactions', queryParameters: uri.queryParameters).toString());
+          } else if (uri.host == 'tags') {
+            router.go(Uri(path: '/tags', queryParameters: uri.queryParameters).toString());
+          }
+        },
+      );
+    }
   }
 
   @override

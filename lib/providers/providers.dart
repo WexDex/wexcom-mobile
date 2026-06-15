@@ -181,11 +181,15 @@ final savingsGoalsProvider = StreamProvider.autoDispose<List<SavingsGoal>>((ref)
   return ref.watch(ledgerRepositoryProvider).watchSavingsGoals();
 });
 
-/// Net worth = sum(wallet balances) + sum(client receivables) − sum(client payables)
+/// Net worth = sum(wallet at current FX) + receivables − payables
 final netWorthProvider = FutureProvider.autoDispose<int>((ref) async {
+  final repo = ref.watch(ledgerRepositoryProvider);
   final wallets = ref.watch(walletAccountsProvider).valueOrNull ?? [];
   final clients = ref.watch(activeClientsProvider).valueOrNull ?? [];
-  final walletTotal = wallets.fold(0, (sum, a) => sum + a.balanceMinor);
+  var walletTotal = 0;
+  for (final a in wallets) {
+    walletTotal += await repo.convertWalletToDefaultMinor(a.balanceMinor, a.currencyCode);
+  }
   var receivable = 0;
   var payable = 0;
   for (final c in clients) {
@@ -193,4 +197,21 @@ final netWorthProvider = FutureProvider.autoDispose<int>((ref) async {
     if (c.balanceMinor < 0) payable += -c.balanceMinor;
   }
   return walletTotal + receivable - payable;
+});
+
+final allWalletLedgerProvider = StreamProvider.autoDispose<List<WalletLedgerEntry>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchAllWalletLedger();
+});
+
+final managedCurrenciesProvider = StreamProvider.autoDispose<List<ManagedCurrency>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchManagedCurrencies();
+});
+
+final currentRateProvider = StreamProvider.autoDispose.family<num?, String>((ref, code) {
+  return ref.watch(ledgerRepositoryProvider).watchCurrentRate(code);
+});
+
+final rateHistoryProvider =
+    StreamProvider.autoDispose.family<List<ExchangeRateHistoryData>, String>((ref, code) {
+  return ref.watch(ledgerRepositoryProvider).watchRateHistory(code);
 });

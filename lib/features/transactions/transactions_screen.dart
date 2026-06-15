@@ -4,12 +4,14 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/ledger_repository.dart';
 import '../../data/ledger_types.dart';
 import '../../providers/providers.dart';
 import '../../services/export_service.dart';
+import '../../services/home_widget_service.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
 import '../../widgets/hud_empty_state.dart';
@@ -38,6 +40,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   String _searchQuery = '';
   final Set<_TxTypeFilter> _typeFilters = {};
   final TextEditingController _searchCtrl = TextEditingController();
+  bool _handledWidgetLaunch = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _handleWidgetLaunch());
+  }
+
+  Future<void> _handleWidgetLaunch() async {
+    if (_handledWidgetLaunch || !mounted) return;
+    final uri = GoRouterState.of(context).uri;
+    final launch = HomeWidgetService.parseTransactionLaunch(uri);
+    if (!launch.open) return;
+    _handledWidgetLaunch = true;
+    await _openEditor(context, defaultType: launch.type);
+  }
 
   @override
   void dispose() {
@@ -417,6 +435,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     }
 
     if (!context.mounted) return;
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = editing == null ? await repo.foreignCurrencyEditorContext() : null;
+    if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -438,6 +459,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           initialTagIds: selectedTags,
           initialEffectiveAt: editing?.effectiveAt ?? editing?.createdAt,
           currentBalanceMinor: editing?.postedBalanceBeforeMinor ?? fallbackBalance,
+          foreignCurrencyCodes: foreign?.codes ?? const [],
+          foreignRates: foreign?.rates ?? const {},
           templates: editing == null
               ? (ref.read(transactionTemplatesProvider).valueOrNull ?? [])
               : [],
@@ -455,7 +478,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           onDeleteTemplate: editing == null
               ? (id) => ref.read(ledgerRepositoryProvider).deleteTemplate(id)
               : null,
-          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt) async {
+          onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt, [fromCurrency]) async {
             if (editing == null) {
               await ref.read(ledgerRepositoryProvider).insertTransaction(
                 clientId: targetClientId!,
@@ -465,6 +488,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 tagIds: tagIds,
                 effectiveAt: effectiveAt,
                 dueAt: dueAt,
+                fromCurrency: fromCurrency,
               );
             } else {
               await ref.read(ledgerRepositoryProvider).updateTransaction(

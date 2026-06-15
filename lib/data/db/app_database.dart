@@ -70,6 +70,8 @@ class LedgerTransactions extends Table {
   DateTimeColumn get cancelledAt => dateTime().nullable()();
   TextColumn get note => text().nullable()();
   DateTimeColumn get dueAt => dateTime().nullable()();
+  /// Optional JSON: { code, rate, amount } — foreign clarification; amountMinor stays default total.
+  TextColumn get fromCurrencyJson => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -134,6 +136,7 @@ class PersonalFinanceEntries extends Table {
   TextColumn get note => text().nullable()();
   /// FK to ExpenseCategories (nullable — pre-existing entries have no category)
   TextColumn get categoryId => text().nullable()();
+  TextColumn get fromCurrencyJson => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -167,6 +170,7 @@ class WishlistItems extends Table {
   BoolColumn get isPurchased => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get purchasedAt => dateTime().nullable()();
+  TextColumn get fromCurrencyJson => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -177,6 +181,7 @@ class WalletAccounts extends Table {
   TextColumn get id => text()();
   TextColumn get name => text()();
   TextColumn get emoji => text().withDefault(const Constant('💵'))();
+  TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
   IntColumn get balanceMinor => integer().withDefault(const Constant(0))();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
@@ -197,6 +202,46 @@ class SavingsGoals extends Table {
   DateTimeColumn get deadline => dateTime().nullable()();
   BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@TableIndex(name: 'idx_wallet_ledger_account_created', columns: {#accountId, #createdAt})
+class WalletLedgerEntries extends Table {
+  TextColumn get id => text()();
+  TextColumn get accountId => text().references(WalletAccounts, #id)();
+  TextColumn get opType => text()(); // increase | decrease | set
+  IntColumn get amountMinor => integer()();
+  IntColumn get balanceBeforeMinor => integer()();
+  IntColumn get balanceAfterMinor => integer()();
+  TextColumn get note => text().nullable()();
+  TextColumn get source => text().withDefault(const Constant('manual'))();
+  TextColumn get referenceId => text().nullable()();
+  TextColumn get fromCurrencyJson => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class ManagedCurrencies extends Table {
+  TextColumn get code => text()();
+  IntColumn get fractionDigits => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
+
+@TableIndex(name: 'idx_exchange_rate_currency_recorded', columns: {#currencyCode, #recordedAt})
+class ExchangeRateHistory extends Table {
+  TextColumn get id => text()();
+  TextColumn get currencyCode => text().references(ManagedCurrencies, #code)();
+  IntColumn get rateToDefault => integer()();
+  IntColumn get rateScale => integer().withDefault(const Constant(0))();
+  DateTimeColumn get recordedAt => dateTime()();
+  TextColumn get note => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -229,6 +274,16 @@ class AppSettings extends Table {
   IntColumn get notifInactivityDays => integer().withDefault(const Constant(7))();
   BoolColumn get notifSyncEnabled => boolean().withDefault(const Constant(false))();
 
+  // Client list + chart prefs (v10)
+  TextColumn get clientSortField =>
+      text().withDefault(const Constant('name'))();
+  BoolColumn get clientSortAscending =>
+      boolean().withDefault(const Constant(true))();
+  TextColumn get clientListLayout =>
+      text().withDefault(const Constant('detailed'))();
+  TextColumn get chartCurveStyle =>
+      text().withDefault(const Constant('monotone'))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -249,13 +304,16 @@ class AppSettings extends Table {
     WishlistItems,
     WalletAccounts,
     SavingsGoals,
+    WalletLedgerEntries,
+    ManagedCurrencies,
+    ExchangeRateHistory,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -263,6 +321,7 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _seedDefaultCategories();
           await _seedDefaultWallet();
+          await _seedDefaultCurrency();
           await into(appSettings).insert(
             const AppSettingsCompanion(
               id: Value(1),
@@ -376,6 +435,30 @@ class AppDatabase extends _$AppDatabase {
             await _seedDefaultCategories();
             await _seedDefaultWallet();
           }
+          if (from < 10) {
+            await m.addColumn(appSettings, appSettings.clientSortField);
+            await m.addColumn(appSettings, appSettings.clientSortAscending);
+            await m.addColumn(appSettings, appSettings.clientListLayout);
+            await m.addColumn(appSettings, appSettings.chartCurveStyle);
+          }
+          if (from < 11) {
+            await m.createTable(walletLedgerEntries);
+          }
+          if (from < 12) {
+            await m.createTable(managedCurrencies);
+            await m.createTable(exchangeRateHistory);
+            await m.addColumn(walletAccounts, walletAccounts.currencyCode);
+            await m.addColumn(
+              ledgerTransactions,
+              ledgerTransactions.fromCurrencyJson,
+            );
+            await m.addColumn(
+              personalFinanceEntries,
+              personalFinanceEntries.fromCurrencyJson,
+            );
+            await m.addColumn(wishlistItems, wishlistItems.fromCurrencyJson);
+            await _seedDefaultCurrency();
+          }
         },
       );
 
@@ -442,6 +525,17 @@ class AppDatabase extends _$AppDatabase {
     await seed(id: 'cat-gain-salary',   name: 'Salary',    colorHex: '#22C55E', iconCodePoint: 0xe8f9, scope: 'gain');
     await seed(id: 'cat-gain-freelance',name: 'Freelance', colorHex: '#38BDF8', iconCodePoint: 0xe86f, scope: 'gain');
     await seed(id: 'cat-gain-other',    name: 'Other',     colorHex: '#64748B', iconCodePoint: 0xe574, scope: 'gain');
+  }
+
+  Future<void> _seedDefaultCurrency() async {
+    final now = DateTime.now().toUtc();
+    await into(managedCurrencies).insertOnConflictUpdate(
+      ManagedCurrenciesCompanion.insert(
+        code: 'DZD',
+        fractionDigits: const Value(0),
+        createdAt: now,
+      ),
+    );
   }
 
   Future<void> _seedDefaultWallet() async {

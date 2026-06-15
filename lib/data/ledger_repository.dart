@@ -6,6 +6,10 @@ import 'package:uuid/uuid.dart';
 
 import 'db/app_database.dart';
 import 'ledger_types.dart';
+import '../models/from_currency_snapshot.dart';
+import '../utils/chart_curve.dart';
+import '../utils/client_list_prefs.dart';
+import '../utils/exchange_rate.dart';
 
 class LifetimeTotals {
   const LifetimeTotals({
@@ -327,8 +331,26 @@ class LedgerRepository {
         ? await _personalFinanceExportRows(categoriesById: categoriesById)
         : <Map<String, dynamic>>[];
 
+    final defaultCode = await defaultCurrencyCode();
+    final managedCurrencies = clientId == null
+        ? await (_db.select(_db.managedCurrencies)).get()
+        : <ManagedCurrency>[];
+    final rateHistory = clientId == null
+        ? await (_db.select(_db.exchangeRateHistory)
+              ..orderBy([(r) => OrderingTerm.asc(r.recordedAt)]))
+            .get()
+        : <ExchangeRateHistoryData>[];
+    final hasCurrencyExtras = managedCurrencies.length > 1 || rateHistory.isNotEmpty;
+    final exportVersion = hasCurrencyExtras ? 3 : 2;
+
+    Map<String, dynamic>? fromCurrencyExport(String? json) {
+      final snap = FromCurrencySnapshot.fromJsonString(json);
+      return snap?.toJson();
+    }
+
     return {
-      'version': 2,
+      'version': exportVersion,
+      if (exportVersion >= 3) 'defaultCurrencyCode': defaultCode,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'clients': clients.map((client) {
         final clientTagNames = (clientTagIdsByClient[client.id] ?? const <String>[])
@@ -359,6 +381,8 @@ class LedgerRepository {
             'sourceTransactionId': tx.id,
             'amountMinor': tx.amountMinor,
             'currencyCode': tx.currencyCode,
+            if (fromCurrencyExport(tx.fromCurrencyJson) != null)
+              'fromCurrency': fromCurrencyExport(tx.fromCurrencyJson),
             'txType': tx.txType,
             'txStatus': tx.txStatus,
             'note': tx.note,
@@ -415,10 +439,28 @@ class LedgerRepository {
                   'id': a.id,
                   'name': a.name,
                   'emoji': a.emoji,
+                  'currencyCode': a.currencyCode,
                   'balanceMinor': a.balanceMinor,
                   'sortOrder': a.sortOrder,
                   'createdAt': a.createdAt.toIso8601String(),
                   'updatedAt': a.updatedAt.toIso8601String(),
+                })
+            .toList(),
+      if (clientId == null && exportVersion >= 3)
+        'currencies': managedCurrencies
+            .map((c) => {
+                  'code': c.code,
+                  'fractionDigits': c.fractionDigits,
+                })
+            .toList(),
+      if (clientId == null && exportVersion >= 3)
+        'exchangeRateHistory': rateHistory
+            .map((r) => {
+                  'currencyCode': r.currencyCode,
+                  'rateToDefault': r.rateToDefault,
+                  'rateScale': r.rateScale,
+                  'recordedAt': r.recordedAt.toIso8601String(),
+                  'note': r.note,
                 })
             .toList(),
       if (clientId == null)
@@ -610,7 +652,7 @@ class LedgerRepository {
     required String clientId,
     required int amountMinor,
     required LedgerTxType type,
-    String currencyCode = 'DZD',
+    String? currencyCode,
     String? note,
     String createdBy = 'manual',
     String channel = 'other',
@@ -619,10 +661,12 @@ class LedgerRepository {
     DateTime? dueAt,
     int attachmentsCount = 0,
     List<String> tagIds = const [],
+    FromCurrencySnapshot? fromCurrency,
   }) async {
     if (amountMinor <= 0) {
       throw ArgumentError.value(amountMinor, 'amountMinor', 'must be positive');
     }
+    final defaultCode = await defaultCurrencyCode();
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
 
@@ -633,7 +677,8 @@ class LedgerRepository {
               id: id,
               clientId: clientId,
               amountMinor: amountMinor,
-              currencyCode: Value(currencyCode),
+              currencyCode: Value(defaultCode),
+              fromCurrencyJson: Value(fromCurrency?.toJsonString()),
               createdBy: Value(createdBy),
               channel: Value(channel),
               referenceNo: Value(referenceNo),
@@ -888,9 +933,33 @@ class LedgerRepository {
   Future<void> setDefaultCurrencyCode(String code) async {
     final trimmed = code.trim().toUpperCase();
     if (trimmed.isEmpty) return;
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.managedCurrencies).insertOnConflictUpdate(
+          ManagedCurrenciesCompanion.insert(
+            code: trimmed,
+            fractionDigits: const Value(0),
+            createdAt: now,
+          ),
+        );
     await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
           AppSettingsCompanion(defaultCurrencyCode: Value(trimmed)),
         );
+  }
+
+  /// Foreign currencies + latest rates for the transaction editor.
+  Future<({List<String> codes, Map<String, num> rates})>
+      foreignCurrencyEditorContext() async {
+    final defaultCode = await defaultCurrencyCode();
+    final currencies = await (_db.select(_db.managedCurrencies)).get();
+    final codes = <String>[];
+    final rates = <String, num>{};
+    for (final c in currencies) {
+      if (c.code == defaultCode) continue;
+      codes.add(c.code);
+      final r = await currentRateFor(c.code);
+      if (r != null) rates[c.code] = r;
+    }
+    return (codes: codes, rates: rates);
   }
 
   Future<int> overdueAlertDays() async {
@@ -969,6 +1038,38 @@ class LedgerRepository {
       ),
     );
   }
+
+  Future<void> saveClientListPrefs({
+    required ClientSortField sortField,
+    required bool sortAscending,
+    required ClientListLayout layout,
+  }) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+      AppSettingsCompanion(
+        clientSortField: Value(sortField.storageKey),
+        clientSortAscending: Value(sortAscending),
+        clientListLayout: Value(layout.storageKey),
+      ),
+    );
+  }
+
+  ClientSortField clientSortFieldFromSettings(AppSetting? s) =>
+      ClientSortField.fromStorage(s?.clientSortField);
+
+  bool clientSortAscendingFromSettings(AppSetting? s) =>
+      s?.clientSortAscending ?? true;
+
+  ClientListLayout clientListLayoutFromSettings(AppSetting? s) =>
+      ClientListLayout.fromStorage(s?.clientListLayout);
+
+  Future<void> saveChartCurveStyle(ChartCurveStyle style) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+      AppSettingsCompanion(chartCurveStyle: Value(style.storageKey)),
+    );
+  }
+
+  ChartCurveStyle chartCurveStyleFromSettings(AppSetting? s) =>
+      ChartCurveStyle.fromStorage(s?.chartCurveStyle);
 
   Future<void> saveSyncSettings({
     required bool enabled,
@@ -1176,6 +1277,70 @@ class LedgerRepository {
     return minNext;
   }
 
+  Future<void> _importCurrencyExtrasFromJson(String rawJson) async {
+    final Map<String, dynamic> root;
+    try {
+      root = jsonDecode(rawJson) as Map<String, dynamic>;
+    } catch (_) {
+      return;
+    }
+    final version = (root['version'] as num?)?.toInt() ?? 1;
+    if (version < 3) return;
+
+    final defaultCode =
+        root['defaultCurrencyCode']?.toString().trim().toUpperCase();
+    if (defaultCode != null && defaultCode.isNotEmpty) {
+      await setDefaultCurrencyCode(defaultCode);
+    }
+
+    final currenciesNode = root['currencies'];
+    if (currenciesNode is List) {
+      final now = DateTime.now().toUtc();
+      for (final item in currenciesNode) {
+        if (item is! Map) continue;
+        final code = (item['code'] ?? '').toString().trim().toUpperCase();
+        if (code.isEmpty) continue;
+        final frac = (item['fractionDigits'] as num?)?.toInt() ?? 0;
+        await _db.into(_db.managedCurrencies).insertOnConflictUpdate(
+              ManagedCurrenciesCompanion.insert(
+                code: code,
+                fractionDigits: Value(frac),
+                createdAt: now,
+              ),
+            );
+      }
+    }
+
+    final ratesNode = root['exchangeRateHistory'];
+    if (ratesNode is List) {
+      for (final item in ratesNode) {
+        if (item is! Map) continue;
+        final code =
+            (item['currencyCode'] ?? '').toString().trim().toUpperCase();
+        final rateRaw = item['rateToDefault'];
+        final recordedAtRaw = item['recordedAt']?.toString();
+        if (code.isEmpty || rateRaw == null || recordedAtRaw == null) continue;
+        final recordedAt = DateTime.tryParse(recordedAtRaw)?.toUtc();
+        if (recordedAt == null) continue;
+        final rateScale = (item['rateScale'] as num?)?.toInt() ?? 0;
+        final rateStored = rateRaw is int
+            ? rateRaw
+            : (rateRaw is num ? rateRaw.round() : int.tryParse('$rateRaw'));
+        if (rateStored == null) continue;
+        await _db.into(_db.exchangeRateHistory).insert(
+              ExchangeRateHistoryCompanion.insert(
+                id: _uuid.v4(),
+                currencyCode: code,
+                rateToDefault: rateStored,
+                rateScale: Value(rateScale),
+                recordedAt: recordedAt,
+                note: Value(item['note']?.toString()),
+              ),
+            );
+      }
+    }
+  }
+
   Future<ImportApplyResult> importFromJson(
     String rawJson, {
     required Map<String, ImportConflictResolution> conflictResolutionsByImportKey,
@@ -1191,6 +1356,9 @@ class LedgerRepository {
     var skippedDuplicateTransactions = 0;
 
     await _db.transaction(() async {
+      await _importCurrencyExtrasFromJson(rawJson);
+      final importDefaultCode = await defaultCurrencyCode();
+
       // ── Step 1: Upsert categories so their IDs are available for
       //           finance entries and wishlist items below.
       //           Strategy: match by (name, scope) — don't overwrite
@@ -1243,11 +1411,13 @@ class LedgerRepository {
                 ..limit(1))
               .getSingleOrNull();
           if (existing == null) {
+            final defaultCode = await defaultCurrencyCode();
             await _db.into(_db.walletAccounts).insertOnConflictUpdate(
                   WalletAccountsCompanion.insert(
                     id: acc.id,
                     name: acc.name,
                     emoji: Value(acc.emoji),
+                    currencyCode: Value(acc.currencyCode ?? defaultCode),
                     balanceMinor: Value(acc.balanceMinor),
                     sortOrder: Value(acc.sortOrder),
                     createdAt: acc.createdAt,
@@ -1444,7 +1614,8 @@ class LedgerRepository {
                   id: txId,
                   clientId: targetClientId,
                   amountMinor: tx.amountMinor,
-                  currencyCode: Value(tx.currencyCode ?? 'DZD'),
+                  currencyCode: Value(tx.currencyCode ?? importDefaultCode),
+                  fromCurrencyJson: Value(tx.fromCurrencyJson),
                   createdBy: const Value('import'),
                   channel: const Value('import'),
                   txType: tx.txType,
@@ -1879,14 +2050,17 @@ class LedgerRepository {
     required String emoji,
     required int balanceMinor,
     int sortOrder = 0,
+    String? currencyCode,
   }) async {
     final now = DateTime.now().toUtc();
     final accId = id ?? _uuid.v4();
+    final code = currencyCode ?? await defaultCurrencyCode();
     await _db.into(_db.walletAccounts).insertOnConflictUpdate(
           WalletAccountsCompanion.insert(
             id: accId,
             name: name.trim(),
             emoji: Value(emoji),
+            currencyCode: Value(code.toUpperCase()),
             balanceMinor: Value(balanceMinor),
             sortOrder: Value(sortOrder),
             createdAt: now,
@@ -1896,13 +2070,107 @@ class LedgerRepository {
     return accId;
   }
 
-  Future<void> adjustAccountBalance(String id, int newBalanceMinor) async {
-    await (_db.update(_db.walletAccounts)..where((a) => a.id.equals(id))).write(
-          WalletAccountsCompanion(
-            balanceMinor: Value(newBalanceMinor),
-            updatedAt: Value(DateTime.now().toUtc()),
-          ),
-        );
+  Future<void> adjustAccountBalance(
+    String id,
+    int newBalanceMinor, {
+    String? note,
+    String source = 'manual',
+    String? referenceId,
+    FromCurrencySnapshot? fromCurrency,
+  }) async {
+    final account = await (_db.select(_db.walletAccounts)
+          ..where((a) => a.id.equals(id)))
+        .getSingleOrNull();
+    if (account == null) return;
+    final before = account.balanceMinor;
+    if (before == newBalanceMinor) return;
+    final now = DateTime.now().toUtc();
+    final opType = 'set';
+    await _db.transaction(() async {
+      await _db.into(_db.walletLedgerEntries).insert(
+            WalletLedgerEntriesCompanion.insert(
+              id: _uuid.v4(),
+              accountId: id,
+              opType: opType,
+              amountMinor: newBalanceMinor,
+              balanceBeforeMinor: before,
+              balanceAfterMinor: newBalanceMinor,
+              note: Value(note),
+              source: Value(source),
+              referenceId: Value(referenceId),
+              fromCurrencyJson: Value(fromCurrency?.toJsonString()),
+              createdAt: now,
+            ),
+          );
+      await (_db.update(_db.walletAccounts)..where((a) => a.id.equals(id))).write(
+            WalletAccountsCompanion(
+              balanceMinor: Value(newBalanceMinor),
+              updatedAt: Value(now),
+            ),
+          );
+    });
+  }
+
+  Future<void> adjustWalletDelta(
+    String accountId,
+    int deltaMinor, {
+    String? note,
+    String source = 'manual',
+    String? referenceId,
+    FromCurrencySnapshot? fromCurrency,
+  }) async {
+    if (deltaMinor == 0) return;
+    final account = await (_db.select(_db.walletAccounts)
+          ..where((a) => a.id.equals(accountId)))
+        .getSingleOrNull();
+    if (account == null) return;
+    final before = account.balanceMinor;
+    final after = before + deltaMinor;
+    final now = DateTime.now().toUtc();
+    final opType = deltaMinor > 0 ? 'increase' : 'decrease';
+    await _db.transaction(() async {
+      await _db.into(_db.walletLedgerEntries).insert(
+            WalletLedgerEntriesCompanion.insert(
+              id: _uuid.v4(),
+              accountId: accountId,
+              opType: opType,
+              amountMinor: deltaMinor.abs(),
+              balanceBeforeMinor: before,
+              balanceAfterMinor: after,
+              note: Value(note),
+              source: Value(source),
+              referenceId: Value(referenceId),
+              fromCurrencyJson: Value(fromCurrency?.toJsonString()),
+              createdAt: now,
+            ),
+          );
+      await (_db.update(_db.walletAccounts)..where((a) => a.id.equals(accountId)))
+          .write(
+        WalletAccountsCompanion(
+          balanceMinor: Value(after),
+          updatedAt: Value(now),
+        ),
+      );
+    });
+  }
+
+  Stream<List<WalletLedgerEntry>> watchWalletLedger(String accountId) {
+    return (_db.select(_db.walletLedgerEntries)
+          ..where((e) => e.accountId.equals(accountId))
+          ..orderBy([
+            (e) => OrderingTerm.desc(e.createdAt),
+            (e) => OrderingTerm.desc(e.id),
+          ]))
+        .watch();
+  }
+
+  Stream<List<WalletLedgerEntry>> watchAllWalletLedger() {
+    return (_db.select(_db.walletLedgerEntries)
+          ..orderBy([
+            (e) => OrderingTerm.asc(e.accountId),
+            (e) => OrderingTerm.asc(e.createdAt),
+          ]))
+        .watch();
   }
 
   Future<void> deleteWalletAccount(String id) async {
@@ -1960,6 +2228,141 @@ class LedgerRepository {
 
   Future<void> deleteSavingsGoal(String id) async {
     await (_db.delete(_db.savingsGoals)..where((g) => g.id.equals(id))).go();
+  }
+
+  // ── Managed currencies & exchange rates ────────────────────────────────────
+
+  Stream<List<ManagedCurrency>> watchManagedCurrencies() {
+    return (_db.select(_db.managedCurrencies)
+          ..orderBy([(c) => OrderingTerm.asc(c.code)]))
+        .watch();
+  }
+
+  Future<void> addManagedCurrency({
+    required String code,
+    required int fractionDigits,
+    required num initialRateToDefault,
+    int rateScale = 0,
+  }) async {
+    final upper = code.trim().toUpperCase();
+    if (upper.isEmpty) return;
+    final defaultCode = await defaultCurrencyCode();
+    if (upper == defaultCode) return;
+    final now = DateTime.now().toUtc();
+    await _db.into(_db.managedCurrencies).insertOnConflictUpdate(
+          ManagedCurrenciesCompanion.insert(
+            code: upper,
+            fractionDigits: Value(fractionDigits),
+            createdAt: now,
+          ),
+        );
+    await setExchangeRate(
+      currencyCode: upper,
+      rate: initialRateToDefault,
+      rateScale: rateScale,
+      note: 'Initial rate',
+    );
+  }
+
+  Future<void> setExchangeRate({
+    required String currencyCode,
+    required num rate,
+    int rateScale = 0,
+    String? note,
+  }) async {
+    final upper = currencyCode.trim().toUpperCase();
+    final defaultCode = await defaultCurrencyCode();
+    if (upper == defaultCode || rate <= 0) return;
+    await _db.into(_db.exchangeRateHistory).insert(
+          ExchangeRateHistoryCompanion.insert(
+            id: _uuid.v4(),
+            currencyCode: upper,
+            rateToDefault: rateToStored(rate, scale: rateScale),
+            rateScale: Value(rateScale),
+            recordedAt: DateTime.now().toUtc(),
+            note: Value(note),
+          ),
+        );
+  }
+
+  Future<num?> currentRateFor(String currencyCode) async {
+    final upper = currencyCode.trim().toUpperCase();
+    final defaultCode = await defaultCurrencyCode();
+    if (upper == defaultCode) return 1;
+    final row = await (_db.select(_db.exchangeRateHistory)
+          ..where((r) => r.currencyCode.equals(upper))
+          ..orderBy([(r) => OrderingTerm.desc(r.recordedAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return null;
+    return rateFromStored(row.rateToDefault, row.rateScale);
+  }
+
+  Stream<num?> watchCurrentRate(String currencyCode) {
+    final upper = currencyCode.trim().toUpperCase();
+    return (_db.select(_db.exchangeRateHistory)
+          ..where((r) => r.currencyCode.equals(upper))
+          ..orderBy([(r) => OrderingTerm.desc(r.recordedAt)])
+          ..limit(1))
+        .watchSingleOrNull()
+        .map((r) => r == null ? null : rateFromStored(r.rateToDefault, r.rateScale));
+  }
+
+  Stream<List<ExchangeRateHistoryData>> watchRateHistory(String currencyCode) {
+    return (_db.select(_db.exchangeRateHistory)
+          ..where((r) => r.currencyCode.equals(currencyCode.toUpperCase()))
+          ..orderBy([(r) => OrderingTerm.desc(r.recordedAt)]))
+        .watch();
+  }
+
+  Future<int> convertWalletToDefaultMinor(int balanceMinor, String currencyCode) async {
+    final defaultCode = await defaultCurrencyCode();
+    if (currencyCode.toUpperCase() == defaultCode) return balanceMinor;
+    final rate = await currentRateFor(currencyCode);
+    if (rate == null) return balanceMinor;
+    final currency = await (_db.select(_db.managedCurrencies)
+          ..where((c) => c.code.equals(currencyCode.toUpperCase())))
+        .getSingleOrNull();
+    final frac = currency?.fractionDigits ?? 0;
+    final major = balanceMinor / (frac > 0 ? _pow10(frac) : 1);
+    return convertMajorToDefaultMinor(
+      majorAmount: major,
+      rate: rate,
+      defaultFractionDigits: 0,
+    );
+  }
+
+  int _pow10(int n) {
+    var r = 1;
+    for (var i = 0; i < n; i++) {
+      r *= 10;
+    }
+    return r;
+  }
+
+  Future<int> daysSinceLastTransaction() async {
+    final row = await (_db.select(_db.ledgerTransactions)
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return 999;
+    return DateTime.now().toUtc().difference(row.createdAt).inDays;
+  }
+
+  Future<void> deleteManagedCurrency(String code) async {
+    final upper = code.trim().toUpperCase();
+    final inUse = await (_db.select(_db.walletAccounts)
+          ..where((a) => a.currencyCode.equals(upper))
+          ..limit(1))
+        .getSingleOrNull();
+    if (inUse != null) {
+      throw StateError('Currency in use by wallet ${inUse.name}');
+    }
+    await (_db.delete(_db.exchangeRateHistory)
+          ..where((r) => r.currencyCode.equals(upper)))
+        .go();
+    await (_db.delete(_db.managedCurrencies)..where((c) => c.code.equals(upper)))
+        .go();
   }
 }
 
@@ -2052,6 +2455,7 @@ class _ImportedTransactionPayload {
     required this.effectiveAt,
     required this.note,
     required this.currencyCode,
+    required this.fromCurrencyJson,
     required this.tags,
   });
 
@@ -2063,6 +2467,7 @@ class _ImportedTransactionPayload {
   final DateTime? effectiveAt;
   final String? note;
   final String? currencyCode;
+  final String? fromCurrencyJson;
   final List<_ImportedTagPayload> tags;
 
   factory _ImportedTransactionPayload.fromMap(Map<String, dynamic> map) {
@@ -2089,6 +2494,14 @@ class _ImportedTransactionPayload {
             .map((e) => _ImportedTagPayload.fromMap(e.cast<String, dynamic>()))
             .toList()
         : const <_ImportedTagPayload>[];
+    final fromNode = map['fromCurrency'];
+    String? fromCurrencyJson;
+    if (fromNode is Map) {
+      final snap = FromCurrencySnapshot.fromJsonMap(
+        fromNode.cast<String, dynamic>(),
+      );
+      fromCurrencyJson = snap?.toJsonString();
+    }
     return _ImportedTransactionPayload(
       sourceTransactionId: map['sourceTransactionId']?.toString(),
       amountMinor: amountMinor,
@@ -2098,6 +2511,7 @@ class _ImportedTransactionPayload {
       effectiveAt: effectiveAt,
       note: map['note']?.toString(),
       currencyCode: map['currencyCode']?.toString(),
+      fromCurrencyJson: fromCurrencyJson,
       tags: tags,
     );
   }
@@ -2260,6 +2674,7 @@ class _ImportedWalletPayload {
     required this.id,
     required this.name,
     required this.emoji,
+    required this.currencyCode,
     required this.balanceMinor,
     required this.sortOrder,
     required this.createdAt,
@@ -2268,6 +2683,7 @@ class _ImportedWalletPayload {
   final String id;
   final String name;
   final String emoji;
+  final String? currencyCode;
   final int balanceMinor;
   final int sortOrder;
   final DateTime createdAt;
@@ -2284,6 +2700,7 @@ class _ImportedWalletPayload {
       id: (map['id'] ?? const Uuid().v4()).toString().trim(),
       name: name,
       emoji: (map['emoji'] ?? '💵').toString(),
+      currencyCode: map['currencyCode']?.toString(),
       balanceMinor: (map['balanceMinor'] as num?)?.toInt() ?? 0,
       sortOrder: (map['sortOrder'] as num?)?.toInt() ?? 0,
       createdAt: createdAt,
