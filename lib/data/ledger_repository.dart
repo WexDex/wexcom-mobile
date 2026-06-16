@@ -2085,6 +2085,8 @@ class LedgerRepository {
     required int iconCodePoint,
     int? budgetMinorPerMonth,
     required String scope,
+    String budgetPeriod = 'month',
+    int? budgetCustomDays,
   }) async {
     final now = DateTime.now().toUtc();
     final catId = id ?? _uuid.v4();
@@ -2097,6 +2099,8 @@ class LedgerRepository {
             budgetMinorPerMonth: Value(budgetMinorPerMonth),
             scope: scope,
             createdAt: now,
+            budgetPeriod: Value(budgetPeriod),
+            budgetCustomDays: Value(budgetCustomDays),
           ),
         );
     return catId;
@@ -2132,6 +2136,61 @@ class LedgerRepository {
         map[key] = (map[key] ?? 0) + r.amountMinor;
       }
       return map;
+    });
+  }
+
+  /// Returns spent amount (minor) per category id for an arbitrary date range.
+  Stream<Map<String, int>> watchSpendForPeriod(
+      String scope, DateTime start, DateTime end) {
+    return (_db.select(_db.personalFinanceEntries)
+          ..where(
+            (e) =>
+                e.kind.equals(scope == 'gain' ? 1 : 0) &
+                e.createdAt.isBiggerOrEqualValue(start.toUtc()) &
+                e.createdAt.isSmallerOrEqualValue(end.toUtc()),
+          ))
+        .watch()
+        .map((rows) {
+      final map = <String, int>{};
+      for (final r in rows) {
+        final key = r.categoryId ?? '__none__';
+        map[key] = (map[key] ?? 0) + r.amountMinor;
+      }
+      return map;
+    });
+  }
+
+  /// Returns entries for a specific category within a date range.
+  Stream<List<PersonalFinanceEntry>> watchEntriesForCategoryPeriod(
+      String categoryId, DateTime start, DateTime end) {
+    return (_db.select(_db.personalFinanceEntries)
+          ..where(
+            (e) =>
+                e.categoryId.equals(categoryId) &
+                e.createdAt.isBiggerOrEqualValue(start.toUtc()) &
+                e.createdAt.isSmallerOrEqualValue(end.toUtc()),
+          )
+          ..orderBy([(e) => OrderingTerm.desc(e.createdAt)]))
+        .watch();
+  }
+
+  /// Stream of the count of active subscriptions that are overdue or
+  /// within their [warnBeforeDays] warning window.
+  Stream<int> watchDueSoonOrOverdueCount() {
+    return (_db.select(_db.subscriptionItems)
+          ..where((s) => s.isActive.equals(true)))
+        .watch()
+        .map((subs) {
+      final now = DateTime.now();
+      return subs.where((s) {
+        final due = s.nextDueAt.toLocal();
+        if (due.isBefore(now)) return true;
+        final warn = s.warnBeforeDays;
+        if (warn != null && warn > 0) {
+          return due.isBefore(now.add(Duration(days: warn)));
+        }
+        return false;
+      }).length;
     });
   }
 
@@ -2249,6 +2308,7 @@ class LedgerRepository {
     String? note,
     String? categoryId,
     FromCurrencySnapshot? fromCurrency,
+    int? warnBeforeDays,
   }) async {
     final now = DateTime.now().toUtc();
     final id = _uuid.v4();
@@ -2273,6 +2333,7 @@ class LedgerRepository {
             billingDayOfMonth: Value(billingDayOfMonth),
             rollingDays: Value(rollingDays),
             nextDueAt: due,
+            warnBeforeDays: Value(warnBeforeDays),
             createdAt: now,
             updatedAt: now,
           ),
@@ -2296,6 +2357,8 @@ class LedgerRepository {
     String? categoryId,
     FromCurrencySnapshot? fromCurrency,
     bool clearFromCurrency = false,
+    int? warnBeforeDays,
+    bool clearWarnBeforeDays = false,
   }) async {
     final now = DateTime.now().toUtc();
     await (_db.update(_db.subscriptionItems)..where((s) => s.id.equals(id))).write(
@@ -2313,6 +2376,9 @@ class LedgerRepository {
             billingDayOfMonth: Value(billingDayOfMonth),
             rollingDays: Value(rollingDays),
             nextDueAt: nextDueAt == null ? const Value.absent() : Value(nextDueAt.toUtc()),
+            warnBeforeDays: clearWarnBeforeDays
+                ? const Value(null)
+                : Value(warnBeforeDays),
             updatedAt: Value(now),
           ),
         );

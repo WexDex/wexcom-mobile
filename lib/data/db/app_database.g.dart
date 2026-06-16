@@ -6779,6 +6779,29 @@ class $ExpenseCategoriesTable extends ExpenseCategories
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _budgetPeriodMeta = const VerificationMeta(
+    'budgetPeriod',
+  );
+  @override
+  late final GeneratedColumn<String> budgetPeriod = GeneratedColumn<String>(
+    'budget_period',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('month'),
+  );
+  static const VerificationMeta _budgetCustomDaysMeta = const VerificationMeta(
+    'budgetCustomDays',
+  );
+  @override
+  late final GeneratedColumn<int> budgetCustomDays = GeneratedColumn<int>(
+    'budget_custom_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6788,6 +6811,8 @@ class $ExpenseCategoriesTable extends ExpenseCategories
     budgetMinorPerMonth,
     scope,
     createdAt,
+    budgetPeriod,
+    budgetCustomDays,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6856,6 +6881,24 @@ class $ExpenseCategoriesTable extends ExpenseCategories
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('budget_period')) {
+      context.handle(
+        _budgetPeriodMeta,
+        budgetPeriod.isAcceptableOrUnknown(
+          data['budget_period']!,
+          _budgetPeriodMeta,
+        ),
+      );
+    }
+    if (data.containsKey('budget_custom_days')) {
+      context.handle(
+        _budgetCustomDaysMeta,
+        budgetCustomDays.isAcceptableOrUnknown(
+          data['budget_custom_days']!,
+          _budgetCustomDaysMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6893,6 +6936,14 @@ class $ExpenseCategoriesTable extends ExpenseCategories
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      budgetPeriod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}budget_period'],
+      )!,
+      budgetCustomDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}budget_custom_days'],
+      ),
     );
   }
 
@@ -6912,6 +6963,12 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
   /// 'expense' or 'gain'
   final String scope;
   final DateTime createdAt;
+
+  /// 'week' | 'month' | 'custom' — period type for the budget window
+  final String budgetPeriod;
+
+  /// Used when budgetPeriod = 'custom': rolling window in days
+  final int? budgetCustomDays;
   const ExpenseCategory({
     required this.id,
     required this.name,
@@ -6920,6 +6977,8 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
     this.budgetMinorPerMonth,
     required this.scope,
     required this.createdAt,
+    required this.budgetPeriod,
+    this.budgetCustomDays,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6933,6 +6992,10 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
     }
     map['scope'] = Variable<String>(scope);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['budget_period'] = Variable<String>(budgetPeriod);
+    if (!nullToAbsent || budgetCustomDays != null) {
+      map['budget_custom_days'] = Variable<int>(budgetCustomDays);
+    }
     return map;
   }
 
@@ -6947,6 +7010,10 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
           : Value(budgetMinorPerMonth),
       scope: Value(scope),
       createdAt: Value(createdAt),
+      budgetPeriod: Value(budgetPeriod),
+      budgetCustomDays: budgetCustomDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(budgetCustomDays),
     );
   }
 
@@ -6965,6 +7032,8 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
       ),
       scope: serializer.fromJson<String>(json['scope']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      budgetPeriod: serializer.fromJson<String>(json['budgetPeriod']),
+      budgetCustomDays: serializer.fromJson<int?>(json['budgetCustomDays']),
     );
   }
   @override
@@ -6978,6 +7047,8 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
       'budgetMinorPerMonth': serializer.toJson<int?>(budgetMinorPerMonth),
       'scope': serializer.toJson<String>(scope),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'budgetPeriod': serializer.toJson<String>(budgetPeriod),
+      'budgetCustomDays': serializer.toJson<int?>(budgetCustomDays),
     };
   }
 
@@ -6989,6 +7060,8 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
     Value<int?> budgetMinorPerMonth = const Value.absent(),
     String? scope,
     DateTime? createdAt,
+    String? budgetPeriod,
+    Value<int?> budgetCustomDays = const Value.absent(),
   }) => ExpenseCategory(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -6999,6 +7072,10 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
         : this.budgetMinorPerMonth,
     scope: scope ?? this.scope,
     createdAt: createdAt ?? this.createdAt,
+    budgetPeriod: budgetPeriod ?? this.budgetPeriod,
+    budgetCustomDays: budgetCustomDays.present
+        ? budgetCustomDays.value
+        : this.budgetCustomDays,
   );
   ExpenseCategory copyWithCompanion(ExpenseCategoriesCompanion data) {
     return ExpenseCategory(
@@ -7013,6 +7090,12 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
           : this.budgetMinorPerMonth,
       scope: data.scope.present ? data.scope.value : this.scope,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      budgetPeriod: data.budgetPeriod.present
+          ? data.budgetPeriod.value
+          : this.budgetPeriod,
+      budgetCustomDays: data.budgetCustomDays.present
+          ? data.budgetCustomDays.value
+          : this.budgetCustomDays,
     );
   }
 
@@ -7025,7 +7108,9 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('budgetMinorPerMonth: $budgetMinorPerMonth, ')
           ..write('scope: $scope, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('budgetPeriod: $budgetPeriod, ')
+          ..write('budgetCustomDays: $budgetCustomDays')
           ..write(')'))
         .toString();
   }
@@ -7039,6 +7124,8 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
     budgetMinorPerMonth,
     scope,
     createdAt,
+    budgetPeriod,
+    budgetCustomDays,
   );
   @override
   bool operator ==(Object other) =>
@@ -7050,7 +7137,9 @@ class ExpenseCategory extends DataClass implements Insertable<ExpenseCategory> {
           other.iconCodePoint == this.iconCodePoint &&
           other.budgetMinorPerMonth == this.budgetMinorPerMonth &&
           other.scope == this.scope &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.budgetPeriod == this.budgetPeriod &&
+          other.budgetCustomDays == this.budgetCustomDays);
 }
 
 class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
@@ -7061,6 +7150,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
   final Value<int?> budgetMinorPerMonth;
   final Value<String> scope;
   final Value<DateTime> createdAt;
+  final Value<String> budgetPeriod;
+  final Value<int?> budgetCustomDays;
   final Value<int> rowid;
   const ExpenseCategoriesCompanion({
     this.id = const Value.absent(),
@@ -7070,6 +7161,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
     this.budgetMinorPerMonth = const Value.absent(),
     this.scope = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.budgetPeriod = const Value.absent(),
+    this.budgetCustomDays = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpenseCategoriesCompanion.insert({
@@ -7080,6 +7173,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
     this.budgetMinorPerMonth = const Value.absent(),
     required String scope,
     required DateTime createdAt,
+    this.budgetPeriod = const Value.absent(),
+    this.budgetCustomDays = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -7094,6 +7189,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
     Expression<int>? budgetMinorPerMonth,
     Expression<String>? scope,
     Expression<DateTime>? createdAt,
+    Expression<String>? budgetPeriod,
+    Expression<int>? budgetCustomDays,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -7105,6 +7202,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
         'budget_minor_per_month': budgetMinorPerMonth,
       if (scope != null) 'scope': scope,
       if (createdAt != null) 'created_at': createdAt,
+      if (budgetPeriod != null) 'budget_period': budgetPeriod,
+      if (budgetCustomDays != null) 'budget_custom_days': budgetCustomDays,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -7117,6 +7216,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
     Value<int?>? budgetMinorPerMonth,
     Value<String>? scope,
     Value<DateTime>? createdAt,
+    Value<String>? budgetPeriod,
+    Value<int?>? budgetCustomDays,
     Value<int>? rowid,
   }) {
     return ExpenseCategoriesCompanion(
@@ -7127,6 +7228,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
       budgetMinorPerMonth: budgetMinorPerMonth ?? this.budgetMinorPerMonth,
       scope: scope ?? this.scope,
       createdAt: createdAt ?? this.createdAt,
+      budgetPeriod: budgetPeriod ?? this.budgetPeriod,
+      budgetCustomDays: budgetCustomDays ?? this.budgetCustomDays,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7155,6 +7258,12 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (budgetPeriod.present) {
+      map['budget_period'] = Variable<String>(budgetPeriod.value);
+    }
+    if (budgetCustomDays.present) {
+      map['budget_custom_days'] = Variable<int>(budgetCustomDays.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7171,6 +7280,8 @@ class ExpenseCategoriesCompanion extends UpdateCompanion<ExpenseCategory> {
           ..write('budgetMinorPerMonth: $budgetMinorPerMonth, ')
           ..write('scope: $scope, ')
           ..write('createdAt: $createdAt, ')
+          ..write('budgetPeriod: $budgetPeriod, ')
+          ..write('budgetCustomDays: $budgetCustomDays, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7959,6 +8070,17 @@ class $SubscriptionItemsTable extends SubscriptionItems
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _warnBeforeDaysMeta = const VerificationMeta(
+    'warnBeforeDays',
+  );
+  @override
+  late final GeneratedColumn<int> warnBeforeDays = GeneratedColumn<int>(
+    'warn_before_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -7996,6 +8118,7 @@ class $SubscriptionItemsTable extends SubscriptionItems
     nextDueAt,
     lastLoggedAt,
     isActive,
+    warnBeforeDays,
     createdAt,
     updatedAt,
   ];
@@ -8117,6 +8240,15 @@ class $SubscriptionItemsTable extends SubscriptionItems
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('warn_before_days')) {
+      context.handle(
+        _warnBeforeDaysMeta,
+        warnBeforeDays.isAcceptableOrUnknown(
+          data['warn_before_days']!,
+          _warnBeforeDaysMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -8194,6 +8326,10 @@ class $SubscriptionItemsTable extends SubscriptionItems
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      warnBeforeDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}warn_before_days'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -8228,6 +8364,9 @@ class SubscriptionItem extends DataClass
   final DateTime nextDueAt;
   final DateTime? lastLoggedAt;
   final bool isActive;
+
+  /// Days before nextDueAt to fire a warning notification (null = disabled)
+  final int? warnBeforeDays;
   final DateTime createdAt;
   final DateTime updatedAt;
   const SubscriptionItem({
@@ -8244,6 +8383,7 @@ class SubscriptionItem extends DataClass
     required this.nextDueAt,
     this.lastLoggedAt,
     required this.isActive,
+    this.warnBeforeDays,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -8275,6 +8415,9 @@ class SubscriptionItem extends DataClass
       map['last_logged_at'] = Variable<DateTime>(lastLoggedAt);
     }
     map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || warnBeforeDays != null) {
+      map['warn_before_days'] = Variable<int>(warnBeforeDays);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -8305,6 +8448,9 @@ class SubscriptionItem extends DataClass
           ? const Value.absent()
           : Value(lastLoggedAt),
       isActive: Value(isActive),
+      warnBeforeDays: warnBeforeDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(warnBeforeDays),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -8329,6 +8475,7 @@ class SubscriptionItem extends DataClass
       nextDueAt: serializer.fromJson<DateTime>(json['nextDueAt']),
       lastLoggedAt: serializer.fromJson<DateTime?>(json['lastLoggedAt']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      warnBeforeDays: serializer.fromJson<int?>(json['warnBeforeDays']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -8350,6 +8497,7 @@ class SubscriptionItem extends DataClass
       'nextDueAt': serializer.toJson<DateTime>(nextDueAt),
       'lastLoggedAt': serializer.toJson<DateTime?>(lastLoggedAt),
       'isActive': serializer.toJson<bool>(isActive),
+      'warnBeforeDays': serializer.toJson<int?>(warnBeforeDays),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -8369,6 +8517,7 @@ class SubscriptionItem extends DataClass
     DateTime? nextDueAt,
     Value<DateTime?> lastLoggedAt = const Value.absent(),
     bool? isActive,
+    Value<int?> warnBeforeDays = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => SubscriptionItem(
@@ -8389,6 +8538,9 @@ class SubscriptionItem extends DataClass
     nextDueAt: nextDueAt ?? this.nextDueAt,
     lastLoggedAt: lastLoggedAt.present ? lastLoggedAt.value : this.lastLoggedAt,
     isActive: isActive ?? this.isActive,
+    warnBeforeDays: warnBeforeDays.present
+        ? warnBeforeDays.value
+        : this.warnBeforeDays,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -8423,6 +8575,9 @@ class SubscriptionItem extends DataClass
           ? data.lastLoggedAt.value
           : this.lastLoggedAt,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      warnBeforeDays: data.warnBeforeDays.present
+          ? data.warnBeforeDays.value
+          : this.warnBeforeDays,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -8444,6 +8599,7 @@ class SubscriptionItem extends DataClass
           ..write('nextDueAt: $nextDueAt, ')
           ..write('lastLoggedAt: $lastLoggedAt, ')
           ..write('isActive: $isActive, ')
+          ..write('warnBeforeDays: $warnBeforeDays, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -8465,6 +8621,7 @@ class SubscriptionItem extends DataClass
     nextDueAt,
     lastLoggedAt,
     isActive,
+    warnBeforeDays,
     createdAt,
     updatedAt,
   );
@@ -8485,6 +8642,7 @@ class SubscriptionItem extends DataClass
           other.nextDueAt == this.nextDueAt &&
           other.lastLoggedAt == this.lastLoggedAt &&
           other.isActive == this.isActive &&
+          other.warnBeforeDays == this.warnBeforeDays &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -8503,6 +8661,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
   final Value<DateTime> nextDueAt;
   final Value<DateTime?> lastLoggedAt;
   final Value<bool> isActive;
+  final Value<int?> warnBeforeDays;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -8520,6 +8679,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
     this.nextDueAt = const Value.absent(),
     this.lastLoggedAt = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.warnBeforeDays = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -8538,6 +8698,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
     required DateTime nextDueAt,
     this.lastLoggedAt = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.warnBeforeDays = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -8562,6 +8723,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
     Expression<DateTime>? nextDueAt,
     Expression<DateTime>? lastLoggedAt,
     Expression<bool>? isActive,
+    Expression<int>? warnBeforeDays,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -8580,6 +8742,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
       if (nextDueAt != null) 'next_due_at': nextDueAt,
       if (lastLoggedAt != null) 'last_logged_at': lastLoggedAt,
       if (isActive != null) 'is_active': isActive,
+      if (warnBeforeDays != null) 'warn_before_days': warnBeforeDays,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -8600,6 +8763,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
     Value<DateTime>? nextDueAt,
     Value<DateTime?>? lastLoggedAt,
     Value<bool>? isActive,
+    Value<int?>? warnBeforeDays,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -8618,6 +8782,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
       nextDueAt: nextDueAt ?? this.nextDueAt,
       lastLoggedAt: lastLoggedAt ?? this.lastLoggedAt,
       isActive: isActive ?? this.isActive,
+      warnBeforeDays: warnBeforeDays ?? this.warnBeforeDays,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -8666,6 +8831,9 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (warnBeforeDays.present) {
+      map['warn_before_days'] = Variable<int>(warnBeforeDays.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -8694,6 +8862,7 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
           ..write('nextDueAt: $nextDueAt, ')
           ..write('lastLoggedAt: $lastLoggedAt, ')
           ..write('isActive: $isActive, ')
+          ..write('warnBeforeDays: $warnBeforeDays, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -15522,6 +15691,8 @@ typedef $$ExpenseCategoriesTableCreateCompanionBuilder =
       Value<int?> budgetMinorPerMonth,
       required String scope,
       required DateTime createdAt,
+      Value<String> budgetPeriod,
+      Value<int?> budgetCustomDays,
       Value<int> rowid,
     });
 typedef $$ExpenseCategoriesTableUpdateCompanionBuilder =
@@ -15533,6 +15704,8 @@ typedef $$ExpenseCategoriesTableUpdateCompanionBuilder =
       Value<int?> budgetMinorPerMonth,
       Value<String> scope,
       Value<DateTime> createdAt,
+      Value<String> budgetPeriod,
+      Value<int?> budgetCustomDays,
       Value<int> rowid,
     });
 
@@ -15577,6 +15750,16 @@ class $$ExpenseCategoriesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get budgetPeriod => $composableBuilder(
+    column: $table.budgetPeriod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get budgetCustomDays => $composableBuilder(
+    column: $table.budgetCustomDays,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -15624,6 +15807,16 @@ class $$ExpenseCategoriesTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get budgetPeriod => $composableBuilder(
+    column: $table.budgetPeriod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get budgetCustomDays => $composableBuilder(
+    column: $table.budgetCustomDays,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpenseCategoriesTableAnnotationComposer
@@ -15659,6 +15852,16 @@ class $$ExpenseCategoriesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get budgetPeriod => $composableBuilder(
+    column: $table.budgetPeriod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get budgetCustomDays => $composableBuilder(
+    column: $table.budgetCustomDays,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpenseCategoriesTableTableManager
@@ -15708,6 +15911,8 @@ class $$ExpenseCategoriesTableTableManager
                 Value<int?> budgetMinorPerMonth = const Value.absent(),
                 Value<String> scope = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<String> budgetPeriod = const Value.absent(),
+                Value<int?> budgetCustomDays = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpenseCategoriesCompanion(
                 id: id,
@@ -15717,6 +15922,8 @@ class $$ExpenseCategoriesTableTableManager
                 budgetMinorPerMonth: budgetMinorPerMonth,
                 scope: scope,
                 createdAt: createdAt,
+                budgetPeriod: budgetPeriod,
+                budgetCustomDays: budgetCustomDays,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15728,6 +15935,8 @@ class $$ExpenseCategoriesTableTableManager
                 Value<int?> budgetMinorPerMonth = const Value.absent(),
                 required String scope,
                 required DateTime createdAt,
+                Value<String> budgetPeriod = const Value.absent(),
+                Value<int?> budgetCustomDays = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpenseCategoriesCompanion.insert(
                 id: id,
@@ -15737,6 +15946,8 @@ class $$ExpenseCategoriesTableTableManager
                 budgetMinorPerMonth: budgetMinorPerMonth,
                 scope: scope,
                 createdAt: createdAt,
+                budgetPeriod: budgetPeriod,
+                budgetCustomDays: budgetCustomDays,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16086,6 +16297,7 @@ typedef $$SubscriptionItemsTableCreateCompanionBuilder =
       required DateTime nextDueAt,
       Value<DateTime?> lastLoggedAt,
       Value<bool> isActive,
+      Value<int?> warnBeforeDays,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -16105,6 +16317,7 @@ typedef $$SubscriptionItemsTableUpdateCompanionBuilder =
       Value<DateTime> nextDueAt,
       Value<DateTime?> lastLoggedAt,
       Value<bool> isActive,
+      Value<int?> warnBeforeDays,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -16181,6 +16394,11 @@ class $$SubscriptionItemsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get warnBeforeDays => $composableBuilder(
+    column: $table.warnBeforeDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16269,6 +16487,11 @@ class $$SubscriptionItemsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get warnBeforeDays => $composableBuilder(
+    column: $table.warnBeforeDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -16344,6 +16567,11 @@ class $$SubscriptionItemsTableAnnotationComposer
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
+  GeneratedColumn<int> get warnBeforeDays => $composableBuilder(
+    column: $table.warnBeforeDays,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -16404,6 +16632,7 @@ class $$SubscriptionItemsTableTableManager
                 Value<DateTime> nextDueAt = const Value.absent(),
                 Value<DateTime?> lastLoggedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int?> warnBeforeDays = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -16421,6 +16650,7 @@ class $$SubscriptionItemsTableTableManager
                 nextDueAt: nextDueAt,
                 lastLoggedAt: lastLoggedAt,
                 isActive: isActive,
+                warnBeforeDays: warnBeforeDays,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -16440,6 +16670,7 @@ class $$SubscriptionItemsTableTableManager
                 required DateTime nextDueAt,
                 Value<DateTime?> lastLoggedAt = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int?> warnBeforeDays = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -16457,6 +16688,7 @@ class $$SubscriptionItemsTableTableManager
                 nextDueAt: nextDueAt,
                 lastLoggedAt: lastLoggedAt,
                 isActive: isActive,
+                warnBeforeDays: warnBeforeDays,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

@@ -154,6 +154,10 @@ class ExpenseCategories extends Table {
   /// 'expense' or 'gain'
   TextColumn get scope => text()();
   DateTimeColumn get createdAt => dateTime()();
+  /// 'week' | 'month' | 'custom' — period type for the budget window
+  TextColumn get budgetPeriod => text().withDefault(const Constant('month'))();
+  /// Used when budgetPeriod = 'custom': rolling window in days
+  IntColumn get budgetCustomDays => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -192,6 +196,8 @@ class SubscriptionItems extends Table {
   DateTimeColumn get nextDueAt => dateTime()();
   DateTimeColumn get lastLoggedAt => dateTime().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  /// Days before nextDueAt to fire a warning notification (null = disabled)
+  IntColumn get warnBeforeDays => integer().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -344,7 +350,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -495,6 +501,11 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(appSettings, appSettings.notifBackupReminderEnabled);
             await m.addColumn(appSettings, appSettings.notifBackupReminderDays);
             await m.addColumn(appSettings, appSettings.lastJsonExportAt);
+          }
+          if (from < 14) {
+            await m.addColumn(expenseCategories, expenseCategories.budgetPeriod);
+            await m.addColumn(expenseCategories, expenseCategories.budgetCustomDays);
+            await m.addColumn(subscriptionItems, subscriptionItems.warnBeforeDays);
           }
         },
       );

@@ -6,8 +6,38 @@ Newest entries at the top. See [AGENTS.md](AGENTS.md) for how this file is maint
 
 | Version | Date | Type |
 |---------|------|------|
+| [Finance Analytics Depth](#unreleased--2026-06-16--minor) | 2026-06-16 | Minor |
 | [Unreleased](#unreleased--2026-06-15--minor) | 2026-06-15 | Minor (polish backlog) |
 | Finance UX Phase 2 | 2026-06-15 | Major |
+
+---
+
+## [Unreleased] — 2026-06-16 — Minor
+
+**Summary:** In-depth Expenses & Gains analytics, flexible budget periods, subscription rolling warnings + badge counts.
+
+**Plan:** Finance Analytics Depth
+
+**In scope:**
+- Enhanced period selector: This Week / This Month / Last Month / Custom date range on both Expenses and Gains tabs
+- Stat row: Period total, Daily avg, Weekly avg cards
+- Trend card: current period vs previous same-length window (↑/↓ %)
+- Expenses vs Gains comparison bar with net balance
+- Category breakdown list: amount + % fill bar per category, replaces plain FilterChip row
+- Category detail sheet: mini chart + entry list per category (tap → filter, chevron → sheet)
+- Top category highlight card
+- Budget period per category: Weekly / Monthly / Custom N-day rolling window (schema v14 migration)
+- Budget bar label shows the active window ("this week", "this month", "last Nd")
+- Subscription rolling warning state: amber border + "Needs logging" chip when overdue
+- "Due soon" chip when within `warnBeforeDays` window
+- `warnBeforeDays` field added to subscription editor
+- Per-subscription scheduled warning notifications via `NotificationService`
+- Finance tab badge count (overdue + due-soon subscriptions) on bottom nav
+- App icon badge count via `flutter_app_badger` (Android)
+- DB schema bumped to v14 (new columns: `budget_period`, `budget_custom_days`, `warn_before_days`)
+
+**Not in scope:**
+- Cumulative chart, bulk delete, search/sort/quick-recategorize, recurring auto-repeat
 
 ---
 

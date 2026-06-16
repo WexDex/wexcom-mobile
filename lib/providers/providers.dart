@@ -219,3 +219,28 @@ final rateHistoryProvider =
 final subscriptionsProvider = StreamProvider.autoDispose<List<SubscriptionItem>>((ref) {
   return ref.watch(ledgerRepositoryProvider).watchSubscriptionItems();
 });
+
+// ── Part G — Analytics period providers ──────────────────────────────────────
+
+typedef _PeriodKey = ({String scope, DateTime start, DateTime end});
+
+final spendForPeriodProvider = StreamProvider.autoDispose
+    .family<Map<String, int>, _PeriodKey>((ref, key) {
+  return ref
+      .watch(ledgerRepositoryProvider)
+      .watchSpendForPeriod(key.scope, key.start, key.end);
+});
+
+typedef _CategoryPeriodKey = ({String categoryId, DateTime start, DateTime end});
+
+final entriesForCategoryPeriodProvider = StreamProvider.autoDispose
+    .family<List<PersonalFinanceEntry>, _CategoryPeriodKey>((ref, key) {
+  return ref
+      .watch(ledgerRepositoryProvider)
+      .watchEntriesForCategoryPeriod(key.categoryId, key.start, key.end);
+});
+
+/// Count of subscriptions that are overdue or within their warning window.
+final financeBadgeCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchDueSoonOrOverdueCount();
+});

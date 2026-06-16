@@ -205,7 +205,7 @@ class _CategoryTile extends StatelessWidget {
       ),
       subtitle: budget != null && budget > 0
           ? Text(
-              'Budget: ${MoneyFormat.formatMinor(budget, 'DZD')}/month',
+              'Budget: ${MoneyFormat.formatMinor(budget, 'DZD')}/${_periodLabel(category.budgetPeriod, category.budgetCustomDays)}',
               style: TextStyle(color: AppTheme.mutedFg, fontSize: 12),
             )
           : Text(
@@ -246,7 +246,9 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
   late TextEditingController _nameCtrl;
   late TextEditingController _colorCtrl;
   late TextEditingController _budgetCtrl;
+  late TextEditingController _customDaysCtrl;
   late int _iconCodePoint;
+  late String _budgetPeriod;
 
   // A handful of common Material icons with friendly labels
   static const _iconOptions = [
@@ -273,7 +275,11 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
     _budgetCtrl = TextEditingController(
       text: e?.budgetMinorPerMonth != null ? '${e!.budgetMinorPerMonth}' : '',
     );
+    _customDaysCtrl = TextEditingController(
+      text: e?.budgetCustomDays != null ? '${e!.budgetCustomDays}' : '30',
+    );
     _iconCodePoint = e?.iconCodePoint ?? 0xe574;
+    _budgetPeriod = e?.budgetPeriod ?? 'month';
   }
 
   @override
@@ -281,6 +287,7 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
     _nameCtrl.dispose();
     _colorCtrl.dispose();
     _budgetCtrl.dispose();
+    _customDaysCtrl.dispose();
     super.dispose();
   }
 
@@ -323,11 +330,35 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
           TextField(
             controller: _budgetCtrl,
             decoration: const InputDecoration(
-              labelText: 'Monthly budget (optional, minor units)',
+              labelText: 'Budget amount (optional, minor units)',
               border: OutlineInputBorder(),
             ),
             keyboardType: TextInputType.number,
           ),
+          const SizedBox(height: 12),
+          Text('Budget period', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 6),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'week', label: Text('Weekly')),
+              ButtonSegment(value: 'month', label: Text('Monthly')),
+              ButtonSegment(value: 'custom', label: Text('Custom')),
+            ],
+            selected: {_budgetPeriod},
+            onSelectionChanged: (s) => setState(() => _budgetPeriod = s.first),
+          ),
+          if (_budgetPeriod == 'custom') ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _customDaysCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Rolling window (days)',
+                helperText: 'e.g. 14 = last 14 days',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
           const SizedBox(height: 14),
           Text('Icon', style: theme.textTheme.labelMedium),
           const SizedBox(height: 6),
@@ -390,6 +421,7 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
     if (name.isEmpty) return;
     final colorHex = _colorCtrl.text.trim().isNotEmpty ? _colorCtrl.text.trim() : '#22C55E';
     final budget = int.tryParse(_budgetCtrl.text.trim());
+    final customDays = int.tryParse(_customDaysCtrl.text.trim());
 
     await ref.read(ledgerRepositoryProvider).saveCategory(
           id: widget.existing?.id,
@@ -398,6 +430,8 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
           iconCodePoint: _iconCodePoint,
           budgetMinorPerMonth: budget,
           scope: widget.scope,
+          budgetPeriod: _budgetPeriod,
+          budgetCustomDays: _budgetPeriod == 'custom' ? customDays : null,
         );
 
     if (mounted) Navigator.of(context).pop();
@@ -407,6 +441,14 @@ class _CategoryEditorSheetState extends ConsumerState<_CategoryEditorSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
+
+String _periodLabel(String period, int? customDays) {
+  return switch (period) {
+    'week' => 'week',
+    'custom' => '${customDays ?? 30}d',
+    _ => 'month',
+  };
+}
 
 Color _hexToColor(String hex) {
   try {

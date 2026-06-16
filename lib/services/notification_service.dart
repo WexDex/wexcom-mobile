@@ -375,6 +375,63 @@ class NotificationService {
     }
   }
 
+  // ── Subscription warning (per-subscription, scheduled) ────────────────
+
+  /// Schedules a warning notification [warnBeforeDays] days before [dueAt].
+  /// Uses notification id derived from a hash of the subscription id so that
+  /// re-scheduling the same subscription replaces the old notification.
+  static Future<void> scheduleSubscriptionWarning({
+    required String subscriptionId,
+    required DateTime dueAt,
+    required int warnBeforeDays,
+    required String title,
+    required int amountMinor,
+    required String currencyCode,
+  }) async {
+    if (!_initialized || warnBeforeDays <= 0) return;
+    try {
+      final notifId = _subWarningId(subscriptionId);
+      await _plugin.cancel(notifId);
+      final warnAt = dueAt.subtract(Duration(days: warnBeforeDays));
+      final now = DateTime.now();
+      if (warnAt.isBefore(now)) return; // window already passed
+      final scheduled = tz.TZDateTime.from(warnAt, tz.local);
+      final body =
+          '${MoneyFormat.formatMinor(amountMinor, currencyCode)} due in $warnBeforeDays day${warnBeforeDays == 1 ? '' : 's'}';
+      await _plugin.zonedSchedule(
+        notifId,
+        'Subscription due: $title',
+        body,
+        scheduled,
+        _details(_channelActivity, 'Subscription Reminders',
+            importance: Importance.high),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: '/finance?tab=wishlist',
+      );
+    } catch (e) {
+      debugPrint('scheduleSubscriptionWarning error: $e');
+    }
+  }
+
+  static Future<void> cancelSubscriptionWarning(String subscriptionId) async {
+    try {
+      await _plugin.cancel(_subWarningId(subscriptionId));
+    } catch (_) {}
+  }
+
+  /// Stable int id derived from subscription UUID (keeps id < 2^31).
+  static int _subWarningId(String subscriptionId) {
+    final bytes = subscriptionId.codeUnits;
+    var h = 0x811c9dc5;
+    for (final b in bytes) {
+      h ^= b;
+      h = (h * 0x01000193) & 0x7fffffff;
+    }
+    return 10000 + (h % 90000); // range 10000–99999
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────
 
   static NotificationDetails _details(
