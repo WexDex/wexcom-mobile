@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
+import 'package:app_badge_plus/app_badge_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -18,11 +18,7 @@ class AppShellScreen extends ConsumerWidget {
     // Sync app icon badge on Android/iOS
     ref.listen(financeBadgeCountProvider, (_, next) {
       final count = next.valueOrNull ?? 0;
-      if (count > 0) {
-        FlutterAppBadger.updateBadgeCount(count);
-      } else {
-        FlutterAppBadger.removeBadge();
-      }
+      AppBadgePlus.updateBadge(count);
     });
 
     return Scaffold(
