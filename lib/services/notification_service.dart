@@ -4,6 +4,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../utils/money.dart';
+import 'notification_navigation.dart';
 
 class NotificationService {
   NotificationService._();
@@ -16,7 +17,9 @@ class NotificationService {
   static const _channelActivity = 'wexcom_activity';
   static const _channelBalance = 'wexcom_balance';
 
-  static Future<void> initialize() async {
+  static Future<void> initialize({
+    DidReceiveNotificationResponseCallback? onTap,
+  }) async {
     if (_initialized) return;
     try {
       tz.initializeTimeZones();
@@ -24,10 +27,29 @@ class NotificationService {
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
         iOS: DarwinInitializationSettings(),
       );
-      await _plugin.initialize(settings);
+      await _plugin.initialize(
+        settings,
+        onDidReceiveNotificationResponse: onTap ?? handleNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse:
+            notificationTapBackgroundHandler,
+      );
       _initialized = true;
     } catch (e) {
       debugPrint('NotificationService.initialize error: $e');
+    }
+  }
+
+  /// Call after [GoRouter] is available (e.g. app bootstrap).
+  static Future<void> handleLaunchNotification() async {
+    if (!_initialized) return;
+    try {
+      final launch = await _plugin.getNotificationAppLaunchDetails();
+      final response = launch?.notificationResponse;
+      if (response != null) {
+        handleNotificationResponse(response);
+      }
+    } catch (e) {
+      debugPrint('handleLaunchNotification error: $e');
     }
   }
 
@@ -135,12 +157,13 @@ class NotificationService {
     if (!_initialized || clientNames.isEmpty) return;
     final names = clientNames.take(3).join(', ');
     final extra = clientNames.length > 3 ? ' +${clientNames.length - 3} more' : '';
-    await _plugin.show(
-      5,
-      'Clients over ${MoneyFormat.formatMinor(thresholdMinor, currencyCode)}',
-      '$names$extra',
-      _details(_channelBalance, 'Balance Milestones', importance: Importance.high),
-    );
+      await _plugin.show(
+        5,
+        'Clients over ${MoneyFormat.formatMinor(thresholdMinor, currencyCode)}',
+        '$names$extra',
+        _details(_channelBalance, 'Balance Milestones', importance: Importance.high),
+        payload: '/clients',
+      );
   }
 
   static Future<void> scheduleInactivityReminder({
@@ -178,6 +201,59 @@ class NotificationService {
     } catch (_) {}
   }
 
+  static Future<void> scheduleBackupReminder({required int hourOfDay}) async {
+    if (!_initialized) return;
+    try {
+      await _plugin.cancel(8);
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hourOfDay);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        8,
+        'Backup reminder',
+        'Time to export your JSON backup',
+        scheduled,
+        _details(_channelActivity, 'Backup Reminders'),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (e) {
+      debugPrint('scheduleBackupReminder error: $e');
+    }
+  }
+
+  static Future<void> cancelBackupReminder() async {
+    try {
+      await _plugin.cancel(8);
+    } catch (_) {}
+  }
+
+  static Future<void> showBackupReminder({
+    required int daysSinceLastExport,
+    bool neverExported = false,
+  }) async {
+    if (!_initialized) return;
+    try {
+      final body = neverExported
+          ? 'You have not exported a backup yet — tap to open Settings'
+          : 'Last export was $daysSinceLastExport days ago — tap to open Settings';
+      await _plugin.show(
+        8,
+        'Export JSON backup',
+        body,
+        _details(_channelActivity, 'Backup Reminders', importance: Importance.high),
+        payload: '/settings',
+      );
+    } catch (e) {
+      debugPrint('showBackupReminder error: $e');
+    }
+  }
+
   // ── Client balance milestone ───────────────────────────────────────────
 
   static Future<void> showBalanceMilestone({
@@ -212,6 +288,7 @@ class NotificationService {
         'No recent transactions',
         'No transactions in $daysSinceLast days — tap to open Wexcom',
         _details(_channelActivity, 'Activity Reminders'),
+        payload: '/transactions',
       );
     } catch (e) {
       debugPrint('showInactivityReminder error: $e');
@@ -267,9 +344,34 @@ class NotificationService {
         'Debt roulette',
         '$clientName owes ${MoneyFormat.formatMinor(balanceMinor, currencyCode)}',
         _details(_channelOverdue, 'Debt Roulette', importance: Importance.high),
+        payload: '/home',
       );
     } catch (e) {
       debugPrint('showDebtRoulette error: $e');
+    }
+  }
+
+  static Future<void> showSubscriptionDueReminder({
+    required int dueCount,
+    required int overdueCount,
+    String? nextTitle,
+  }) async {
+    if (!_initialized || dueCount == 0) return;
+    try {
+      final body = overdueCount > 0
+          ? '$overdueCount overdue · ${dueCount - overdueCount} due soon'
+          : nextTitle != null
+              ? 'Next: $nextTitle'
+              : '$dueCount subscription${dueCount == 1 ? '' : 's'} due soon';
+      await _plugin.show(
+        9,
+        'Subscriptions due',
+        body,
+        _details(_channelActivity, 'Subscription Reminders', importance: Importance.high),
+        payload: '/finance?tab=wishlist',
+      );
+    } catch (e) {
+      debugPrint('showSubscriptionDueReminder error: $e');
     }
   }
 

@@ -10,12 +10,18 @@ import '../../utils/money.dart';
 Future<void> showWishlistWalletSheet({
   required BuildContext context,
   required WidgetRef ref,
-  required WishlistItem item,
+  WishlistItem? item,
+  int? amountMinor,
+  String? currencyCode,
+  String? title,
 }) async {
+  final totalMinor = amountMinor ?? item!.amountMinor;
+  final code = currencyCode ?? item!.currencyCode;
+  final label = title ?? item!.title;
+  final itemId = item?.id;
   final repo = ref.read(ledgerRepositoryProvider);
   final accounts = await ref.read(walletAccountsProvider.future);
-  final matching =
-      accounts.where((a) => a.currencyCode == item.currencyCode).toList();
+  final matching = accounts.where((a) => a.currencyCode == code).toList();
 
   if (!context.mounted) return;
 
@@ -25,7 +31,7 @@ Future<void> showWishlistWalletSheet({
       builder: (ctx) => AlertDialog(
         title: const Text('No matching wallets'),
         content: Text(
-          'No wallet accounts in ${item.currencyCode}. '
+          'No wallet accounts in $code. '
           'Expense was logged; wallet balances unchanged.',
         ),
         actions: [
@@ -73,8 +79,8 @@ Future<void> showWishlistWalletSheet({
 
           void splitEqual() {
             if (selected.isEmpty) return;
-            final each = item.amountMinor ~/ selected.length;
-            var rem = item.amountMinor - each * selected.length;
+            final each = totalMinor ~/ selected.length;
+            var rem = totalMinor - each * selected.length;
             for (final id in selected) {
               final extra = rem > 0 ? 1 : 0;
               if (rem > 0) rem--;
@@ -93,7 +99,7 @@ Future<void> showWishlistWalletSheet({
             for (final id in selected) {
               final pct = double.tryParse(pctCtrls[id]!.text) ?? 0;
               amountCtrls[id]!.text =
-                  '${(item.amountMinor * pct / totalPct).round()}';
+                  '${(totalMinor * pct / totalPct).round()}';
             }
             setModal(() {});
           }
@@ -114,7 +120,7 @@ Future<void> showWishlistWalletSheet({
                   style: Theme.of(ctx).textTheme.titleLarge,
                 ),
                 Text(
-                  '${item.title} · ${MoneyFormat.formatMinor(item.amountMinor, item.currencyCode)}',
+                  '$label · ${MoneyFormat.formatMinor(totalMinor, code)}',
                   style: Theme.of(ctx).textTheme.bodyMedium?.copyWith(
                         color: AppTheme.mutedFg,
                       ),
@@ -179,10 +185,10 @@ Future<void> showWishlistWalletSheet({
                   ],
                 ),
                 Text(
-                  'Allocated: ${MoneyFormat.formatMinor(allocated(), item.currencyCode)} / '
-                  '${MoneyFormat.formatMinor(item.amountMinor, item.currencyCode)}',
+                  'Allocated: ${MoneyFormat.formatMinor(allocated(), code)} / '
+                  '${MoneyFormat.formatMinor(totalMinor, code)}',
                   style: TextStyle(
-                    color: allocated() == item.amountMinor
+                    color: allocated() == totalMinor
                         ? AppTheme.balanceReceivable
                         : AppTheme.ledgerDebt,
                   ),
@@ -196,7 +202,7 @@ Future<void> showWishlistWalletSheet({
                   child: const Text("Don't adjust wallets"),
                 ),
                 FilledButton(
-                  onPressed: allocated() == item.amountMinor && selected.isNotEmpty
+                  onPressed: allocated() == totalMinor && selected.isNotEmpty
                       ? () {
                           confirmed = true;
                           Navigator.pop(ctx);
@@ -221,9 +227,9 @@ Future<void> showWishlistWalletSheet({
     await repo.adjustWalletDelta(
       id,
       -m,
-      source: 'wishlist',
-      referenceId: item.id,
-      note: item.title,
+      source: itemId != null ? 'wishlist' : 'subscription',
+      referenceId: itemId,
+      note: label,
     );
   }
 

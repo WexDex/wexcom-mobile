@@ -1,11 +1,28 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 
+import '../data/db/app_database.dart';
 import '../data/ledger_repository.dart';
 import '../data/ledger_types.dart';
 import 'notification_service.dart';
+
+/// Background entry point for interactive widget taps (no UI).
+@pragma('vm:entry-point')
+Future<void> homeWidgetBackgroundCallback(Uri? uri) async {
+  if (uri?.host != 'roulette') return;
+  WidgetsFlutterBinding.ensureInitialized();
+  await NotificationService.initialize();
+  final db = AppDatabase();
+  try {
+    final repo = LedgerRepository(db);
+    await HomeWidgetService.runDebtRoulette(repo);
+  } finally {
+    await db.close();
+  }
+}
 
 /// Android home-screen widgets: quick actions, debt roulette, rate display.
 class HomeWidgetService {
@@ -26,14 +43,13 @@ class HomeWidgetService {
       _listening = true;
       HomeWidget.widgetClicked.listen((uri) async {
         if (uri == null) return;
-        await _handleUri(repo, uri);
+        if (uri.host == 'roulette') return;
         onLaunch?.call(uri);
       });
     }
 
     final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    if (initial != null) {
-      await _handleUri(repo, initial);
+    if (initial != null && initial.host != 'roulette') {
       onLaunch?.call(initial);
     }
 
@@ -57,12 +73,6 @@ class HomeWidgetService {
 
     await HomeWidget.updateWidget(androidName: quickWidgetName);
     await HomeWidget.updateWidget(androidName: rateWidgetName);
-  }
-
-  static Future<void> _handleUri(LedgerRepository repo, Uri uri) async {
-    if (uri.host == 'roulette') {
-      await runDebtRoulette(repo);
-    }
   }
 
   static Future<void> runDebtRoulette(LedgerRepository repo) async {

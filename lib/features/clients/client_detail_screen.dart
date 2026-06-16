@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../services/statement_service.dart';
 import '../../theme/app_theme.dart';
@@ -677,6 +678,10 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
     final txTags = await ref.read(transactionScopeTagsProvider.future);
     final selectedTags = await ref.read(transactionTagsProvider(t.id).future);
     if (!context.mounted) return;
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = await repo.foreignCurrencyEditorContext();
+    final initialFrom = FromCurrencySnapshot.fromJsonString(t.fromCurrencyJson);
+    if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -698,6 +703,9 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
           initialEffectiveAt: t.effectiveAt ?? t.createdAt,
           availableTags: txTags,
           initialTagIds: selectedTags.map((e) => e.id).toList(),
+          foreignCurrencyCodes: foreign.codes,
+          foreignRates: foreign.rates,
+          initialFromCurrency: initialFrom,
           onSubmit: (amountMinor, type, note, tagIds, effectiveAt, dueAt, [fromCurrency]) async {
             await ref
                 .read(ledgerRepositoryProvider)
@@ -709,6 +717,8 @@ class _ClientDetailScreenState extends ConsumerState<ClientDetailScreen> {
                   tagIds: tagIds,
                   effectiveAt: effectiveAt,
                   dueAt: dueAt,
+                  fromCurrency: fromCurrency,
+                  clearFromCurrency: fromCurrency == null,
                 );
             if (context.mounted) Navigator.pop(ctx);
           },

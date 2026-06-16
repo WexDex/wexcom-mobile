@@ -10,6 +10,7 @@ import '../models/from_currency_snapshot.dart';
 import '../utils/chart_curve.dart';
 import '../utils/client_list_prefs.dart';
 import '../utils/exchange_rate.dart';
+import '../utils/subscription_schedule.dart';
 
 class LifetimeTotals {
   const LifetimeTotals({
@@ -217,22 +218,32 @@ class LedgerRepository {
     String? note,
     String? categoryId,
     DateTime? createdAt,
+    FromCurrencySnapshot? fromCurrency,
   }) async {
     final now = DateTime.now().toUtc();
     final at = createdAt?.toUtc() ?? now;
+    final defaultCode = await defaultCurrencyCode();
+    final id = _uuid.v4();
     await _db.into(_db.personalFinanceEntries).insert(
           PersonalFinanceEntriesCompanion.insert(
-            id: _uuid.v4(),
+            id: id,
             kind: kind.index,
             title: title.trim(),
             amountMinor: amountMinor,
-            currencyCode: Value(currencyCode ?? 'DZD'),
+            currencyCode: Value(defaultCode),
+            fromCurrencyJson: Value(fromCurrency?.toJsonString()),
             note: Value(_normalizeNullable(note)),
             categoryId: Value(categoryId),
             createdAt: at,
             updatedAt: now,
           ),
         );
+    await logAction(
+      kind == PersonalFinanceKind.expense ? 'create_expense' : 'create_gain',
+      'finance',
+      id,
+      detail: {'title': title.trim(), 'amountMinor': amountMinor},
+    );
   }
 
   Future<void> updatePersonalFinanceEntry({
@@ -244,23 +255,53 @@ class LedgerRepository {
     String? categoryId,
     bool clearCategory = false,
     DateTime? createdAt,
+    FromCurrencySnapshot? fromCurrency,
+    bool clearFromCurrency = false,
   }) async {
+    final existing = await (_db.select(_db.personalFinanceEntries)
+          ..where((e) => e.id.equals(id)))
+        .getSingleOrNull();
     final now = DateTime.now().toUtc();
     await (_db.update(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).write(
           PersonalFinanceEntriesCompanion(
             title: Value(title.trim()),
             amountMinor: Value(amountMinor),
             currencyCode: currencyCode == null ? const Value.absent() : Value(currencyCode),
+            fromCurrencyJson: clearFromCurrency
+                ? const Value(null)
+                : fromCurrency == null
+                    ? const Value.absent()
+                    : Value(fromCurrency.toJsonString()),
             note: Value(_normalizeNullable(note)),
             categoryId: clearCategory ? const Value(null) : Value(categoryId),
             updatedAt: Value(now),
             createdAt: createdAt == null ? const Value.absent() : Value(createdAt.toUtc()),
           ),
         );
+    final kind = existing?.kind ?? PersonalFinanceKind.expense.index;
+    await logAction(
+      kind == PersonalFinanceKind.expense.index ? 'update_expense' : 'update_gain',
+      'finance',
+      id,
+      detail: {'title': title.trim(), 'amountMinor': amountMinor},
+    );
   }
 
   Future<void> deletePersonalFinanceEntry(String id) async {
+    final existing = await (_db.select(_db.personalFinanceEntries)
+          ..where((e) => e.id.equals(id)))
+        .getSingleOrNull();
     await (_db.delete(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).go();
+    if (existing != null) {
+      await logAction(
+        existing.kind == PersonalFinanceKind.expense.index
+            ? 'delete_expense'
+            : 'delete_gain',
+        'finance',
+        id,
+        detail: {'title': existing.title},
+      );
+    }
   }
 
   Future<String> exportAllClientsWithTransactionsJson() async {
@@ -304,6 +345,9 @@ class LedgerRepository {
     final allWishlist = clientId == null
         ? await (_db.select(_db.wishlistItems)).get()
         : <WishlistItem>[];
+    final allSubscriptions = clientId == null
+        ? await (_db.select(_db.subscriptionItems)).get()
+        : <SubscriptionItem>[];
     final allWalletAccounts = clientId == null
         ? await (_db.select(_db.walletAccounts)).get()
         : <WalletAccount>[];
@@ -434,6 +478,28 @@ class LedgerRepository {
                 })
             .toList(),
       if (clientId == null)
+        'subscriptions': allSubscriptions
+            .map((s) => {
+                  'id': s.id,
+                  'title': s.title,
+                  'amountMinor': s.amountMinor,
+                  'currencyCode': s.currencyCode,
+                  'fromCurrency': fromCurrencyExport(s.fromCurrencyJson),
+                  'note': s.note,
+                  'categoryName': s.categoryId == null
+                      ? null
+                      : categoriesById[s.categoryId]?.name,
+                  'scheduleType': s.scheduleType,
+                  'billingDayOfMonth': s.billingDayOfMonth,
+                  'rollingDays': s.rollingDays,
+                  'nextDueAt': s.nextDueAt.toIso8601String(),
+                  'lastLoggedAt': s.lastLoggedAt?.toIso8601String(),
+                  'isActive': s.isActive,
+                  'createdAt': s.createdAt.toIso8601String(),
+                  'updatedAt': s.updatedAt.toIso8601String(),
+                })
+            .toList(),
+      if (clientId == null)
         'wallet': allWalletAccounts
             .map((a) => {
                   'id': a.id,
@@ -498,6 +564,9 @@ class LedgerRepository {
             'title': e.title,
             'amountMinor': e.amountMinor,
             'currencyCode': e.currencyCode,
+            if (FromCurrencySnapshot.fromJsonString(e.fromCurrencyJson) != null)
+              'fromCurrency':
+                  FromCurrencySnapshot.fromJsonString(e.fromCurrencyJson)!.toJson(),
             'note': e.note,
             'categoryName': e.categoryId == null
                 ? null
@@ -577,6 +646,7 @@ class LedgerRepository {
             updatedAt: now,
           ),
         );
+    await logAction('create_client', 'client', id, detail: {'fullName': fullName});
     return id;
   }
 
@@ -603,6 +673,7 @@ class LedgerRepository {
             updatedAt: Value(now),
           ),
         );
+    await logAction('update_client', 'client', id, detail: {'fullName': fullName});
   }
 
   Future<void> setClientTags(String clientId, List<String> tagIds) async {
@@ -715,6 +786,8 @@ class LedgerRepository {
     List<String>? tagIds,
     DateTime? effectiveAt,
     DateTime? dueAt,
+    FromCurrencySnapshot? fromCurrency,
+    bool clearFromCurrency = false,
   }) async {
     if (amountMinor <= 0) {
       throw ArgumentError.value(amountMinor, 'amountMinor', 'must be positive');
@@ -733,6 +806,11 @@ class LedgerRepository {
               note: Value(note),
               effectiveAt: Value(effectiveAt),
               dueAt: Value(dueAt?.toUtc()),
+              fromCurrencyJson: clearFromCurrency
+                  ? const Value(null)
+                  : fromCurrency == null
+                      ? const Value.absent()
+                      : Value(fromCurrency.toJsonString()),
               updatedAt: Value(now),
             ),
           );
@@ -741,6 +819,10 @@ class LedgerRepository {
       }
       await _recordQuickAction(type, amountMinor);
       await _refreshPostingSnapshots(tx.clientId);
+    });
+    await logAction('update_tx', 'transaction', id, detail: {
+      'amountMinor': amountMinor,
+      'type': type.name,
     });
   }
 
@@ -1025,7 +1107,10 @@ class LedgerRepository {
     required bool inactivityEnabled,
     required int inactivityDays,
     required bool syncEnabled,
+    bool? backupReminderEnabled,
+    int? backupReminderDays,
   }) async {
+    final existing = await getAppSettings();
     await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
       AppSettingsCompanion(
         notifOverdueEnabled: Value(overdueEnabled),
@@ -1035,8 +1120,19 @@ class LedgerRepository {
         notifInactivityEnabled: Value(inactivityEnabled),
         notifInactivityDays: Value(inactivityDays),
         notifSyncEnabled: Value(syncEnabled),
+        notifBackupReminderEnabled: backupReminderEnabled == null
+            ? const Value.absent()
+            : Value(backupReminderEnabled),
+        notifBackupReminderDays: backupReminderDays == null
+            ? const Value.absent()
+            : Value(backupReminderDays),
       ),
     );
+    await logAction('settings_notif_change', 'settings', '1', silent: true, detail: {
+      'overdueEnabled': overdueEnabled,
+      'backupReminderEnabled':
+          backupReminderEnabled ?? existing?.notifBackupReminderEnabled,
+    });
   }
 
   Future<void> saveClientListPrefs({
@@ -1051,6 +1147,10 @@ class LedgerRepository {
         clientListLayout: Value(layout.storageKey),
       ),
     );
+    await logAction('settings_prefs_change', 'settings', '1', silent: true, detail: {
+      'clientSortField': sortField.storageKey,
+      'clientListLayout': layout.storageKey,
+    });
   }
 
   ClientSortField clientSortFieldFromSettings(AppSetting? s) =>
@@ -1066,6 +1166,9 @@ class LedgerRepository {
     await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
       AppSettingsCompanion(chartCurveStyle: Value(style.storageKey)),
     );
+    await logAction('settings_prefs_change', 'settings', '1', silent: true, detail: {
+      'chartCurveStyle': style.storageKey,
+    });
   }
 
   ChartCurveStyle chartCurveStyleFromSettings(AppSetting? s) =>
@@ -1675,6 +1778,7 @@ class LedgerRepository {
                   title: row.title,
                   amountMinor: row.amountMinor,
                   currencyCode: Value(row.currencyCode ?? 'DZD'),
+                  fromCurrencyJson: Value(row.fromCurrencyJson),
                   note: Value(row.note),
                   categoryId: Value(resolvedCategoryId),
                   createdAt: row.createdAt,
@@ -1711,7 +1815,41 @@ class LedgerRepository {
               );
         }
       }
+
+      // ── Step 6: Subscription items ───────────────────────────────────────
+      final importedSubs = _tryParseV9Section<_ImportedSubscriptionPayload>(
+        rawJson, 'subscriptions', _ImportedSubscriptionPayload.fromMap);
+      if (importedSubs != null) {
+        for (final item in importedSubs) {
+          String? resolvedCategoryId;
+          if (item.categoryName != null && item.categoryName!.isNotEmpty) {
+            resolvedCategoryId =
+                categoryIdByNameScope['${item.categoryName}|expense'];
+          }
+          await _db.into(_db.subscriptionItems).insertOnConflictUpdate(
+                SubscriptionItemsCompanion.insert(
+                  id: item.id,
+                  title: item.title,
+                  amountMinor: item.amountMinor,
+                  currencyCode: Value(item.currencyCode),
+                  fromCurrencyJson: Value(item.fromCurrencyJson),
+                  note: Value(item.note),
+                  categoryId: Value(resolvedCategoryId),
+                  scheduleType: item.scheduleType,
+                  billingDayOfMonth: Value(item.billingDayOfMonth),
+                  rollingDays: Value(item.rollingDays),
+                  nextDueAt: item.nextDueAt,
+                  lastLoggedAt: Value(item.lastLoggedAt),
+                  isActive: Value(item.isActive),
+                  createdAt: item.createdAt,
+                  updatedAt: item.updatedAt,
+                ),
+              );
+        }
+      }
     });
+
+    await logAction('json_import', 'backup', 'local', silent: true);
 
     return ImportApplyResult(
       addedClients: addedClients,
@@ -1865,14 +2003,19 @@ class LedgerRepository {
     String entityType,
     String entityId, {
     Map<String, dynamic>? detail,
+    bool silent = false,
   }) async {
+    final payload = <String, dynamic>{
+      if (detail != null) ...detail,
+      if (silent) 'silent': true,
+    };
     await _db.into(_db.auditLog).insert(
       AuditLogCompanion.insert(
         id: const Uuid().v4(),
         action: action,
         entityType: entityType,
         entityId: entityId,
-        detail: Value(detail != null ? jsonEncode(detail) : null),
+        detail: Value(payload.isEmpty ? null : jsonEncode(payload)),
         createdAt: DateTime.now().toUtc(),
       ),
     );
@@ -2007,20 +2150,56 @@ class LedgerRepository {
     String? note,
     String? categoryId,
     String currencyCode = 'DZD',
+    FromCurrencySnapshot? fromCurrency,
   }) async {
     final id = _uuid.v4();
+    final defaultCode = await defaultCurrencyCode();
     await _db.into(_db.wishlistItems).insert(
           WishlistItemsCompanion.insert(
             id: id,
             title: title.trim(),
             amountMinor: amountMinor,
-            currencyCode: Value(currencyCode),
+            currencyCode: Value(defaultCode),
+            fromCurrencyJson: Value(fromCurrency?.toJsonString()),
             note: Value(note?.trim()),
             categoryId: Value(categoryId),
             createdAt: DateTime.now().toUtc(),
           ),
         );
+    await logAction('wishlist_add', 'wishlist', id, detail: {
+      'title': title.trim(),
+      'amountMinor': amountMinor,
+    });
     return id;
+  }
+
+  Future<void> updateWishlistItem({
+    required String id,
+    required String title,
+    required int amountMinor,
+    String? note,
+    String? categoryId,
+    bool clearCategory = false,
+    FromCurrencySnapshot? fromCurrency,
+    bool clearFromCurrency = false,
+  }) async {
+    await (_db.update(_db.wishlistItems)..where((w) => w.id.equals(id))).write(
+          WishlistItemsCompanion(
+            title: Value(title.trim()),
+            amountMinor: Value(amountMinor),
+            fromCurrencyJson: clearFromCurrency
+                ? const Value(null)
+                : fromCurrency == null
+                    ? const Value.absent()
+                    : Value(fromCurrency.toJsonString()),
+            note: Value(_normalizeNullable(note)),
+            categoryId: clearCategory ? const Value(null) : Value(categoryId),
+          ),
+        );
+    await logAction('wishlist_update', 'wishlist', id, detail: {
+      'title': title.trim(),
+      'amountMinor': amountMinor,
+    });
   }
 
   Future<void> markWishlistPurchased(String id) async {
@@ -2030,10 +2209,169 @@ class LedgerRepository {
             purchasedAt: Value(DateTime.now().toUtc()),
           ),
         );
+    await logAction('wishlist_purchase', 'wishlist', id);
   }
 
   Future<void> deleteWishlistItem(String id) async {
     await (_db.delete(_db.wishlistItems)..where((w) => w.id.equals(id))).go();
+    await logAction('wishlist_delete', 'wishlist', id);
+  }
+
+  // ── Subscriptions ────────────────────────────────────────────────────────
+
+  Stream<List<SubscriptionItem>> watchSubscriptionItems({bool activeOnly = true}) {
+    return (_db.select(_db.subscriptionItems)
+          ..where((s) => activeOnly ? s.isActive.equals(true) : const Constant(true))
+          ..orderBy([(s) => OrderingTerm.asc(s.nextDueAt)]))
+        .watch();
+  }
+
+  /// Active subscriptions with [nextDueAt] on or before [withinDays] from now.
+  Future<List<SubscriptionItem>> subscriptionsDueForReminder({
+    int withinDays = 3,
+  }) async {
+    final limit = DateTime.now().add(Duration(days: withinDays));
+    return (_db.select(_db.subscriptionItems)
+          ..where(
+            (s) => s.isActive.equals(true) & s.nextDueAt.isSmallerOrEqualValue(limit),
+          )
+          ..orderBy([(s) => OrderingTerm.asc(s.nextDueAt)]))
+        .get();
+  }
+
+  Future<String> addSubscriptionItem({
+    required String title,
+    required int amountMinor,
+    required SubscriptionScheduleType scheduleType,
+    int? billingDayOfMonth,
+    int? rollingDays,
+    DateTime? nextDueAt,
+    String? note,
+    String? categoryId,
+    FromCurrencySnapshot? fromCurrency,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final id = _uuid.v4();
+    final defaultCode = await defaultCurrencyCode();
+    final due = nextDueAt?.toUtc() ??
+        initialNextDue(
+          type: scheduleType,
+          billingDayOfMonth: billingDayOfMonth,
+          rollingDays: rollingDays,
+          from: now,
+        );
+    await _db.into(_db.subscriptionItems).insert(
+          SubscriptionItemsCompanion.insert(
+            id: id,
+            title: title.trim(),
+            amountMinor: amountMinor,
+            currencyCode: Value(defaultCode),
+            fromCurrencyJson: Value(fromCurrency?.toJsonString()),
+            note: Value(_normalizeNullable(note)),
+            categoryId: Value(categoryId),
+            scheduleType: scheduleType.storageKey,
+            billingDayOfMonth: Value(billingDayOfMonth),
+            rollingDays: Value(rollingDays),
+            nextDueAt: due,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+    await logAction('subscription_create', 'subscription', id, detail: {
+      'title': title,
+      'amountMinor': amountMinor,
+    });
+    return id;
+  }
+
+  Future<void> updateSubscriptionItem({
+    required String id,
+    required String title,
+    required int amountMinor,
+    required SubscriptionScheduleType scheduleType,
+    int? billingDayOfMonth,
+    int? rollingDays,
+    DateTime? nextDueAt,
+    String? note,
+    String? categoryId,
+    FromCurrencySnapshot? fromCurrency,
+    bool clearFromCurrency = false,
+  }) async {
+    final now = DateTime.now().toUtc();
+    await (_db.update(_db.subscriptionItems)..where((s) => s.id.equals(id))).write(
+          SubscriptionItemsCompanion(
+            title: Value(title.trim()),
+            amountMinor: Value(amountMinor),
+            fromCurrencyJson: clearFromCurrency
+                ? const Value(null)
+                : fromCurrency == null
+                    ? const Value.absent()
+                    : Value(fromCurrency.toJsonString()),
+            note: Value(_normalizeNullable(note)),
+            categoryId: Value(categoryId),
+            scheduleType: Value(scheduleType.storageKey),
+            billingDayOfMonth: Value(billingDayOfMonth),
+            rollingDays: Value(rollingDays),
+            nextDueAt: nextDueAt == null ? const Value.absent() : Value(nextDueAt.toUtc()),
+            updatedAt: Value(now),
+          ),
+        );
+    await logAction('subscription_update', 'subscription', id);
+  }
+
+  Future<void> deleteSubscriptionItem(String id) async {
+    await (_db.delete(_db.subscriptionItems)..where((s) => s.id.equals(id))).go();
+    await logAction('subscription_delete', 'subscription', id);
+  }
+
+  Future<void> logSubscriptionPayment(
+    String id, {
+    int? amountMinorOverride,
+    FromCurrencySnapshot? fromCurrencyOverride,
+  }) async {
+    final sub = await (_db.select(_db.subscriptionItems)
+          ..where((s) => s.id.equals(id)))
+        .getSingleOrNull();
+    if (sub == null) return;
+    final now = DateTime.now().toUtc();
+    final amount = amountMinorOverride ?? sub.amountMinor;
+    final snap = fromCurrencyOverride ??
+        FromCurrencySnapshot.fromJsonString(sub.fromCurrencyJson);
+    await _db.transaction(() async {
+      await addPersonalFinanceEntry(
+        kind: PersonalFinanceKind.expense,
+        title: sub.title,
+        amountMinor: amount,
+        note: sub.note,
+        categoryId: sub.categoryId,
+        createdAt: now,
+        fromCurrency: snap,
+      );
+      final nextDue = computeNextDueAfterLog(
+        type: SubscriptionScheduleType.fromStorage(sub.scheduleType),
+        billingDayOfMonth: sub.billingDayOfMonth,
+        rollingDays: sub.rollingDays,
+        loggedAt: now,
+      );
+      await (_db.update(_db.subscriptionItems)..where((s) => s.id.equals(id))).write(
+            SubscriptionItemsCompanion(
+              lastLoggedAt: Value(now),
+              nextDueAt: Value(nextDue),
+              updatedAt: Value(now),
+            ),
+          );
+    });
+    await logAction('subscription_log', 'subscription', id, detail: {
+      'amountMinor': amount,
+      'title': sub.title,
+    });
+  }
+
+  Future<void> recordJsonExport() async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(lastJsonExportAt: Value(DateTime.now().toUtc())),
+        );
+    await logAction('json_export', 'backup', 'local', silent: true);
   }
 
   // ── Wallet Accounts (Part F) ─────────────────────────────────────────────
@@ -2067,6 +2405,12 @@ class LedgerRepository {
             updatedAt: now,
           ),
         );
+    await logAction(
+      id == null ? 'wallet_account_upsert' : 'wallet_account_upsert',
+      'wallet',
+      accId,
+      detail: {'name': name.trim(), 'balanceMinor': balanceMinor},
+    );
     return accId;
   }
 
@@ -2108,6 +2452,11 @@ class LedgerRepository {
               updatedAt: Value(now),
             ),
           );
+    });
+    await logAction('wallet_adjust', 'wallet', id, detail: {
+      'op': 'set',
+      'before': before,
+      'after': newBalanceMinor,
     });
   }
 
@@ -2152,6 +2501,12 @@ class LedgerRepository {
         ),
       );
     });
+    await logAction('wallet_adjust', 'wallet', accountId, detail: {
+      'op': opType,
+      'delta': deltaMinor,
+      'before': before,
+      'after': after,
+    });
   }
 
   Stream<List<WalletLedgerEntry>> watchWalletLedger(String accountId) {
@@ -2175,6 +2530,7 @@ class LedgerRepository {
 
   Future<void> deleteWalletAccount(String id) async {
     await (_db.delete(_db.walletAccounts)..where((a) => a.id.equals(id))).go();
+    await logAction('wallet_account_delete', 'wallet', id);
   }
 
   // ── Savings Goals (Part F) ───────────────────────────────────────────────
@@ -2262,6 +2618,7 @@ class LedgerRepository {
       rateScale: rateScale,
       note: 'Initial rate',
     );
+    await logAction('currency_add', 'currency', upper, silent: true);
   }
 
   Future<void> setExchangeRate({
@@ -2283,6 +2640,10 @@ class LedgerRepository {
             note: Value(note),
           ),
         );
+    await logAction('rate_set', 'currency', upper, silent: true, detail: {
+      'rate': rate,
+      'rateScale': rateScale,
+    });
   }
 
   Future<num?> currentRateFor(String currencyCode) async {
@@ -2363,6 +2724,83 @@ class LedgerRepository {
         .go();
     await (_db.delete(_db.managedCurrencies)..where((c) => c.code.equals(upper)))
         .go();
+    await logAction('currency_delete', 'currency', upper, silent: true);
+  }
+}
+
+class _ImportedSubscriptionPayload {
+  const _ImportedSubscriptionPayload({
+    required this.id,
+    required this.title,
+    required this.amountMinor,
+    required this.currencyCode,
+    required this.fromCurrencyJson,
+    required this.note,
+    required this.categoryName,
+    required this.scheduleType,
+    required this.billingDayOfMonth,
+    required this.rollingDays,
+    required this.nextDueAt,
+    required this.lastLoggedAt,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final String id;
+  final String title;
+  final int amountMinor;
+  final String currencyCode;
+  final String? fromCurrencyJson;
+  final String? note;
+  final String? categoryName;
+  final String scheduleType;
+  final int? billingDayOfMonth;
+  final int? rollingDays;
+  final DateTime nextDueAt;
+  final DateTime? lastLoggedAt;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  factory _ImportedSubscriptionPayload.fromMap(Map<String, dynamic> map) {
+    final title = (map['title'] ?? '').toString().trim();
+    final amountMinor = (map['amountMinor'] as num?)?.toInt();
+    final nextDueRaw = map['nextDueAt']?.toString();
+    if (title.isEmpty || amountMinor == null || amountMinor <= 0 || nextDueRaw == null) {
+      throw const FormatException('Subscription item has missing required fields');
+    }
+    final nextDue = DateTime.tryParse(nextDueRaw)?.toUtc();
+    if (nextDue == null) {
+      throw const FormatException('Subscription nextDueAt is invalid');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ??
+            DateTime.now().toUtc();
+    final updatedAt =
+        DateTime.tryParse((map['updatedAt'] ?? '').toString())?.toUtc() ?? createdAt;
+    final fromFc = map['fromCurrency'];
+    String? fromJson;
+    if (fromFc is Map) {
+      fromJson = jsonEncode(fromFc);
+    }
+    return _ImportedSubscriptionPayload(
+      id: (map['id'] ?? const Uuid().v4()).toString().trim(),
+      title: title,
+      amountMinor: amountMinor,
+      currencyCode: (map['currencyCode'] ?? 'DZD').toString(),
+      fromCurrencyJson: fromJson,
+      note: map['note']?.toString(),
+      categoryName: map['categoryName']?.toString(),
+      scheduleType: (map['scheduleType'] ?? 'rolling_days').toString(),
+      billingDayOfMonth: (map['billingDayOfMonth'] as num?)?.toInt(),
+      rollingDays: (map['rollingDays'] as num?)?.toInt(),
+      nextDueAt: nextDue,
+      lastLoggedAt: DateTime.tryParse((map['lastLoggedAt'] ?? '').toString())?.toUtc(),
+      isActive: map['isActive'] != false,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
   }
 }
 
@@ -2373,6 +2811,7 @@ class _ImportedPersonalFinancePayload {
     required this.title,
     required this.amountMinor,
     required this.currencyCode,
+    required this.fromCurrencyJson,
     required this.note,
     required this.categoryName,
     required this.createdAt,
@@ -2384,6 +2823,7 @@ class _ImportedPersonalFinancePayload {
   final String title;
   final int amountMinor;
   final String? currencyCode;
+  final String? fromCurrencyJson;
   final String? note;
   /// Human-readable category name carried across exports (v2+). Null in v1 exports.
   final String? categoryName;
@@ -2410,12 +2850,21 @@ class _ImportedPersonalFinancePayload {
     }
     final updatedAt =
         DateTime.tryParse((map['updatedAt'] ?? '').toString())?.toUtc() ?? createdAt;
+    final fromNode = map['fromCurrency'];
+    String? fromCurrencyJson;
+    if (fromNode is Map) {
+      final snap = FromCurrencySnapshot.fromJsonMap(
+        fromNode.cast<String, dynamic>(),
+      );
+      fromCurrencyJson = snap?.toJsonString();
+    }
     return _ImportedPersonalFinancePayload(
       id: (map['id'] ?? '').toString().trim(),
       kind: kind,
       title: title,
       amountMinor: amountMinor,
       currencyCode: map['currencyCode']?.toString(),
+      fromCurrencyJson: fromCurrencyJson,
       note: map['note']?.toString(),
       categoryName: map['categoryName']?.toString(),
       createdAt: createdAt,

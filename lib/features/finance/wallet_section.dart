@@ -3,112 +3,108 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/app_database.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
+import '../../widgets/currency_amount_input.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Compact strip shown above the Finance tab bar
+// Shared wallet summary widgets (Finance → Wallet tab)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class WalletPreviewStrip extends ConsumerWidget {
-  const WalletPreviewStrip({super.key});
+class WalletNetWorthCard extends ConsumerWidget {
+  const WalletNetWorthCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accountsAsync = ref.watch(walletAccountsProvider);
     final netWorthAsync = ref.watch(netWorthProvider);
-    final currencyAsync = ref.watch(defaultCurrencyProvider);
-    final code = currencyAsync.valueOrNull ?? 'DZD';
-    final accounts = accountsAsync.valueOrNull ?? [];
+    final accounts = ref.watch(walletAccountsProvider).valueOrNull ?? [];
+    final code = ref.watch(defaultCurrencyProvider).valueOrNull ?? 'DZD';
+    final text = Theme.of(context).textTheme;
     final netWorth = netWorthAsync.valueOrNull;
+
+    if (accounts.isEmpty || netWorth == null) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            const Icon(Icons.savings_outlined, color: AppTheme.brandPrimary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Net worth', style: text.labelMedium?.copyWith(color: AppTheme.mutedFg)),
+                  Text(
+                    MoneyFormat.formatMinor(netWorth, code),
+                    style: text.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: netWorth >= 0 ? AppTheme.balanceReceivable : AppTheme.ledgerDebt,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${accounts.length} account${accounts.length == 1 ? '' : 's'}',
+              style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class WalletSavingsGoalsSection extends ConsumerWidget {
+  const WalletSavingsGoalsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final goalsAsync = ref.watch(savingsGoalsProvider);
+    final code = ref.watch(defaultCurrencyProvider).valueOrNull ?? 'DZD';
     final text = Theme.of(context).textTheme;
 
-    return Container(
-      color: AppTheme.surface,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // ── Account chips or empty prompt ──────────────────────────────
-          Expanded(
-            child: accounts.isEmpty
-                ? GestureDetector(
-                    onTap: () => openWalletManager(context, ref, code),
-                    child: Row(
-                      children: [
-                        Icon(Icons.account_balance_wallet_outlined,
-                            size: 16, color: AppTheme.mutedFg),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Tap 💼 to set up your wallet',
-                          style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
-                        ),
-                      ],
-                    ),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: accounts.map((a) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: GestureDetector(
-                            onTap: () => _editBalance(context, ref, a, code),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(a.emoji, style: const TextStyle(fontSize: 16)),
-                                const SizedBox(width: 4),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      a.name,
-                                      style:
-                                          text.labelSmall?.copyWith(color: AppTheme.mutedFg),
-                                    ),
-                                    _WalletBalanceLabel(
-                                      account: a,
-                                      defaultCode: code,
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-          ),
-          // ── Net worth (only when accounts exist) ──────────────────────
-          if (netWorth != null && accounts.isNotEmpty) ...[
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+    return goalsAsync.when(
+      data: (goals) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Text('Net Worth', style: text.labelSmall?.copyWith(color: AppTheme.mutedFg)),
-                Text(
-                  MoneyFormat.formatMinor(netWorth, code),
-                  style: text.labelMedium?.copyWith(
-                    color:
-                        netWorth >= 0 ? AppTheme.balanceReceivable : AppTheme.ledgerDebt,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Text('Savings goals',
+                    style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                TextButton.icon(
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add goal'),
+                  onPressed: () => openGoalEditor(context, ref, null),
                 ),
               ],
             ),
+            if (goals.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'No savings goals yet.',
+                  style: text.bodySmall?.copyWith(color: AppTheme.mutedFg),
+                ),
+              )
+            else
+              ...goals.map((g) => _GoalTile(goal: g, code: code)),
+            const SizedBox(height: 8),
           ],
-          // ── Wallet manager button — always visible ─────────────────────
-          const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
-            tooltip: 'Manage wallet',
-            color: AppTheme.brandPrimary,
-            onPressed: () => openWalletManager(context, ref, code),
-          ),
-        ],
+        );
+      },
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: LinearProgressIndicator(),
       ),
+      error: (e, _) => Text('Goals error: $e'),
     );
   }
 }
@@ -150,11 +146,9 @@ class _WalletManagerSheet extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accountsAsync = ref.watch(walletAccountsProvider);
-    final goalsAsync = ref.watch(savingsGoalsProvider);
     final netWorthAsync = ref.watch(netWorthProvider);
     final text = Theme.of(context).textTheme;
     final accounts = accountsAsync.valueOrNull ?? [];
-    final goals = goalsAsync.valueOrNull ?? [];
     final netWorth = netWorthAsync.valueOrNull;
 
     return ListView(
@@ -200,29 +194,7 @@ class _WalletManagerSheet extends ConsumerWidget {
         ),
         ...accounts.map((a) => _AccountTile(account: a, code: code)),
         const Divider(height: 28),
-
-        // ── Savings Goals ────────────────────────────────────────────────
-        Row(
-          children: [
-            Text('Savings Goals', style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-            const Spacer(),
-            TextButton.icon(
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add goal'),
-              onPressed: () => _openGoalEditor(context, ref, null),
-            ),
-          ],
-        ),
-        if (goals.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              'No savings goals yet.',
-              style: text.bodySmall?.copyWith(color: AppTheme.mutedFg),
-            ),
-          )
-        else
-          ...goals.map((g) => _GoalTile(goal: g, code: code)),
+        const WalletSavingsGoalsSection(),
       ],
     );
   }
@@ -246,7 +218,7 @@ class _AccountTile extends ConsumerWidget {
       leading: Text(account.emoji, style: const TextStyle(fontSize: 24)),
       title: Text(account.name, style: text.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
       subtitle: Text(
-        MoneyFormat.formatMinor(account.balanceMinor, code),
+        MoneyFormat.formatMinor(account.balanceMinor, account.currencyCode),
         style: TextStyle(
           color: AppTheme.receivableAccent,
           fontWeight: FontWeight.w700,
@@ -258,7 +230,13 @@ class _AccountTile extends ConsumerWidget {
         children: [
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 18),
-            onPressed: () => _editBalance(context, ref, account, code),
+            tooltip: 'Edit account',
+            onPressed: () => _openAccountEditor(context, ref, account, code),
+          ),
+          IconButton(
+            icon: const Icon(Icons.payments_outlined, size: 18),
+            tooltip: 'Adjust balance',
+            onPressed: () => _editBalance(context, ref, account, account.currencyCode),
           ),
           IconButton(
             icon: Icon(Icons.delete_outline, size: 18, color: AppTheme.ledgerDebt),
@@ -446,18 +424,36 @@ class _GoalTile extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 Future<void> _editBalance(
-    BuildContext context, WidgetRef ref, WalletAccount account, String code) async {
-  final ctrl = TextEditingController(text: '${account.balanceMinor}');
+    BuildContext context, WidgetRef ref, WalletAccount account, String defaultCode) async {
+  final repo = ref.read(ledgerRepositoryProvider);
+  final foreign = await repo.foreignCurrencyEditorContext();
+  final previewCtrl = TextEditingController(text: '${account.balanceMinor}');
+  final amountKey = GlobalKey<CurrencyAmountInputState>();
+  FromCurrencySnapshot? fromSnap;
+
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text('${account.emoji} ${account.name}'),
-      content: TextField(
-        controller: ctrl,
-        autofocus: true,
-        keyboardType: TextInputType.number,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: const InputDecoration(labelText: 'Balance (minor units)'),
+      content: SingleChildScrollView(
+        child: account.currencyCode == defaultCode
+            ? TextField(
+                controller: previewCtrl,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: InputDecoration(labelText: 'Balance ($defaultCode)'),
+              )
+            : CurrencyAmountInput(
+                key: amountKey,
+                defaultCurrencyCode: defaultCode,
+                amountMinorController: previewCtrl,
+                currencyCodes: foreign.codes,
+                rates: foreign.rates,
+                fixedInputCurrency: account.currencyCode,
+                showForeignToggle: false,
+                onSnapshotChanged: (s) => fromSnap = s,
+              ),
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -466,66 +462,116 @@ Future<void> _editBalance(
     ),
   );
   if (ok == true && context.mounted) {
-    final val = int.tryParse(ctrl.text.trim());
+    int? val;
+    if (account.currencyCode == defaultCode) {
+      val = int.tryParse(previewCtrl.text.trim());
+    } else {
+      final snap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
+      val = snap != null ? snap.amount.round() : int.tryParse(previewCtrl.text.trim());
+    }
     if (val != null) {
-      await ref.read(ledgerRepositoryProvider).adjustAccountBalance(account.id, val);
+      await repo.adjustAccountBalance(
+        account.id,
+        val,
+        fromCurrency: fromSnap,
+      );
     }
   }
-  ctrl.dispose();
+  previewCtrl.dispose();
 }
 
 Future<void> _openAccountEditor(
     BuildContext context, WidgetRef ref, WalletAccount? existing, String code) async {
+  final managed = await ref.read(managedCurrenciesProvider.future);
+  final currencyCodes = managed.map((c) => c.code).toList();
+  if (!currencyCodes.contains(code)) {
+    currencyCodes.insert(0, code);
+  }
+  if (currencyCodes.isEmpty) {
+    currencyCodes.add(code);
+  }
+
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
   final emojiCtrl = TextEditingController(text: existing?.emoji ?? '💵');
   final balCtrl = TextEditingController(
     text: existing != null ? '${existing.balanceMinor}' : '0',
   );
+  var selectedCurrency = existing?.currencyCode ?? code;
+  if (!currencyCodes.contains(selectedCurrency)) {
+    selectedCurrency = code;
+  }
 
   final ok = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(existing == null ? 'New account' : 'Edit account'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: emojiCtrl,
-            decoration: const InputDecoration(labelText: 'Emoji'),
-            maxLength: 2,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => AlertDialog(
+        title: Text(existing == null ? 'New account' : 'Edit account'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: emojiCtrl,
+                decoration: const InputDecoration(labelText: 'Emoji'),
+                maxLength: 2,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(labelText: 'Name'),
+                textCapitalization: TextCapitalization.words,
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: selectedCurrency,
+                decoration: const InputDecoration(labelText: 'Currency'),
+                items: currencyCodes
+                    .map(
+                      (c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(c),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) setState(() => selectedCurrency = v);
+                },
+              ),
+              if (existing == null) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: balCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Opening balance (${selectedCurrency})',
+                    helperText: 'Amount in minor units',
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: nameCtrl,
-            decoration: const InputDecoration(labelText: 'Name'),
-            textCapitalization: TextCapitalization.words,
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: balCtrl,
-            decoration: const InputDecoration(labelText: 'Balance (minor units)'),
-            keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
         ],
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-      ],
     ),
   );
 
   if (ok == true && context.mounted) {
     final name = nameCtrl.text.trim();
     final emoji = emojiCtrl.text.trim();
-    final bal = int.tryParse(balCtrl.text.trim()) ?? 0;
+    final bal = existing?.balanceMinor ?? (int.tryParse(balCtrl.text.trim()) ?? 0);
     if (name.isNotEmpty) {
       await ref.read(ledgerRepositoryProvider).upsertWalletAccount(
             id: existing?.id,
             name: name,
             emoji: emoji.isEmpty ? '💵' : emoji,
             balanceMinor: bal,
+            sortOrder: existing?.sortOrder ?? 0,
+            currencyCode: selectedCurrency,
           );
     }
   }
@@ -534,7 +580,7 @@ Future<void> _openAccountEditor(
   balCtrl.dispose();
 }
 
-Future<void> _openGoalEditor(
+Future<void> openGoalEditor(
     BuildContext context, WidgetRef ref, SavingsGoal? existing) async {
   final nameCtrl = TextEditingController(text: existing?.name ?? '');
   final emojiCtrl = TextEditingController(text: existing?.emoji ?? '🎯');
@@ -604,48 +650,4 @@ Future<void> _openGoalEditor(
   emojiCtrl.dispose();
   targetCtrl.dispose();
   noteCtrl.dispose();
-}
-
-class _WalletBalanceLabel extends ConsumerWidget {
-  const _WalletBalanceLabel({
-    required this.account,
-    required this.defaultCode,
-  });
-
-  final WalletAccount account;
-  final String defaultCode;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
-    final nativeCode = account.currencyCode.toUpperCase();
-    final isForeign = nativeCode != defaultCode.toUpperCase();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          MoneyFormat.formatMinor(account.balanceMinor, nativeCode),
-          style: text.labelMedium?.copyWith(
-            color: AppTheme.receivableAccent,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        if (isForeign)
-          FutureBuilder<int>(
-            future: ref.read(ledgerRepositoryProvider).convertWalletToDefaultMinor(
-                  account.balanceMinor,
-                  nativeCode,
-                ),
-            builder: (context, snap) {
-              if (!snap.hasData) return const SizedBox.shrink();
-              return Text(
-                '~= ${MoneyFormat.formatMinor(snap.data!, defaultCode)}',
-                style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
-              );
-            },
-          ),
-      ],
-    );
-  }
 }

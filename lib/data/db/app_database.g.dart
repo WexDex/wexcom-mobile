@@ -4419,6 +4419,45 @@ class $AppSettingsTable extends AppSettings
     requiredDuringInsert: false,
     defaultValue: const Constant('monotone'),
   );
+  static const VerificationMeta _notifBackupReminderEnabledMeta =
+      const VerificationMeta('notifBackupReminderEnabled');
+  @override
+  late final GeneratedColumn<bool> notifBackupReminderEnabled =
+      GeneratedColumn<bool>(
+        'notif_backup_reminder_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("notif_backup_reminder_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _notifBackupReminderDaysMeta =
+      const VerificationMeta('notifBackupReminderDays');
+  @override
+  late final GeneratedColumn<int> notifBackupReminderDays =
+      GeneratedColumn<int>(
+        'notif_backup_reminder_days',
+        aliasedName,
+        false,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(30),
+      );
+  static const VerificationMeta _lastJsonExportAtMeta = const VerificationMeta(
+    'lastJsonExportAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastJsonExportAt =
+      GeneratedColumn<DateTime>(
+        'last_json_export_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4447,6 +4486,9 @@ class $AppSettingsTable extends AppSettings
     clientSortAscending,
     clientListLayout,
     chartCurveStyle,
+    notifBackupReminderEnabled,
+    notifBackupReminderDays,
+    lastJsonExportAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4688,6 +4730,33 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('notif_backup_reminder_enabled')) {
+      context.handle(
+        _notifBackupReminderEnabledMeta,
+        notifBackupReminderEnabled.isAcceptableOrUnknown(
+          data['notif_backup_reminder_enabled']!,
+          _notifBackupReminderEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_backup_reminder_days')) {
+      context.handle(
+        _notifBackupReminderDaysMeta,
+        notifBackupReminderDays.isAcceptableOrUnknown(
+          data['notif_backup_reminder_days']!,
+          _notifBackupReminderDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_json_export_at')) {
+      context.handle(
+        _lastJsonExportAtMeta,
+        lastJsonExportAt.isAcceptableOrUnknown(
+          data['last_json_export_at']!,
+          _lastJsonExportAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4801,6 +4870,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}chart_curve_style'],
       )!,
+      notifBackupReminderEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_backup_reminder_enabled'],
+      )!,
+      notifBackupReminderDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notif_backup_reminder_days'],
+      )!,
+      lastJsonExportAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_json_export_at'],
+      ),
     );
   }
 
@@ -4837,6 +4918,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool clientSortAscending;
   final String clientListLayout;
   final String chartCurveStyle;
+  final bool notifBackupReminderEnabled;
+  final int notifBackupReminderDays;
+  final DateTime? lastJsonExportAt;
   const AppSetting({
     required this.id,
     required this.defaultCurrencyCode,
@@ -4864,6 +4948,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.clientSortAscending,
     required this.clientListLayout,
     required this.chartCurveStyle,
+    required this.notifBackupReminderEnabled,
+    required this.notifBackupReminderDays,
+    this.lastJsonExportAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4914,6 +5001,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['client_sort_ascending'] = Variable<bool>(clientSortAscending);
     map['client_list_layout'] = Variable<String>(clientListLayout);
     map['chart_curve_style'] = Variable<String>(chartCurveStyle);
+    map['notif_backup_reminder_enabled'] = Variable<bool>(
+      notifBackupReminderEnabled,
+    );
+    map['notif_backup_reminder_days'] = Variable<int>(notifBackupReminderDays);
+    if (!nullToAbsent || lastJsonExportAt != null) {
+      map['last_json_export_at'] = Variable<DateTime>(lastJsonExportAt);
+    }
     return map;
   }
 
@@ -4961,6 +5055,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       clientSortAscending: Value(clientSortAscending),
       clientListLayout: Value(clientListLayout),
       chartCurveStyle: Value(chartCurveStyle),
+      notifBackupReminderEnabled: Value(notifBackupReminderEnabled),
+      notifBackupReminderDays: Value(notifBackupReminderDays),
+      lastJsonExportAt: lastJsonExportAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastJsonExportAt),
     );
   }
 
@@ -5014,6 +5113,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       ),
       clientListLayout: serializer.fromJson<String>(json['clientListLayout']),
       chartCurveStyle: serializer.fromJson<String>(json['chartCurveStyle']),
+      notifBackupReminderEnabled: serializer.fromJson<bool>(
+        json['notifBackupReminderEnabled'],
+      ),
+      notifBackupReminderDays: serializer.fromJson<int>(
+        json['notifBackupReminderDays'],
+      ),
+      lastJsonExportAt: serializer.fromJson<DateTime?>(
+        json['lastJsonExportAt'],
+      ),
     );
   }
   @override
@@ -5052,6 +5160,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'clientSortAscending': serializer.toJson<bool>(clientSortAscending),
       'clientListLayout': serializer.toJson<String>(clientListLayout),
       'chartCurveStyle': serializer.toJson<String>(chartCurveStyle),
+      'notifBackupReminderEnabled': serializer.toJson<bool>(
+        notifBackupReminderEnabled,
+      ),
+      'notifBackupReminderDays': serializer.toJson<int>(
+        notifBackupReminderDays,
+      ),
+      'lastJsonExportAt': serializer.toJson<DateTime?>(lastJsonExportAt),
     };
   }
 
@@ -5082,6 +5197,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? clientSortAscending,
     String? clientListLayout,
     String? chartCurveStyle,
+    bool? notifBackupReminderEnabled,
+    int? notifBackupReminderDays,
+    Value<DateTime?> lastJsonExportAt = const Value.absent(),
   }) => AppSetting(
     id: id ?? this.id,
     defaultCurrencyCode: defaultCurrencyCode ?? this.defaultCurrencyCode,
@@ -5121,6 +5239,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     clientSortAscending: clientSortAscending ?? this.clientSortAscending,
     clientListLayout: clientListLayout ?? this.clientListLayout,
     chartCurveStyle: chartCurveStyle ?? this.chartCurveStyle,
+    notifBackupReminderEnabled:
+        notifBackupReminderEnabled ?? this.notifBackupReminderEnabled,
+    notifBackupReminderDays:
+        notifBackupReminderDays ?? this.notifBackupReminderDays,
+    lastJsonExportAt: lastJsonExportAt.present
+        ? lastJsonExportAt.value
+        : this.lastJsonExportAt,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -5200,6 +5325,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       chartCurveStyle: data.chartCurveStyle.present
           ? data.chartCurveStyle.value
           : this.chartCurveStyle,
+      notifBackupReminderEnabled: data.notifBackupReminderEnabled.present
+          ? data.notifBackupReminderEnabled.value
+          : this.notifBackupReminderEnabled,
+      notifBackupReminderDays: data.notifBackupReminderDays.present
+          ? data.notifBackupReminderDays.value
+          : this.notifBackupReminderDays,
+      lastJsonExportAt: data.lastJsonExportAt.present
+          ? data.lastJsonExportAt.value
+          : this.lastJsonExportAt,
     );
   }
 
@@ -5233,7 +5367,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('clientSortField: $clientSortField, ')
           ..write('clientSortAscending: $clientSortAscending, ')
           ..write('clientListLayout: $clientListLayout, ')
-          ..write('chartCurveStyle: $chartCurveStyle')
+          ..write('chartCurveStyle: $chartCurveStyle, ')
+          ..write('notifBackupReminderEnabled: $notifBackupReminderEnabled, ')
+          ..write('notifBackupReminderDays: $notifBackupReminderDays, ')
+          ..write('lastJsonExportAt: $lastJsonExportAt')
           ..write(')'))
         .toString();
   }
@@ -5266,6 +5403,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     clientSortAscending,
     clientListLayout,
     chartCurveStyle,
+    notifBackupReminderEnabled,
+    notifBackupReminderDays,
+    lastJsonExportAt,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5297,7 +5437,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.clientSortField == this.clientSortField &&
           other.clientSortAscending == this.clientSortAscending &&
           other.clientListLayout == this.clientListLayout &&
-          other.chartCurveStyle == this.chartCurveStyle);
+          other.chartCurveStyle == this.chartCurveStyle &&
+          other.notifBackupReminderEnabled == this.notifBackupReminderEnabled &&
+          other.notifBackupReminderDays == this.notifBackupReminderDays &&
+          other.lastJsonExportAt == this.lastJsonExportAt);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -5327,6 +5470,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> clientSortAscending;
   final Value<String> clientListLayout;
   final Value<String> chartCurveStyle;
+  final Value<bool> notifBackupReminderEnabled;
+  final Value<int> notifBackupReminderDays;
+  final Value<DateTime?> lastJsonExportAt;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.defaultCurrencyCode = const Value.absent(),
@@ -5354,6 +5500,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.clientSortAscending = const Value.absent(),
     this.clientListLayout = const Value.absent(),
     this.chartCurveStyle = const Value.absent(),
+    this.notifBackupReminderEnabled = const Value.absent(),
+    this.notifBackupReminderDays = const Value.absent(),
+    this.lastJsonExportAt = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -5382,6 +5531,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.clientSortAscending = const Value.absent(),
     this.clientListLayout = const Value.absent(),
     this.chartCurveStyle = const Value.absent(),
+    this.notifBackupReminderEnabled = const Value.absent(),
+    this.notifBackupReminderDays = const Value.absent(),
+    this.lastJsonExportAt = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -5410,6 +5562,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? clientSortAscending,
     Expression<String>? clientListLayout,
     Expression<String>? chartCurveStyle,
+    Expression<bool>? notifBackupReminderEnabled,
+    Expression<int>? notifBackupReminderDays,
+    Expression<DateTime>? lastJsonExportAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -5447,6 +5602,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
         'client_sort_ascending': clientSortAscending,
       if (clientListLayout != null) 'client_list_layout': clientListLayout,
       if (chartCurveStyle != null) 'chart_curve_style': chartCurveStyle,
+      if (notifBackupReminderEnabled != null)
+        'notif_backup_reminder_enabled': notifBackupReminderEnabled,
+      if (notifBackupReminderDays != null)
+        'notif_backup_reminder_days': notifBackupReminderDays,
+      if (lastJsonExportAt != null) 'last_json_export_at': lastJsonExportAt,
     });
   }
 
@@ -5477,6 +5637,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? clientSortAscending,
     Value<String>? clientListLayout,
     Value<String>? chartCurveStyle,
+    Value<bool>? notifBackupReminderEnabled,
+    Value<int>? notifBackupReminderDays,
+    Value<DateTime?>? lastJsonExportAt,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -5509,6 +5672,11 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       clientSortAscending: clientSortAscending ?? this.clientSortAscending,
       clientListLayout: clientListLayout ?? this.clientListLayout,
       chartCurveStyle: chartCurveStyle ?? this.chartCurveStyle,
+      notifBackupReminderEnabled:
+          notifBackupReminderEnabled ?? this.notifBackupReminderEnabled,
+      notifBackupReminderDays:
+          notifBackupReminderDays ?? this.notifBackupReminderDays,
+      lastJsonExportAt: lastJsonExportAt ?? this.lastJsonExportAt,
     );
   }
 
@@ -5603,6 +5771,19 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (chartCurveStyle.present) {
       map['chart_curve_style'] = Variable<String>(chartCurveStyle.value);
     }
+    if (notifBackupReminderEnabled.present) {
+      map['notif_backup_reminder_enabled'] = Variable<bool>(
+        notifBackupReminderEnabled.value,
+      );
+    }
+    if (notifBackupReminderDays.present) {
+      map['notif_backup_reminder_days'] = Variable<int>(
+        notifBackupReminderDays.value,
+      );
+    }
+    if (lastJsonExportAt.present) {
+      map['last_json_export_at'] = Variable<DateTime>(lastJsonExportAt.value);
+    }
     return map;
   }
 
@@ -5636,7 +5817,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('clientSortField: $clientSortField, ')
           ..write('clientSortAscending: $clientSortAscending, ')
           ..write('clientListLayout: $clientListLayout, ')
-          ..write('chartCurveStyle: $chartCurveStyle')
+          ..write('chartCurveStyle: $chartCurveStyle, ')
+          ..write('notifBackupReminderEnabled: $notifBackupReminderEnabled, ')
+          ..write('notifBackupReminderDays: $notifBackupReminderDays, ')
+          ..write('lastJsonExportAt: $lastJsonExportAt')
           ..write(')'))
         .toString();
   }
@@ -7621,6 +7805,897 @@ class WishlistItemsCompanion extends UpdateCompanion<WishlistItem> {
           ..write('createdAt: $createdAt, ')
           ..write('purchasedAt: $purchasedAt, ')
           ..write('fromCurrencyJson: $fromCurrencyJson, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SubscriptionItemsTable extends SubscriptionItems
+    with TableInfo<$SubscriptionItemsTable, SubscriptionItem> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SubscriptionItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('DZD'),
+  );
+  static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
+    'fromCurrencyJson',
+  );
+  @override
+  late final GeneratedColumn<String> fromCurrencyJson = GeneratedColumn<String>(
+    'from_currency_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduleTypeMeta = const VerificationMeta(
+    'scheduleType',
+  );
+  @override
+  late final GeneratedColumn<String> scheduleType = GeneratedColumn<String>(
+    'schedule_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _billingDayOfMonthMeta = const VerificationMeta(
+    'billingDayOfMonth',
+  );
+  @override
+  late final GeneratedColumn<int> billingDayOfMonth = GeneratedColumn<int>(
+    'billing_day_of_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _rollingDaysMeta = const VerificationMeta(
+    'rollingDays',
+  );
+  @override
+  late final GeneratedColumn<int> rollingDays = GeneratedColumn<int>(
+    'rolling_days',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextDueAtMeta = const VerificationMeta(
+    'nextDueAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextDueAt = GeneratedColumn<DateTime>(
+    'next_due_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastLoggedAtMeta = const VerificationMeta(
+    'lastLoggedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastLoggedAt = GeneratedColumn<DateTime>(
+    'last_logged_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    amountMinor,
+    currencyCode,
+    fromCurrencyJson,
+    note,
+    categoryId,
+    scheduleType,
+    billingDayOfMonth,
+    rollingDays,
+    nextDueAt,
+    lastLoggedAt,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'subscription_items';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SubscriptionItem> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('from_currency_json')) {
+      context.handle(
+        _fromCurrencyJsonMeta,
+        fromCurrencyJson.isAcceptableOrUnknown(
+          data['from_currency_json']!,
+          _fromCurrencyJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('schedule_type')) {
+      context.handle(
+        _scheduleTypeMeta,
+        scheduleType.isAcceptableOrUnknown(
+          data['schedule_type']!,
+          _scheduleTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduleTypeMeta);
+    }
+    if (data.containsKey('billing_day_of_month')) {
+      context.handle(
+        _billingDayOfMonthMeta,
+        billingDayOfMonth.isAcceptableOrUnknown(
+          data['billing_day_of_month']!,
+          _billingDayOfMonthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('rolling_days')) {
+      context.handle(
+        _rollingDaysMeta,
+        rollingDays.isAcceptableOrUnknown(
+          data['rolling_days']!,
+          _rollingDaysMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_due_at')) {
+      context.handle(
+        _nextDueAtMeta,
+        nextDueAt.isAcceptableOrUnknown(data['next_due_at']!, _nextDueAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nextDueAtMeta);
+    }
+    if (data.containsKey('last_logged_at')) {
+      context.handle(
+        _lastLoggedAtMeta,
+        lastLoggedAt.isAcceptableOrUnknown(
+          data['last_logged_at']!,
+          _lastLoggedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SubscriptionItem map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SubscriptionItem(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      fromCurrencyJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_currency_json'],
+      ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      scheduleType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}schedule_type'],
+      )!,
+      billingDayOfMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}billing_day_of_month'],
+      ),
+      rollingDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}rolling_days'],
+      ),
+      nextDueAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_due_at'],
+      )!,
+      lastLoggedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_logged_at'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SubscriptionItemsTable createAlias(String alias) {
+    return $SubscriptionItemsTable(attachedDatabase, alias);
+  }
+}
+
+class SubscriptionItem extends DataClass
+    implements Insertable<SubscriptionItem> {
+  final String id;
+  final String title;
+  final int amountMinor;
+  final String currencyCode;
+  final String? fromCurrencyJson;
+  final String? note;
+  final String? categoryId;
+
+  /// day_of_month | rolling_days
+  final String scheduleType;
+  final int? billingDayOfMonth;
+  final int? rollingDays;
+  final DateTime nextDueAt;
+  final DateTime? lastLoggedAt;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SubscriptionItem({
+    required this.id,
+    required this.title,
+    required this.amountMinor,
+    required this.currencyCode,
+    this.fromCurrencyJson,
+    this.note,
+    this.categoryId,
+    required this.scheduleType,
+    this.billingDayOfMonth,
+    this.rollingDays,
+    required this.nextDueAt,
+    this.lastLoggedAt,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || fromCurrencyJson != null) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['schedule_type'] = Variable<String>(scheduleType);
+    if (!nullToAbsent || billingDayOfMonth != null) {
+      map['billing_day_of_month'] = Variable<int>(billingDayOfMonth);
+    }
+    if (!nullToAbsent || rollingDays != null) {
+      map['rolling_days'] = Variable<int>(rollingDays);
+    }
+    map['next_due_at'] = Variable<DateTime>(nextDueAt);
+    if (!nullToAbsent || lastLoggedAt != null) {
+      map['last_logged_at'] = Variable<DateTime>(lastLoggedAt);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SubscriptionItemsCompanion toCompanion(bool nullToAbsent) {
+    return SubscriptionItemsCompanion(
+      id: Value(id),
+      title: Value(title),
+      amountMinor: Value(amountMinor),
+      currencyCode: Value(currencyCode),
+      fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCurrencyJson),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      scheduleType: Value(scheduleType),
+      billingDayOfMonth: billingDayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(billingDayOfMonth),
+      rollingDays: rollingDays == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rollingDays),
+      nextDueAt: Value(nextDueAt),
+      lastLoggedAt: lastLoggedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLoggedAt),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SubscriptionItem.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SubscriptionItem(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
+      note: serializer.fromJson<String?>(json['note']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      scheduleType: serializer.fromJson<String>(json['scheduleType']),
+      billingDayOfMonth: serializer.fromJson<int?>(json['billingDayOfMonth']),
+      rollingDays: serializer.fromJson<int?>(json['rollingDays']),
+      nextDueAt: serializer.fromJson<DateTime>(json['nextDueAt']),
+      lastLoggedAt: serializer.fromJson<DateTime?>(json['lastLoggedAt']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
+      'note': serializer.toJson<String?>(note),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'scheduleType': serializer.toJson<String>(scheduleType),
+      'billingDayOfMonth': serializer.toJson<int?>(billingDayOfMonth),
+      'rollingDays': serializer.toJson<int?>(rollingDays),
+      'nextDueAt': serializer.toJson<DateTime>(nextDueAt),
+      'lastLoggedAt': serializer.toJson<DateTime?>(lastLoggedAt),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SubscriptionItem copyWith({
+    String? id,
+    String? title,
+    int? amountMinor,
+    String? currencyCode,
+    Value<String?> fromCurrencyJson = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<String?> categoryId = const Value.absent(),
+    String? scheduleType,
+    Value<int?> billingDayOfMonth = const Value.absent(),
+    Value<int?> rollingDays = const Value.absent(),
+    DateTime? nextDueAt,
+    Value<DateTime?> lastLoggedAt = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SubscriptionItem(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    amountMinor: amountMinor ?? this.amountMinor,
+    currencyCode: currencyCode ?? this.currencyCode,
+    fromCurrencyJson: fromCurrencyJson.present
+        ? fromCurrencyJson.value
+        : this.fromCurrencyJson,
+    note: note.present ? note.value : this.note,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    scheduleType: scheduleType ?? this.scheduleType,
+    billingDayOfMonth: billingDayOfMonth.present
+        ? billingDayOfMonth.value
+        : this.billingDayOfMonth,
+    rollingDays: rollingDays.present ? rollingDays.value : this.rollingDays,
+    nextDueAt: nextDueAt ?? this.nextDueAt,
+    lastLoggedAt: lastLoggedAt.present ? lastLoggedAt.value : this.lastLoggedAt,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SubscriptionItem copyWithCompanion(SubscriptionItemsCompanion data) {
+    return SubscriptionItem(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      fromCurrencyJson: data.fromCurrencyJson.present
+          ? data.fromCurrencyJson.value
+          : this.fromCurrencyJson,
+      note: data.note.present ? data.note.value : this.note,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      scheduleType: data.scheduleType.present
+          ? data.scheduleType.value
+          : this.scheduleType,
+      billingDayOfMonth: data.billingDayOfMonth.present
+          ? data.billingDayOfMonth.value
+          : this.billingDayOfMonth,
+      rollingDays: data.rollingDays.present
+          ? data.rollingDays.value
+          : this.rollingDays,
+      nextDueAt: data.nextDueAt.present ? data.nextDueAt.value : this.nextDueAt,
+      lastLoggedAt: data.lastLoggedAt.present
+          ? data.lastLoggedAt.value
+          : this.lastLoggedAt,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionItem(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
+          ..write('note: $note, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('scheduleType: $scheduleType, ')
+          ..write('billingDayOfMonth: $billingDayOfMonth, ')
+          ..write('rollingDays: $rollingDays, ')
+          ..write('nextDueAt: $nextDueAt, ')
+          ..write('lastLoggedAt: $lastLoggedAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    amountMinor,
+    currencyCode,
+    fromCurrencyJson,
+    note,
+    categoryId,
+    scheduleType,
+    billingDayOfMonth,
+    rollingDays,
+    nextDueAt,
+    lastLoggedAt,
+    isActive,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SubscriptionItem &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.amountMinor == this.amountMinor &&
+          other.currencyCode == this.currencyCode &&
+          other.fromCurrencyJson == this.fromCurrencyJson &&
+          other.note == this.note &&
+          other.categoryId == this.categoryId &&
+          other.scheduleType == this.scheduleType &&
+          other.billingDayOfMonth == this.billingDayOfMonth &&
+          other.rollingDays == this.rollingDays &&
+          other.nextDueAt == this.nextDueAt &&
+          other.lastLoggedAt == this.lastLoggedAt &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<int> amountMinor;
+  final Value<String> currencyCode;
+  final Value<String?> fromCurrencyJson;
+  final Value<String?> note;
+  final Value<String?> categoryId;
+  final Value<String> scheduleType;
+  final Value<int?> billingDayOfMonth;
+  final Value<int?> rollingDays;
+  final Value<DateTime> nextDueAt;
+  final Value<DateTime?> lastLoggedAt;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SubscriptionItemsCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
+    this.note = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.scheduleType = const Value.absent(),
+    this.billingDayOfMonth = const Value.absent(),
+    this.rollingDays = const Value.absent(),
+    this.nextDueAt = const Value.absent(),
+    this.lastLoggedAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SubscriptionItemsCompanion.insert({
+    required String id,
+    required String title,
+    required int amountMinor,
+    this.currencyCode = const Value.absent(),
+    this.fromCurrencyJson = const Value.absent(),
+    this.note = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    required String scheduleType,
+    this.billingDayOfMonth = const Value.absent(),
+    this.rollingDays = const Value.absent(),
+    required DateTime nextDueAt,
+    this.lastLoggedAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       amountMinor = Value(amountMinor),
+       scheduleType = Value(scheduleType),
+       nextDueAt = Value(nextDueAt),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<SubscriptionItem> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<int>? amountMinor,
+    Expression<String>? currencyCode,
+    Expression<String>? fromCurrencyJson,
+    Expression<String>? note,
+    Expression<String>? categoryId,
+    Expression<String>? scheduleType,
+    Expression<int>? billingDayOfMonth,
+    Expression<int>? rollingDays,
+    Expression<DateTime>? nextDueAt,
+    Expression<DateTime>? lastLoggedAt,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
+      if (note != null) 'note': note,
+      if (categoryId != null) 'category_id': categoryId,
+      if (scheduleType != null) 'schedule_type': scheduleType,
+      if (billingDayOfMonth != null) 'billing_day_of_month': billingDayOfMonth,
+      if (rollingDays != null) 'rolling_days': rollingDays,
+      if (nextDueAt != null) 'next_due_at': nextDueAt,
+      if (lastLoggedAt != null) 'last_logged_at': lastLoggedAt,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SubscriptionItemsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<int>? amountMinor,
+    Value<String>? currencyCode,
+    Value<String?>? fromCurrencyJson,
+    Value<String?>? note,
+    Value<String?>? categoryId,
+    Value<String>? scheduleType,
+    Value<int?>? billingDayOfMonth,
+    Value<int?>? rollingDays,
+    Value<DateTime>? nextDueAt,
+    Value<DateTime?>? lastLoggedAt,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SubscriptionItemsCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      amountMinor: amountMinor ?? this.amountMinor,
+      currencyCode: currencyCode ?? this.currencyCode,
+      fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
+      note: note ?? this.note,
+      categoryId: categoryId ?? this.categoryId,
+      scheduleType: scheduleType ?? this.scheduleType,
+      billingDayOfMonth: billingDayOfMonth ?? this.billingDayOfMonth,
+      rollingDays: rollingDays ?? this.rollingDays,
+      nextDueAt: nextDueAt ?? this.nextDueAt,
+      lastLoggedAt: lastLoggedAt ?? this.lastLoggedAt,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (fromCurrencyJson.present) {
+      map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (scheduleType.present) {
+      map['schedule_type'] = Variable<String>(scheduleType.value);
+    }
+    if (billingDayOfMonth.present) {
+      map['billing_day_of_month'] = Variable<int>(billingDayOfMonth.value);
+    }
+    if (rollingDays.present) {
+      map['rolling_days'] = Variable<int>(rollingDays.value);
+    }
+    if (nextDueAt.present) {
+      map['next_due_at'] = Variable<DateTime>(nextDueAt.value);
+    }
+    if (lastLoggedAt.present) {
+      map['last_logged_at'] = Variable<DateTime>(lastLoggedAt.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SubscriptionItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('fromCurrencyJson: $fromCurrencyJson, ')
+          ..write('note: $note, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('scheduleType: $scheduleType, ')
+          ..write('billingDayOfMonth: $billingDayOfMonth, ')
+          ..write('rollingDays: $rollingDays, ')
+          ..write('nextDueAt: $nextDueAt, ')
+          ..write('lastLoggedAt: $lastLoggedAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10097,6 +11172,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpenseCategoriesTable expenseCategories =
       $ExpenseCategoriesTable(this);
   late final $WishlistItemsTable wishlistItems = $WishlistItemsTable(this);
+  late final $SubscriptionItemsTable subscriptionItems =
+      $SubscriptionItemsTable(this);
   late final $WalletAccountsTable walletAccounts = $WalletAccountsTable(this);
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
   late final $WalletLedgerEntriesTable walletLedgerEntries =
@@ -10154,6 +11231,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     auditLog,
     expenseCategories,
     wishlistItems,
+    subscriptionItems,
     walletAccounts,
     savingsGoals,
     walletLedgerEntries,
@@ -13278,6 +14356,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> clientSortAscending,
       Value<String> clientListLayout,
       Value<String> chartCurveStyle,
+      Value<bool> notifBackupReminderEnabled,
+      Value<int> notifBackupReminderDays,
+      Value<DateTime?> lastJsonExportAt,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -13307,6 +14388,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> clientSortAscending,
       Value<String> clientListLayout,
       Value<String> chartCurveStyle,
+      Value<bool> notifBackupReminderEnabled,
+      Value<int> notifBackupReminderDays,
+      Value<DateTime?> lastJsonExportAt,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -13445,6 +14529,21 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get chartCurveStyle => $composableBuilder(
     column: $table.chartCurveStyle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifBackupReminderEnabled => $composableBuilder(
+    column: $table.notifBackupReminderEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifBackupReminderDays => $composableBuilder(
+    column: $table.notifBackupReminderDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastJsonExportAt => $composableBuilder(
+    column: $table.lastJsonExportAt,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -13587,6 +14686,21 @@ class $$AppSettingsTableOrderingComposer
     column: $table.chartCurveStyle,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get notifBackupReminderEnabled => $composableBuilder(
+    column: $table.notifBackupReminderEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifBackupReminderDays => $composableBuilder(
+    column: $table.notifBackupReminderDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastJsonExportAt => $composableBuilder(
+    column: $table.lastJsonExportAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -13725,6 +14839,21 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.chartCurveStyle,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get notifBackupReminderEnabled => $composableBuilder(
+    column: $table.notifBackupReminderEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notifBackupReminderDays => $composableBuilder(
+    column: $table.notifBackupReminderDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastJsonExportAt => $composableBuilder(
+    column: $table.lastJsonExportAt,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -13784,6 +14913,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> clientSortAscending = const Value.absent(),
                 Value<String> clientListLayout = const Value.absent(),
                 Value<String> chartCurveStyle = const Value.absent(),
+                Value<bool> notifBackupReminderEnabled = const Value.absent(),
+                Value<int> notifBackupReminderDays = const Value.absent(),
+                Value<DateTime?> lastJsonExportAt = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -13811,6 +14943,9 @@ class $$AppSettingsTableTableManager
                 clientSortAscending: clientSortAscending,
                 clientListLayout: clientListLayout,
                 chartCurveStyle: chartCurveStyle,
+                notifBackupReminderEnabled: notifBackupReminderEnabled,
+                notifBackupReminderDays: notifBackupReminderDays,
+                lastJsonExportAt: lastJsonExportAt,
               ),
           createCompanionCallback:
               ({
@@ -13840,6 +14975,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> clientSortAscending = const Value.absent(),
                 Value<String> clientListLayout = const Value.absent(),
                 Value<String> chartCurveStyle = const Value.absent(),
+                Value<bool> notifBackupReminderEnabled = const Value.absent(),
+                Value<int> notifBackupReminderDays = const Value.absent(),
+                Value<DateTime?> lastJsonExportAt = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -13867,6 +15005,9 @@ class $$AppSettingsTableTableManager
                 clientSortAscending: clientSortAscending,
                 clientListLayout: clientListLayout,
                 chartCurveStyle: chartCurveStyle,
+                notifBackupReminderEnabled: notifBackupReminderEnabled,
+                notifBackupReminderDays: notifBackupReminderDays,
+                lastJsonExportAt: lastJsonExportAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -14928,6 +16069,425 @@ typedef $$WishlistItemsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $WishlistItemsTable, WishlistItem>,
       ),
       WishlistItem,
+      PrefetchHooks Function()
+    >;
+typedef $$SubscriptionItemsTableCreateCompanionBuilder =
+    SubscriptionItemsCompanion Function({
+      required String id,
+      required String title,
+      required int amountMinor,
+      Value<String> currencyCode,
+      Value<String?> fromCurrencyJson,
+      Value<String?> note,
+      Value<String?> categoryId,
+      required String scheduleType,
+      Value<int?> billingDayOfMonth,
+      Value<int?> rollingDays,
+      required DateTime nextDueAt,
+      Value<DateTime?> lastLoggedAt,
+      Value<bool> isActive,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SubscriptionItemsTableUpdateCompanionBuilder =
+    SubscriptionItemsCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<int> amountMinor,
+      Value<String> currencyCode,
+      Value<String?> fromCurrencyJson,
+      Value<String?> note,
+      Value<String?> categoryId,
+      Value<String> scheduleType,
+      Value<int?> billingDayOfMonth,
+      Value<int?> rollingDays,
+      Value<DateTime> nextDueAt,
+      Value<DateTime?> lastLoggedAt,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SubscriptionItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $SubscriptionItemsTable> {
+  $$SubscriptionItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get billingDayOfMonth => $composableBuilder(
+    column: $table.billingDayOfMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get rollingDays => $composableBuilder(
+    column: $table.rollingDays,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextDueAt => $composableBuilder(
+    column: $table.nextDueAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastLoggedAt => $composableBuilder(
+    column: $table.lastLoggedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SubscriptionItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SubscriptionItemsTable> {
+  $$SubscriptionItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get billingDayOfMonth => $composableBuilder(
+    column: $table.billingDayOfMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get rollingDays => $composableBuilder(
+    column: $table.rollingDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextDueAt => $composableBuilder(
+    column: $table.nextDueAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastLoggedAt => $composableBuilder(
+    column: $table.lastLoggedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SubscriptionItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SubscriptionItemsTable> {
+  $$SubscriptionItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get fromCurrencyJson => $composableBuilder(
+    column: $table.fromCurrencyJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get scheduleType => $composableBuilder(
+    column: $table.scheduleType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get billingDayOfMonth => $composableBuilder(
+    column: $table.billingDayOfMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get rollingDays => $composableBuilder(
+    column: $table.rollingDays,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextDueAt =>
+      $composableBuilder(column: $table.nextDueAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastLoggedAt => $composableBuilder(
+    column: $table.lastLoggedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SubscriptionItemsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SubscriptionItemsTable,
+          SubscriptionItem,
+          $$SubscriptionItemsTableFilterComposer,
+          $$SubscriptionItemsTableOrderingComposer,
+          $$SubscriptionItemsTableAnnotationComposer,
+          $$SubscriptionItemsTableCreateCompanionBuilder,
+          $$SubscriptionItemsTableUpdateCompanionBuilder,
+          (
+            SubscriptionItem,
+            BaseReferences<
+              _$AppDatabase,
+              $SubscriptionItemsTable,
+              SubscriptionItem
+            >,
+          ),
+          SubscriptionItem,
+          PrefetchHooks Function()
+        > {
+  $$SubscriptionItemsTableTableManager(
+    _$AppDatabase db,
+    $SubscriptionItemsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SubscriptionItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SubscriptionItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SubscriptionItemsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<String> scheduleType = const Value.absent(),
+                Value<int?> billingDayOfMonth = const Value.absent(),
+                Value<int?> rollingDays = const Value.absent(),
+                Value<DateTime> nextDueAt = const Value.absent(),
+                Value<DateTime?> lastLoggedAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionItemsCompanion(
+                id: id,
+                title: title,
+                amountMinor: amountMinor,
+                currencyCode: currencyCode,
+                fromCurrencyJson: fromCurrencyJson,
+                note: note,
+                categoryId: categoryId,
+                scheduleType: scheduleType,
+                billingDayOfMonth: billingDayOfMonth,
+                rollingDays: rollingDays,
+                nextDueAt: nextDueAt,
+                lastLoggedAt: lastLoggedAt,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                required int amountMinor,
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> fromCurrencyJson = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                required String scheduleType,
+                Value<int?> billingDayOfMonth = const Value.absent(),
+                Value<int?> rollingDays = const Value.absent(),
+                required DateTime nextDueAt,
+                Value<DateTime?> lastLoggedAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => SubscriptionItemsCompanion.insert(
+                id: id,
+                title: title,
+                amountMinor: amountMinor,
+                currencyCode: currencyCode,
+                fromCurrencyJson: fromCurrencyJson,
+                note: note,
+                categoryId: categoryId,
+                scheduleType: scheduleType,
+                billingDayOfMonth: billingDayOfMonth,
+                rollingDays: rollingDays,
+                nextDueAt: nextDueAt,
+                lastLoggedAt: lastLoggedAt,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SubscriptionItemsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SubscriptionItemsTable,
+      SubscriptionItem,
+      $$SubscriptionItemsTableFilterComposer,
+      $$SubscriptionItemsTableOrderingComposer,
+      $$SubscriptionItemsTableAnnotationComposer,
+      $$SubscriptionItemsTableCreateCompanionBuilder,
+      $$SubscriptionItemsTableUpdateCompanionBuilder,
+      (
+        SubscriptionItem,
+        BaseReferences<
+          _$AppDatabase,
+          $SubscriptionItemsTable,
+          SubscriptionItem
+        >,
+      ),
+      SubscriptionItem,
       PrefetchHooks Function()
     >;
 typedef $$WalletAccountsTableCreateCompanionBuilder =
@@ -16745,6 +18305,8 @@ class $AppDatabaseManager {
       $$ExpenseCategoriesTableTableManager(_db, _db.expenseCategories);
   $$WishlistItemsTableTableManager get wishlistItems =>
       $$WishlistItemsTableTableManager(_db, _db.wishlistItems);
+  $$SubscriptionItemsTableTableManager get subscriptionItems =>
+      $$SubscriptionItemsTableTableManager(_db, _db.subscriptionItems);
   $$WalletAccountsTableTableManager get walletAccounts =>
       $$WalletAccountsTableTableManager(_db, _db.walletAccounts);
   $$SavingsGoalsTableTableManager get savingsGoals =>

@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:home_widget/home_widget.dart';
+
 import 'providers/providers.dart';
 import 'router/app_router.dart';
 import 'services/cloud_sync_service.dart';
 import 'services/home_widget_service.dart';
+import 'services/notification_navigation.dart';
 import 'services/notification_scheduler.dart';
 import 'services/notification_service.dart';
 import 'services/periodic_sync.dart';
@@ -17,6 +20,9 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await CloudSyncService.applyPendingRestoreIfAny();
   await NotificationService.initialize();
+  if (Platform.isAndroid) {
+    await HomeWidget.registerInteractivityCallback(homeWidgetBackgroundCallback);
+  }
   runApp(const ProviderScope(child: WexcomDebtApp()));
 }
 
@@ -48,6 +54,9 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
 
   Future<void> _bootstrapApp() async {
     final repo = ref.read(ledgerRepositoryProvider);
+    final router = ref.read(goRouterProvider);
+    setNotificationRouteHandler(router.go);
+    await NotificationService.handleLaunchNotification();
     final s = await repo.getAppSettings();
     if (s != null) {
       currentChartCurveStyle = ChartCurveStyle.fromStorage(s.chartCurveStyle);

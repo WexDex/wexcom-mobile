@@ -176,6 +176,29 @@ class WishlistItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// Recurring subscription expenses (separate from wishlist).
+class SubscriptionItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get currencyCode => text().withDefault(const Constant('DZD'))();
+  TextColumn get fromCurrencyJson => text().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get categoryId => text().nullable()();
+  /// day_of_month | rolling_days
+  TextColumn get scheduleType => text()();
+  IntColumn get billingDayOfMonth => integer().nullable()();
+  IntColumn get rollingDays => integer().nullable()();
+  DateTimeColumn get nextDueAt => dateTime()();
+  DateTimeColumn get lastLoggedAt => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Manual wallet accounts (Cash, CCP, Baridimob, …).
 class WalletAccounts extends Table {
   TextColumn get id => text()();
@@ -284,6 +307,13 @@ class AppSettings extends Table {
   TextColumn get chartCurveStyle =>
       text().withDefault(const Constant('monotone'))();
 
+  // Backup reminder (v13)
+  BoolColumn get notifBackupReminderEnabled =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get notifBackupReminderDays =>
+      integer().withDefault(const Constant(30))();
+  DateTimeColumn get lastJsonExportAt => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -302,6 +332,7 @@ class AppSettings extends Table {
     AuditLog,
     ExpenseCategories,
     WishlistItems,
+    SubscriptionItems,
     WalletAccounts,
     SavingsGoals,
     WalletLedgerEntries,
@@ -313,7 +344,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -458,6 +489,12 @@ class AppDatabase extends _$AppDatabase {
             );
             await m.addColumn(wishlistItems, wishlistItems.fromCurrencyJson);
             await _seedDefaultCurrency();
+          }
+          if (from < 13) {
+            await m.createTable(subscriptionItems);
+            await m.addColumn(appSettings, appSettings.notifBackupReminderEnabled);
+            await m.addColumn(appSettings, appSettings.notifBackupReminderDays);
+            await m.addColumn(appSettings, appSettings.lastJsonExportAt);
           }
         },
       );

@@ -22,6 +22,14 @@ Future<void> refreshScheduledNotifications(LedgerRepository repo) async {
   } else {
     await NotificationService.cancelInactivityReminder();
   }
+
+  if (s.notifBackupReminderEnabled) {
+    await NotificationService.scheduleBackupReminder(
+      hourOfDay: s.notifOverdueHour,
+    );
+  } else {
+    await NotificationService.cancelBackupReminder();
+  }
 }
 
 Future<void> runNotificationChecks(LedgerRepository repo) async {
@@ -50,5 +58,36 @@ Future<void> runNotificationChecks(LedgerRepository repo) async {
     if (days >= s.notifInactivityDays) {
       await NotificationService.showInactivityReminder(daysSinceLast: days);
     }
+  }
+
+  if (s.notifBackupReminderEnabled) {
+    final last = s.lastJsonExportAt;
+    final daysSince = last == null
+        ? s.notifBackupReminderDays + 1
+        : DateTime.now().toUtc().difference(last.toUtc()).inDays;
+    if (daysSince >= s.notifBackupReminderDays) {
+      await NotificationService.showBackupReminder(
+        daysSinceLastExport: daysSince,
+        neverExported: last == null,
+      );
+    }
+  }
+
+  final dueSubs = await repo.subscriptionsDueForReminder(withinDays: 3);
+  if (dueSubs.isNotEmpty) {
+    final now = DateTime.now();
+    var overdue = 0;
+    for (final sub in dueSubs) {
+      if (sub.nextDueAt.toLocal().isBefore(
+            DateTime(now.year, now.month, now.day),
+          )) {
+        overdue++;
+      }
+    }
+    await NotificationService.showSubscriptionDueReminder(
+      dueCount: dueSubs.length,
+      overdueCount: overdue,
+      nextTitle: dueSubs.first.title,
+    );
   }
 }

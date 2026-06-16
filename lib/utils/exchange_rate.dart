@@ -21,3 +21,15 @@ int rateToStored(num rate, {int scale = 0}) {
   if (scale <= 0) return rate.round();
   return (rate * math.pow(10, scale)).round();
 }
+
+/// Inverse of [convertMajorToDefaultMinor]: default minor → foreign major units.
+num convertDefaultMinorToForeignMajor({
+  required int defaultMinor,
+  required num rate,
+  required int defaultFractionDigits,
+}) {
+  if (rate <= 0 || defaultMinor <= 0) return 0;
+  final scale = math.pow(10, defaultFractionDigits).toInt();
+  final majorDefault = defaultMinor / scale;
+  return majorDefault / rate;
+}

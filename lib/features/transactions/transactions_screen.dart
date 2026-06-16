@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/db/app_database.dart';
 import '../../data/ledger_repository.dart';
 import '../../data/ledger_types.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../services/export_service.dart';
 import '../../services/home_widget_service.dart';
@@ -436,7 +437,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
     if (!context.mounted) return;
     final repo = ref.read(ledgerRepositoryProvider);
-    final foreign = editing == null ? await repo.foreignCurrencyEditorContext() : null;
+    final foreign = await repo.foreignCurrencyEditorContext();
+    final initialFrom = editing != null
+        ? FromCurrencySnapshot.fromJsonString(editing.fromCurrencyJson)
+        : null;
     if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
@@ -459,8 +463,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
           initialTagIds: selectedTags,
           initialEffectiveAt: editing?.effectiveAt ?? editing?.createdAt,
           currentBalanceMinor: editing?.postedBalanceBeforeMinor ?? fallbackBalance,
-          foreignCurrencyCodes: foreign?.codes ?? const [],
-          foreignRates: foreign?.rates ?? const {},
+          foreignCurrencyCodes: foreign.codes,
+          foreignRates: foreign.rates,
+          initialFromCurrency: initialFrom,
           templates: editing == null
               ? (ref.read(transactionTemplatesProvider).valueOrNull ?? [])
               : [],
@@ -499,6 +504,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 tagIds: tagIds,
                 effectiveAt: effectiveAt,
                 dueAt: dueAt,
+                fromCurrency: fromCurrency,
+                clearFromCurrency: fromCurrency == null,
               );
             }
             if (ctx.mounted) Navigator.pop(ctx);

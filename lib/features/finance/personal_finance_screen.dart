@@ -4,17 +4,23 @@ import 'package:intl/intl.dart';
 
 import '../../data/db/app_database.dart';
 import '../../data/ledger_types.dart';
+import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/category_icon.dart';
 import '../../utils/money.dart';
+import '../../utils/subscription_schedule.dart';
+import '../../widgets/currency_amount_input.dart';
 import '../dashboard/dashboard_charts.dart';
 import 'expense_categories_screen.dart';
 import 'wallet_tab.dart';
 import 'wishlist_wallet_sheet.dart';
 
 class PersonalFinanceScreen extends ConsumerStatefulWidget {
-  const PersonalFinanceScreen({super.key});
+  const PersonalFinanceScreen({super.key, this.initialTabKey});
+
+  /// Optional tab: `expenses`, `gains`, `wishlist`, `wallet`.
+  final String? initialTabKey;
 
   @override
   ConsumerState<PersonalFinanceScreen> createState() => _PersonalFinanceScreenState();
@@ -32,6 +38,23 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
     _tabController.addListener(() {
       if (mounted) setState(() {});
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialTab());
+  }
+
+  void _applyInitialTab() {
+    final key = widget.initialTabKey?.toLowerCase();
+    if (key == null) return;
+    final index = switch (key) {
+      'expenses' || 'expense' => 0,
+      'gains' || 'gain' => 1,
+      'wishlist' || 'subscriptions' || 'subs' => 2,
+      'wallet' => 3,
+      _ => 0,
+    };
+    if (_tabController.index != index) {
+      _tabController.index = index;
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -46,6 +69,8 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
   Future<void> _openEditor(PersonalFinanceEntry? existing) async {
     final kind = existing != null ? PersonalFinanceKind.fromInt(existing.kind) : _kind;
     final currency = await ref.read(defaultCurrencyProvider.future);
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = await repo.foreignCurrencyEditorContext();
     if (!mounted) return;
 
     final categories = ref
@@ -57,6 +82,9 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
       text: existing != null ? '${existing.amountMinor}' : '',
     );
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
+    final initialSnap = FromCurrencySnapshot.fromJsonString(existing?.fromCurrencyJson);
+    FromCurrencySnapshot? fromSnap = initialSnap;
+    final amountKey = GlobalKey<CurrencyAmountInputState>();
     final color = kind == PersonalFinanceKind.expense
         ? AppTheme.personalExpense
         : AppTheme.personalGain;
@@ -150,13 +178,14 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                       textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: amountCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Amount',
-                        helperText: 'Whole units ($currency)',
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    CurrencyAmountInput(
+                      key: amountKey,
+                      defaultCurrencyCode: currency,
+                      amountMinorController: amountCtrl,
+                      currencyCodes: foreign.codes,
+                      rates: foreign.rates,
+                      initialSnapshot: initialSnap,
+                      onSnapshotChanged: (s) => fromSnap = s,
                     ),
                     // Category chips
                     if (categories.isNotEmpty) ...[
@@ -223,9 +252,28 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                     const SizedBox(height: 24),
                     FilledButton(
                       onPressed: () {
-                        final minor = MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
+                        fromSnap = amountKey.currentState?.buildSnapshot();
+                        final minor =
+                            MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
                         final title = titleCtrl.text.trim();
-                        if (minor == null || minor <= 0 || title.isEmpty) {
+                        if (title.isEmpty) {
+                          Navigator.pop(ctx, false);
+                          return;
+                        }
+                        final foreignOn =
+                            amountKey.currentState?.foreignModeEnabled ?? false;
+                        if (foreignOn && (minor == null || minor <= 0)) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Set an exchange rate in Tags → Currencies, '
+                                'then enter the foreign or default amount',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        if (minor == null || minor <= 0) {
                           Navigator.pop(ctx, false);
                           return;
                         }
@@ -248,6 +296,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
     );
 
     if (saved == true) {
+      fromSnap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
       final minor = MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
       final title = titleCtrl.text.trim();
       final note = noteCtrl.text.trim();
@@ -263,6 +312,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             note: note.isEmpty ? null : note,
             categoryId: selectedCategoryId,
             createdAt: createdAt,
+            fromCurrency: fromSnap,
           );
         } else {
           await repo.updatePersonalFinanceEntry(
@@ -274,6 +324,8 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             categoryId: selectedCategoryId,
             clearCategory: selectedCategoryId == null,
             createdAt: createdAt,
+            fromCurrency: fromSnap,
+            clearFromCurrency: fromSnap == null,
           );
         }
       }
@@ -326,7 +378,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
           tabs: const [
             Tab(text: 'Expenses'),
             Tab(text: 'Gains'),
-            Tab(text: 'Wishlist'),
+            Tab(text: 'Wishlist & Subs'),
             Tab(text: 'Wallet'),
           ],
         ),
@@ -346,7 +398,10 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             onDaysChanged: (d) => setState(() => _chartDays = d),
             onOpenEditor: _openEditor,
           ),
-          _WishlistTabBody(onAddEntry: _openEditor),
+          _WishlistTabBody(
+            onOpenWishlistEditor: _openWishlistEditor,
+            onOpenSubscriptionEditor: _openSubscriptionEditor,
+          ),
           const WalletTabBody(),
         ],
       ),
@@ -360,7 +415,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
               child: const Icon(Icons.add),
             )
           : FloatingActionButton(
-              onPressed: () => _openWishlistEditor(null),
+              onPressed: _showWishlistFabMenu,
               backgroundColor: AppTheme.brandSecondary,
               foregroundColor: Colors.black87,
               child: const Icon(Icons.add_shopping_cart_rounded),
@@ -368,8 +423,43 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
     );
   }
 
+  Future<void> _showWishlistFabMenu() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.shopping_bag_outlined),
+              title: const Text('Wishlist item'),
+              onTap: () => Navigator.pop(ctx, 'wishlist'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.autorenew_rounded),
+              title: const Text('Subscription'),
+              onTap: () => Navigator.pop(ctx, 'subscription'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'wishlist') {
+      await _openWishlistEditor(null);
+    } else {
+      await _openSubscriptionEditor(null);
+    }
+  }
+
   Future<void> _openWishlistEditor(WishlistItem? existing) async {
     final currency = await ref.read(defaultCurrencyProvider.future);
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = await repo.foreignCurrencyEditorContext();
     if (!mounted) return;
     final categories = ref.read(expenseCategoriesProvider('expense')).valueOrNull ?? [];
 
@@ -379,6 +469,8 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
     );
     final noteCtrl = TextEditingController(text: existing?.note ?? '');
     String? selectedCategoryId = existing?.categoryId;
+    final initialSnap = FromCurrencySnapshot.fromJsonString(existing?.fromCurrencyJson);
+    FromCurrencySnapshot? fromSnap = initialSnap;
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -422,13 +514,14 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                   textCapitalization: TextCapitalization.sentences,
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: amountCtrl,
-                  decoration: InputDecoration(
-                    labelText: 'Estimated price',
-                    helperText: 'Whole units ($currency)',
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                CurrencyAmountInput(
+                  defaultCurrencyCode: currency,
+                  amountMinorController: amountCtrl,
+                  currencyCodes: foreign.codes,
+                  rates: foreign.rates,
+                  initialSnapshot: initialSnap,
+                  amountLabel: 'Estimated price',
+                  onSnapshotChanged: (s) => fromSnap = s,
                 ),
                 if (categories.isNotEmpty) ...[
                   const SizedBox(height: 14),
@@ -509,14 +602,238 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             note: note.isEmpty ? null : note,
             categoryId: selectedCategoryId,
             currencyCode: currency,
+            fromCurrency: fromSnap,
+          );
+        } else {
+          await repo.updateWishlistItem(
+            id: existing.id,
+            title: title,
+            amountMinor: minor,
+            note: note.isEmpty ? null : note,
+            categoryId: selectedCategoryId,
+            clearCategory: selectedCategoryId == null,
+            fromCurrency: fromSnap,
+            clearFromCurrency: fromSnap == null,
           );
         }
-        // TODO: update existing wishlist item (add updateWishlistItem to repo if needed)
       }
     }
     titleCtrl.dispose();
     amountCtrl.dispose();
     noteCtrl.dispose();
+  }
+
+  Future<void> _openSubscriptionEditor(SubscriptionItem? existing) async {
+    final currency = await ref.read(defaultCurrencyProvider.future);
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = await repo.foreignCurrencyEditorContext();
+    if (!mounted) return;
+    final categories = ref.read(expenseCategoriesProvider('expense')).valueOrNull ?? [];
+
+    final titleCtrl = TextEditingController(text: existing?.title ?? '');
+    final amountCtrl = TextEditingController(
+      text: existing != null ? '${existing.amountMinor}' : '',
+    );
+    final noteCtrl = TextEditingController(text: existing?.note ?? '');
+    final rollingCtrl = TextEditingController(
+      text: '${existing?.rollingDays ?? 30}',
+    );
+    String? selectedCategoryId = existing?.categoryId;
+    final initialSnap = FromCurrencySnapshot.fromJsonString(existing?.fromCurrencyJson);
+    FromCurrencySnapshot? fromSnap = initialSnap;
+    var scheduleType = existing != null
+        ? SubscriptionScheduleType.fromStorage(existing.scheduleType)
+        : SubscriptionScheduleType.rollingDays;
+    var billingDay = existing?.billingDayOfMonth ?? DateTime.now().day;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModal) => Padding(
+          padding: EdgeInsets.only(
+            left: 20, right: 20, top: 16,
+            bottom: MediaQuery.viewInsetsOf(ctx).bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        existing == null ? 'New subscription' : 'Edit subscription',
+                        style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                          color: AppTheme.brandPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Title'),
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 12),
+                CurrencyAmountInput(
+                  defaultCurrencyCode: currency,
+                  amountMinorController: amountCtrl,
+                  currencyCodes: foreign.codes,
+                  rates: foreign.rates,
+                  initialSnapshot: initialSnap,
+                  onSnapshotChanged: (s) => fromSnap = s,
+                ),
+                const SizedBox(height: 12),
+                Text('Schedule',
+                    style: Theme.of(ctx).textTheme.labelMedium?.copyWith(color: AppTheme.mutedFg)),
+                const SizedBox(height: 6),
+                SegmentedButton<SubscriptionScheduleType>(
+                  segments: const [
+                    ButtonSegment(
+                      value: SubscriptionScheduleType.dayOfMonth,
+                      label: Text('Day of month'),
+                    ),
+                    ButtonSegment(
+                      value: SubscriptionScheduleType.rollingDays,
+                      label: Text('Rolling'),
+                    ),
+                  ],
+                  selected: {scheduleType},
+                  onSelectionChanged: (s) => setModal(() => scheduleType = s.first),
+                ),
+                const SizedBox(height: 12),
+                if (scheduleType == SubscriptionScheduleType.dayOfMonth)
+                  DropdownButtonFormField<int>(
+                    value: billingDay.clamp(1, 31),
+                    decoration: const InputDecoration(labelText: 'Billing day'),
+                    items: List.generate(
+                      31,
+                      (i) => DropdownMenuItem(value: i + 1, child: Text('${i + 1}')),
+                    ),
+                    onChanged: (v) {
+                      if (v != null) setModal(() => billingDay = v);
+                    },
+                  )
+                else
+                  TextField(
+                    controller: rollingCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Every N days',
+                      helperText: 'Default 30',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                if (categories.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text('Category',
+                      style: Theme.of(ctx).textTheme.labelMedium?.copyWith(color: AppTheme.mutedFg)),
+                  const SizedBox(height: 6),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: const Text('None'),
+                            selected: selectedCategoryId == null,
+                            onSelected: (_) => setModal(() => selectedCategoryId = null),
+                          ),
+                        ),
+                        ...categories.map((cat) {
+                          final catColor = _hexColor(cat.colorHex);
+                          final isSelected = selectedCategoryId == cat.id;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ChoiceChip(
+                              label: Text(cat.name),
+                              selected: isSelected,
+                              selectedColor: catColor.withValues(alpha: 0.2),
+                              onSelected: (_) => setModal(() => selectedCategoryId = cat.id),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  decoration: const InputDecoration(labelText: 'Note', hintText: 'Optional'),
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () {
+                    final minor = MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
+                    if (minor == null || minor <= 0 || titleCtrl.text.trim().isEmpty) {
+                      Navigator.pop(ctx, false);
+                      return;
+                    }
+                    Navigator.pop(ctx, true);
+                  },
+                  child: Text(existing == null ? 'Add subscription' : 'Save changes'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (saved == true) {
+      final minor = MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
+      final title = titleCtrl.text.trim();
+      final note = noteCtrl.text.trim();
+      final rolling = int.tryParse(rollingCtrl.text.trim()) ?? 30;
+      if (minor != null && minor > 0 && title.isNotEmpty) {
+        if (existing == null) {
+          await repo.addSubscriptionItem(
+            title: title,
+            amountMinor: minor,
+            scheduleType: scheduleType,
+            billingDayOfMonth:
+                scheduleType == SubscriptionScheduleType.dayOfMonth ? billingDay : null,
+            rollingDays: scheduleType == SubscriptionScheduleType.rollingDays ? rolling : null,
+            note: note.isEmpty ? null : note,
+            categoryId: selectedCategoryId,
+            fromCurrency: fromSnap,
+          );
+        } else {
+          await repo.updateSubscriptionItem(
+            id: existing.id,
+            title: title,
+            amountMinor: minor,
+            scheduleType: scheduleType,
+            billingDayOfMonth:
+                scheduleType == SubscriptionScheduleType.dayOfMonth ? billingDay : null,
+            rollingDays: scheduleType == SubscriptionScheduleType.rollingDays ? rolling : null,
+            note: note.isEmpty ? null : note,
+            categoryId: selectedCategoryId,
+            fromCurrency: fromSnap,
+            clearFromCurrency: fromSnap == null,
+          );
+        }
+      }
+    }
+    titleCtrl.dispose();
+    amountCtrl.dispose();
+    noteCtrl.dispose();
+    rollingCtrl.dispose();
   }
 }
 
@@ -846,60 +1163,85 @@ Future<void> _confirmDelete(
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _WishlistTabBody extends ConsumerWidget {
-  const _WishlistTabBody({required this.onAddEntry});
+  const _WishlistTabBody({
+    required this.onOpenWishlistEditor,
+    required this.onOpenSubscriptionEditor,
+  });
 
-  final Future<void> Function(PersonalFinanceEntry?) onAddEntry;
+  final Future<void> Function(WishlistItem?) onOpenWishlistEditor;
+  final Future<void> Function(SubscriptionItem?) onOpenSubscriptionEditor;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(wishlistItemsProvider(false));
+    final subsAsync = ref.watch(subscriptionsProvider);
     final currencyAsync = ref.watch(defaultCurrencyProvider);
     final code = currencyAsync.valueOrNull ?? 'DZD';
     final text = Theme.of(context).textTheme;
 
     return itemsAsync.when(
       data: (items) {
-        final total = items.fold<int>(0, (s, i) => s + i.amountMinor);
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          children: [
-            // Header stat
-            if (items.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    Icon(Icons.shopping_cart_outlined,
-                        size: 18, color: AppTheme.brandSecondary),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${items.length} item${items.length == 1 ? '' : 's'} · estimated total: ${MoneyFormat.formatMinor(total, code)}',
-                      style: text.labelMedium?.copyWith(color: AppTheme.mutedFg),
+        return subsAsync.when(
+          data: (subs) {
+            final total = items.fold<int>(0, (s, i) => s + i.amountMinor);
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              children: [
+                Text('Wishlist',
+                    style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                if (items.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.shopping_cart_outlined,
+                            size: 18, color: AppTheme.brandSecondary),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${items.length} item${items.length == 1 ? '' : 's'} · ${MoneyFormat.formatMinor(total, code)}',
+                          style: text.labelMedium?.copyWith(color: AppTheme.mutedFg),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-            if (items.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 48),
-                child: Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.add_shopping_cart_rounded,
-                          size: 48, color: AppTheme.mutedFg.withValues(alpha: 0.4)),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Nothing on your list yet\nTap + to add an item',
-                        textAlign: TextAlign.center,
-                        style: text.bodyMedium?.copyWith(color: AppTheme.mutedFg),
-                      ),
-                    ],
                   ),
-                ),
-              )
-            else
-              ...items.map((item) => _WishlistItemCard(item: item, code: code)),
-          ],
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Text('Nothing on your list yet',
+                        style: text.bodySmall?.copyWith(color: AppTheme.mutedFg)),
+                  )
+                else
+                  ...items.map(
+                    (item) => _WishlistItemCard(
+                      item: item,
+                      code: code,
+                      onEdit: () => onOpenWishlistEditor(item),
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                Text('Subscriptions',
+                    style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                if (subs.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text('No subscriptions yet — tap + to add',
+                        style: text.bodySmall?.copyWith(color: AppTheme.mutedFg)),
+                  )
+                else
+                  ...subs.map(
+                    (sub) => _SubscriptionItemCard(
+                      item: sub,
+                      code: code,
+                      onEdit: () => onOpenSubscriptionEditor(sub),
+                    ),
+                  ),
+              ],
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -909,10 +1251,15 @@ class _WishlistTabBody extends ConsumerWidget {
 }
 
 class _WishlistItemCard extends ConsumerWidget {
-  const _WishlistItemCard({required this.item, required this.code});
+  const _WishlistItemCard({
+    required this.item,
+    required this.code,
+    required this.onEdit,
+  });
 
   final WishlistItem item;
   final String code;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -958,6 +1305,11 @@ class _WishlistItemCard extends ConsumerWidget {
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: 'Edit',
+                onPressed: onEdit,
+              ),
               // Mark purchased
               IconButton(
                 icon: const Icon(Icons.check_circle_outline, size: 22),
@@ -1017,6 +1369,155 @@ class _WishlistItemCard extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('"${item.title}" marked purchased')),
       );
+    }
+  }
+}
+
+class _SubscriptionItemCard extends ConsumerWidget {
+  const _SubscriptionItemCard({
+    required this.item,
+    required this.code,
+    required this.onEdit,
+  });
+
+  final SubscriptionItem item;
+  final String code;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
+    final scheduleType = SubscriptionScheduleType.fromStorage(item.scheduleType);
+    final scheduleLabel = scheduleType == SubscriptionScheduleType.dayOfMonth
+        ? 'Day ${item.billingDayOfMonth ?? 1}'
+        : 'Every ${item.rollingDays ?? 30}d';
+    final dueLabel = formatDueLabel(item.nextDueAt);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(color: AppTheme.brandPrimary.withValues(alpha: 0.2)),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          leading: CircleAvatar(
+            backgroundColor: AppTheme.brandPrimary.withValues(alpha: 0.15),
+            child: const Icon(Icons.autorenew_rounded, color: AppTheme.brandPrimary, size: 20),
+          ),
+          title: Text(item.title, style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                MoneyFormat.formatMinor(item.amountMinor, code),
+                style: text.labelLarge?.copyWith(
+                  color: AppTheme.brandPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.mutedFg.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(scheduleLabel, style: text.labelSmall),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(dueLabel,
+                      style: text.labelSmall?.copyWith(
+                        color: dueLabel.startsWith('Overdue')
+                            ? AppTheme.ledgerDebt
+                            : AppTheme.mutedFg,
+                        fontWeight: FontWeight.w600,
+                      )),
+                ],
+              ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.receipt_long_outlined, size: 22),
+                color: AppTheme.personalExpense,
+                tooltip: 'Log payment',
+                onPressed: () => _logSubscription(context, ref),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                tooltip: 'Edit',
+                onPressed: onEdit,
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppTheme.ledgerDebt,
+                tooltip: 'Delete',
+                onPressed: () => _deleteSubscription(context, ref),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _logSubscription(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log subscription payment?'),
+        content: Text(
+          'Log "${item.title}" as an expense and advance the next due date.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Log')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final repo = ref.read(ledgerRepositoryProvider);
+    await repo.logSubscriptionPayment(item.id);
+    if (!context.mounted) return;
+    await showWishlistWalletSheet(
+      context: context,
+      ref: ref,
+      amountMinor: item.amountMinor,
+      currencyCode: item.currencyCode,
+      title: item.title,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${item.title}" logged')),
+      );
+    }
+  }
+
+  Future<void> _deleteSubscription(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete subscription?'),
+        content: Text(item.title),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppTheme.destructive),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && context.mounted) {
+      await ref.read(ledgerRepositoryProvider).deleteSubscriptionItem(item.id);
     }
   }
 }
@@ -1093,6 +1594,7 @@ class _EntryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeStr = DateFormat.jm().format(entry.createdAt.toLocal());
     final note = entry.note?.trim();
+    final fromSnap = FromCurrencySnapshot.fromJsonString(entry.fromCurrencyJson);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -1171,6 +1673,15 @@ class _EntryCard extends StatelessWidget {
                         fontSize: 15,
                       ),
                     ),
+                    if (fromSnap != null)
+                      Text(
+                        fromSnap.formatPrimary(),
+                        style: TextStyle(
+                          color: AppTheme.mutedFg,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     PopupMenuButton<String>(
                       icon: Icon(Icons.more_vert_rounded, color: AppTheme.mutedFg),
                       onSelected: (v) {

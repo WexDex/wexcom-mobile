@@ -9,6 +9,7 @@ import '../../theme/app_theme.dart';
 import '../../utils/chart_curve.dart';
 import '../../utils/exchange_rate.dart';
 import '../../utils/money.dart';
+import '../../widgets/currency_amount_input.dart';
 import 'wallet_section.dart';
 
 class WalletTabBody extends ConsumerStatefulWidget {
@@ -58,6 +59,9 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
           children: [
+            const WalletNetWorthCard(),
+            const WalletSavingsGoalsSection(),
+            const Divider(height: 24),
             Row(
               children: [
                 Text('Accounts', style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
@@ -143,7 +147,14 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
     );
     if (action == null || !context.mounted) return;
 
-    final ctrl = TextEditingController();
+    final repo = ref.read(ledgerRepositoryProvider);
+    final foreign = await repo.foreignCurrencyEditorContext();
+    if (!context.mounted) return;
+
+    final previewCtrl = TextEditingController();
+    final amountKey = GlobalKey<CurrencyAmountInputState>();
+    FromCurrencySnapshot? fromSnap;
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -152,12 +163,23 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
           'remove' => 'Remove amount',
           _ => 'Set balance',
         }),
-        content: TextField(
-          controller: ctrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            helperText: account.currencyCode,
-          ),
+        content: SingleChildScrollView(
+          child: account.currencyCode == defaultCode
+              ? TextField(
+                  controller: previewCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(helperText: defaultCode),
+                )
+              : CurrencyAmountInput(
+                  key: amountKey,
+                  defaultCurrencyCode: defaultCode,
+                  amountMinorController: previewCtrl,
+                  currencyCodes: foreign.codes,
+                  rates: foreign.rates,
+                  fixedInputCurrency: account.currencyCode,
+                  showForeignToggle: false,
+                  onSnapshotChanged: (s) => fromSnap = s,
+                ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -166,16 +188,23 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
       ),
     );
     if (ok != true || !context.mounted) return;
-    final minor = MoneyFormat.parseMinorUnits(ctrl.text, fractionDigits: 0);
-    if (minor == null || minor <= 0) return;
-    final repo = ref.read(ledgerRepositoryProvider);
+
+    int minor;
+    if (account.currencyCode == defaultCode) {
+      minor = MoneyFormat.parseMinorUnits(previewCtrl.text, fractionDigits: 0) ?? 0;
+    } else {
+      final snap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
+      minor = snap != null ? snap.amount.round() : 0;
+    }
+    previewCtrl.dispose();
+    if (minor <= 0) return;
     switch (action) {
       case 'add':
-        await repo.adjustWalletDelta(account.id, minor);
+        await repo.adjustWalletDelta(account.id, minor, fromCurrency: fromSnap);
       case 'remove':
-        await repo.adjustWalletDelta(account.id, -minor);
+        await repo.adjustWalletDelta(account.id, -minor, fromCurrency: fromSnap);
       default:
-        await repo.adjustAccountBalance(account.id, minor);
+        await repo.adjustAccountBalance(account.id, minor, fromCurrency: fromSnap);
     }
   }
 }

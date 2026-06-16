@@ -7,6 +7,7 @@ import '../../data/db/app_database.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/exchange_rate.dart';
+import '../../widgets/rate_history_chart.dart';
 
 class TagEditorScreen extends ConsumerStatefulWidget {
   const TagEditorScreen({super.key});
@@ -308,17 +309,24 @@ class _RateHistoryList extends ConsumerWidget {
     );
     return historyAsync.when(
       data: (rows) => Column(
-        children: rows
-            .map(
-              (r) => ListTile(
-                dense: true,
-                title: Text(
-                  '1 $currencyCode = ${rateFromStored(r.rateToDefault, r.rateScale)} $defaultCode',
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (rows.length >= 2) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: RateHistoryChart(rows: rows),
+            ),
+          ],
+          ...rows.map(
+                (r) => ListTile(
+                  dense: true,
+                  title: Text(
+                    '1 $currencyCode = ${rateFromStored(r.rateToDefault, r.rateScale)} $defaultCode',
+                  ),
+                  subtitle: Text(DateFormat.yMMMd().add_jm().format(r.recordedAt.toLocal())),
                 ),
-                subtitle: Text(DateFormat.yMMMd().add_jm().format(r.recordedAt.toLocal())),
               ),
-            )
-            .toList(),
+        ],
       ),
       loading: () => const LinearProgressIndicator(),
       error: (e, _) => Text('$e'),

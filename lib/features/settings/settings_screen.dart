@@ -384,6 +384,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       bool? inactivityEnabled,
       int? inactivityDays,
       bool? syncEnabled,
+      bool? backupReminderEnabled,
+      int? backupReminderDays,
     }) async {
       await ref.read(ledgerRepositoryProvider).saveNotificationSettings(
             overdueEnabled: overdueEnabled ?? s.notifOverdueEnabled,
@@ -395,6 +397,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             inactivityEnabled: inactivityEnabled ?? s.notifInactivityEnabled,
             inactivityDays: inactivityDays ?? s.notifInactivityDays,
             syncEnabled: syncEnabled ?? s.notifSyncEnabled,
+            backupReminderEnabled:
+                backupReminderEnabled ?? s.notifBackupReminderEnabled,
+            backupReminderDays: backupReminderDays ?? s.notifBackupReminderDays,
           );
       await refreshScheduledNotifications(ref.read(ledgerRepositoryProvider));
     }
@@ -466,6 +471,45 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _showTestSnack();
           },
         ),
+        _NotifRow(
+          icon: Icons.backup_outlined,
+          title: 'JSON backup reminder',
+          subtitle: s.lastJsonExportAt == null
+              ? 'Remind every ${s.notifBackupReminderDays} days (never exported)'
+              : 'Remind every ${s.notifBackupReminderDays} days without export',
+          value: s.notifBackupReminderEnabled,
+          onChanged: (v) => save(backupReminderEnabled: v),
+          onTest: () async {
+            await NotificationService.showBackupReminder(
+              daysSinceLastExport: s.notifBackupReminderDays,
+              neverExported: s.lastJsonExportAt == null,
+            );
+            _showTestSnack();
+          },
+        ),
+        if (s.notifBackupReminderEnabled)
+          ListTile(
+            contentPadding: const EdgeInsets.only(left: 56),
+            title: Text('Remind after ${s.notifBackupReminderDays} days'),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline, size: 20),
+                  onPressed: s.notifBackupReminderDays > 7
+                      ? () => save(backupReminderDays: s.notifBackupReminderDays - 1)
+                      : null,
+                ),
+                Text('${s.notifBackupReminderDays}'),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline, size: 20),
+                  onPressed: s.notifBackupReminderDays < 365
+                      ? () => save(backupReminderDays: s.notifBackupReminderDays + 1)
+                      : null,
+                ),
+              ],
+            ),
+          ),
         _NotifRow(
           icon: Icons.cloud_done_outlined,
           title: 'Cloud sync notification',
@@ -945,6 +989,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
+
+      await ref.read(ledgerRepositoryProvider).recordJsonExport();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

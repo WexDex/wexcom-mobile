@@ -56,6 +56,31 @@ Page<void> _detailPage(GoRouterState state, Widget child) {
 final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/home',
+    redirect: (context, state) {
+      final uri = state.uri;
+      if (uri.scheme == 'wexcom') {
+        switch (uri.host) {
+          case 'transactions':
+            return Uri(
+              path: '/transactions',
+              queryParameters: uri.queryParameters,
+            ).toString();
+          case 'tags':
+            return Uri(
+              path: '/tags',
+              queryParameters: uri.queryParameters,
+            ).toString();
+          case 'roulette':
+            return '/home';
+        }
+        return '/home';
+      }
+      final loc = state.matchedLocation;
+      if (loc == '/?' || loc == '/' && uri.hasQuery) {
+        return '/home';
+      }
+      return null;
+    },
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
@@ -93,7 +118,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/finance',
                 name: 'finance',
-                pageBuilder: (context, state) => _tabPage(state, const PersonalFinanceScreen()),
+                pageBuilder: (context, state) => _tabPage(
+                  state,
+                  PersonalFinanceScreen(
+                    initialTabKey: state.uri.queryParameters['tab'],
+                  ),
+                ),
               ),
             ],
           ),

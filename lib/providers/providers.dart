@@ -215,3 +215,7 @@ final rateHistoryProvider =
     StreamProvider.autoDispose.family<List<ExchangeRateHistoryData>, String>((ref, code) {
   return ref.watch(ledgerRepositoryProvider).watchRateHistory(code);
 });
+
+final subscriptionsProvider = StreamProvider.autoDispose<List<SubscriptionItem>>((ref) {
+  return ref.watch(ledgerRepositoryProvider).watchSubscriptionItems();
+});
