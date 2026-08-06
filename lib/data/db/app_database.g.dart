@@ -3463,6 +3463,516 @@ class QuickActionUsagesCompanion extends UpdateCompanion<QuickActionUsage> {
   }
 }
 
+class $WalletAccountsTable extends WalletAccounts
+    with TableInfo<$WalletAccountsTable, WalletAccount> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $WalletAccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
+  @override
+  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
+    'emoji',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('💵'),
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('DZD'),
+  );
+  static const VerificationMeta _balanceMinorMeta = const VerificationMeta(
+    'balanceMinor',
+  );
+  @override
+  late final GeneratedColumn<int> balanceMinor = GeneratedColumn<int>(
+    'balance_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    emoji,
+    currencyCode,
+    balanceMinor,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'wallet_accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<WalletAccount> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('emoji')) {
+      context.handle(
+        _emojiMeta,
+        emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('balance_minor')) {
+      context.handle(
+        _balanceMinorMeta,
+        balanceMinor.isAcceptableOrUnknown(
+          data['balance_minor']!,
+          _balanceMinorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  WalletAccount map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return WalletAccount(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      emoji: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}emoji'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      balanceMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}balance_minor'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $WalletAccountsTable createAlias(String alias) {
+    return $WalletAccountsTable(attachedDatabase, alias);
+  }
+}
+
+class WalletAccount extends DataClass implements Insertable<WalletAccount> {
+  final String id;
+  final String name;
+  final String emoji;
+  final String currencyCode;
+  final int balanceMinor;
+  final int sortOrder;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const WalletAccount({
+    required this.id,
+    required this.name,
+    required this.emoji,
+    required this.currencyCode,
+    required this.balanceMinor,
+    required this.sortOrder,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['emoji'] = Variable<String>(emoji);
+    map['currency_code'] = Variable<String>(currencyCode);
+    map['balance_minor'] = Variable<int>(balanceMinor);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  WalletAccountsCompanion toCompanion(bool nullToAbsent) {
+    return WalletAccountsCompanion(
+      id: Value(id),
+      name: Value(name),
+      emoji: Value(emoji),
+      currencyCode: Value(currencyCode),
+      balanceMinor: Value(balanceMinor),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory WalletAccount.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return WalletAccount(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      emoji: serializer.fromJson<String>(json['emoji']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      balanceMinor: serializer.fromJson<int>(json['balanceMinor']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'emoji': serializer.toJson<String>(emoji),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'balanceMinor': serializer.toJson<int>(balanceMinor),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  WalletAccount copyWith({
+    String? id,
+    String? name,
+    String? emoji,
+    String? currencyCode,
+    int? balanceMinor,
+    int? sortOrder,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => WalletAccount(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    emoji: emoji ?? this.emoji,
+    currencyCode: currencyCode ?? this.currencyCode,
+    balanceMinor: balanceMinor ?? this.balanceMinor,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  WalletAccount copyWithCompanion(WalletAccountsCompanion data) {
+    return WalletAccount(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      emoji: data.emoji.present ? data.emoji.value : this.emoji,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      balanceMinor: data.balanceMinor.present
+          ? data.balanceMinor.value
+          : this.balanceMinor,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletAccount(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('emoji: $emoji, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('balanceMinor: $balanceMinor, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    emoji,
+    currencyCode,
+    balanceMinor,
+    sortOrder,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is WalletAccount &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.emoji == this.emoji &&
+          other.currencyCode == this.currencyCode &&
+          other.balanceMinor == this.balanceMinor &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> emoji;
+  final Value<String> currencyCode;
+  final Value<int> balanceMinor;
+  final Value<int> sortOrder;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const WalletAccountsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.emoji = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.balanceMinor = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  WalletAccountsCompanion.insert({
+    required String id,
+    required String name,
+    this.emoji = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.balanceMinor = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<WalletAccount> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? emoji,
+    Expression<String>? currencyCode,
+    Expression<int>? balanceMinor,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (emoji != null) 'emoji': emoji,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (balanceMinor != null) 'balance_minor': balanceMinor,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  WalletAccountsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? emoji,
+    Value<String>? currencyCode,
+    Value<int>? balanceMinor,
+    Value<int>? sortOrder,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return WalletAccountsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      emoji: emoji ?? this.emoji,
+      currencyCode: currencyCode ?? this.currencyCode,
+      balanceMinor: balanceMinor ?? this.balanceMinor,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (emoji.present) {
+      map['emoji'] = Variable<String>(emoji.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (balanceMinor.present) {
+      map['balance_minor'] = Variable<int>(balanceMinor.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('WalletAccountsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('emoji: $emoji, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('balanceMinor: $balanceMinor, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
     with TableInfo<$PersonalFinanceEntriesTable, PersonalFinanceEntry> {
   @override
@@ -3539,6 +4049,20 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES wallet_accounts (id)',
+    ),
+  );
   static const VerificationMeta _fromCurrencyJsonMeta = const VerificationMeta(
     'fromCurrencyJson',
   );
@@ -3581,6 +4105,7 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
     currencyCode,
     note,
     categoryId,
+    accountId,
     fromCurrencyJson,
     createdAt,
     updatedAt,
@@ -3650,6 +4175,12 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
         categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
       );
     }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
     if (data.containsKey('from_currency_json')) {
       context.handle(
         _fromCurrencyJsonMeta,
@@ -3712,6 +4243,10 @@ class $PersonalFinanceEntriesTable extends PersonalFinanceEntries
         DriftSqlType.string,
         data['${effectivePrefix}category_id'],
       ),
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
       fromCurrencyJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}from_currency_json'],
@@ -3746,6 +4281,9 @@ class PersonalFinanceEntry extends DataClass
 
   /// FK to ExpenseCategories (nullable — pre-existing entries have no category)
   final String? categoryId;
+
+  /// FK to WalletAccounts — null treated as Pocket (`wallet-cash`) in UI
+  final String? accountId;
   final String? fromCurrencyJson;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -3757,6 +4295,7 @@ class PersonalFinanceEntry extends DataClass
     required this.currencyCode,
     this.note,
     this.categoryId,
+    this.accountId,
     this.fromCurrencyJson,
     required this.createdAt,
     required this.updatedAt,
@@ -3774,6 +4313,9 @@ class PersonalFinanceEntry extends DataClass
     }
     if (!nullToAbsent || categoryId != null) {
       map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
     }
     if (!nullToAbsent || fromCurrencyJson != null) {
       map['from_currency_json'] = Variable<String>(fromCurrencyJson);
@@ -3794,6 +4336,9 @@ class PersonalFinanceEntry extends DataClass
       categoryId: categoryId == null && nullToAbsent
           ? const Value.absent()
           : Value(categoryId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
       fromCurrencyJson: fromCurrencyJson == null && nullToAbsent
           ? const Value.absent()
           : Value(fromCurrencyJson),
@@ -3815,6 +4360,7 @@ class PersonalFinanceEntry extends DataClass
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       note: serializer.fromJson<String?>(json['note']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
       fromCurrencyJson: serializer.fromJson<String?>(json['fromCurrencyJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -3831,6 +4377,7 @@ class PersonalFinanceEntry extends DataClass
       'currencyCode': serializer.toJson<String>(currencyCode),
       'note': serializer.toJson<String?>(note),
       'categoryId': serializer.toJson<String?>(categoryId),
+      'accountId': serializer.toJson<String?>(accountId),
       'fromCurrencyJson': serializer.toJson<String?>(fromCurrencyJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -3845,6 +4392,7 @@ class PersonalFinanceEntry extends DataClass
     String? currencyCode,
     Value<String?> note = const Value.absent(),
     Value<String?> categoryId = const Value.absent(),
+    Value<String?> accountId = const Value.absent(),
     Value<String?> fromCurrencyJson = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -3856,6 +4404,7 @@ class PersonalFinanceEntry extends DataClass
     currencyCode: currencyCode ?? this.currencyCode,
     note: note.present ? note.value : this.note,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    accountId: accountId.present ? accountId.value : this.accountId,
     fromCurrencyJson: fromCurrencyJson.present
         ? fromCurrencyJson.value
         : this.fromCurrencyJson,
@@ -3877,6 +4426,7 @@ class PersonalFinanceEntry extends DataClass
       categoryId: data.categoryId.present
           ? data.categoryId.value
           : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
       fromCurrencyJson: data.fromCurrencyJson.present
           ? data.fromCurrencyJson.value
           : this.fromCurrencyJson,
@@ -3895,6 +4445,7 @@ class PersonalFinanceEntry extends DataClass
           ..write('currencyCode: $currencyCode, ')
           ..write('note: $note, ')
           ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
           ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -3911,6 +4462,7 @@ class PersonalFinanceEntry extends DataClass
     currencyCode,
     note,
     categoryId,
+    accountId,
     fromCurrencyJson,
     createdAt,
     updatedAt,
@@ -3926,6 +4478,7 @@ class PersonalFinanceEntry extends DataClass
           other.currencyCode == this.currencyCode &&
           other.note == this.note &&
           other.categoryId == this.categoryId &&
+          other.accountId == this.accountId &&
           other.fromCurrencyJson == this.fromCurrencyJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -3940,6 +4493,7 @@ class PersonalFinanceEntriesCompanion
   final Value<String> currencyCode;
   final Value<String?> note;
   final Value<String?> categoryId;
+  final Value<String?> accountId;
   final Value<String?> fromCurrencyJson;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -3952,6 +4506,7 @@ class PersonalFinanceEntriesCompanion
     this.currencyCode = const Value.absent(),
     this.note = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.fromCurrencyJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -3965,6 +4520,7 @@ class PersonalFinanceEntriesCompanion
     this.currencyCode = const Value.absent(),
     this.note = const Value.absent(),
     this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
     this.fromCurrencyJson = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -3983,6 +4539,7 @@ class PersonalFinanceEntriesCompanion
     Expression<String>? currencyCode,
     Expression<String>? note,
     Expression<String>? categoryId,
+    Expression<String>? accountId,
     Expression<String>? fromCurrencyJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -3996,6 +4553,7 @@ class PersonalFinanceEntriesCompanion
       if (currencyCode != null) 'currency_code': currencyCode,
       if (note != null) 'note': note,
       if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
       if (fromCurrencyJson != null) 'from_currency_json': fromCurrencyJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -4011,6 +4569,7 @@ class PersonalFinanceEntriesCompanion
     Value<String>? currencyCode,
     Value<String?>? note,
     Value<String?>? categoryId,
+    Value<String?>? accountId,
     Value<String?>? fromCurrencyJson,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -4024,6 +4583,7 @@ class PersonalFinanceEntriesCompanion
       currencyCode: currencyCode ?? this.currencyCode,
       note: note ?? this.note,
       categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
       fromCurrencyJson: fromCurrencyJson ?? this.fromCurrencyJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -4055,6 +4615,9 @@ class PersonalFinanceEntriesCompanion
     if (categoryId.present) {
       map['category_id'] = Variable<String>(categoryId.value);
     }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
     if (fromCurrencyJson.present) {
       map['from_currency_json'] = Variable<String>(fromCurrencyJson.value);
     }
@@ -4080,9 +4643,537 @@ class PersonalFinanceEntriesCompanion
           ..write('currencyCode: $currencyCode, ')
           ..write('note: $note, ')
           ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
           ..write('fromCurrencyJson: $fromCurrencyJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PersonalFinanceFavoritesTable extends PersonalFinanceFavorites
+    with TableInfo<$PersonalFinanceFavoritesTable, PersonalFinanceFavorite> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PersonalFinanceFavoritesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<int> kind = GeneratedColumn<int>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+    'label',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMinorMeta = const VerificationMeta(
+    'amountMinor',
+  );
+  @override
+  late final GeneratedColumn<int> amountMinor = GeneratedColumn<int>(
+    'amount_minor',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES wallet_accounts (id)',
+    ),
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    kind,
+    label,
+    amountMinor,
+    categoryId,
+    accountId,
+    sortOrder,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'personal_finance_favorites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PersonalFinanceFavorite> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_kindMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+        _labelMeta,
+        label.isAcceptableOrUnknown(data['label']!, _labelMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_labelMeta);
+    }
+    if (data.containsKey('amount_minor')) {
+      context.handle(
+        _amountMinorMeta,
+        amountMinor.isAcceptableOrUnknown(
+          data['amount_minor']!,
+          _amountMinorMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMinorMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PersonalFinanceFavorite map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PersonalFinanceFavorite(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}kind'],
+      )!,
+      label: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}label'],
+      )!,
+      amountMinor: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_minor'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      ),
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PersonalFinanceFavoritesTable createAlias(String alias) {
+    return $PersonalFinanceFavoritesTable(attachedDatabase, alias);
+  }
+}
+
+class PersonalFinanceFavorite extends DataClass
+    implements Insertable<PersonalFinanceFavorite> {
+  final String id;
+
+  /// 0 = expense, 1 = gain
+  final int kind;
+  final String label;
+  final int amountMinor;
+  final String? categoryId;
+  final String? accountId;
+  final int sortOrder;
+  final DateTime createdAt;
+  const PersonalFinanceFavorite({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.amountMinor,
+    this.categoryId,
+    this.accountId,
+    required this.sortOrder,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['kind'] = Variable<int>(kind);
+    map['label'] = Variable<String>(label);
+    map['amount_minor'] = Variable<int>(amountMinor);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    if (!nullToAbsent || accountId != null) {
+      map['account_id'] = Variable<String>(accountId);
+    }
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  PersonalFinanceFavoritesCompanion toCompanion(bool nullToAbsent) {
+    return PersonalFinanceFavoritesCompanion(
+      id: Value(id),
+      kind: Value(kind),
+      label: Value(label),
+      amountMinor: Value(amountMinor),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      accountId: accountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(accountId),
+      sortOrder: Value(sortOrder),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory PersonalFinanceFavorite.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PersonalFinanceFavorite(
+      id: serializer.fromJson<String>(json['id']),
+      kind: serializer.fromJson<int>(json['kind']),
+      label: serializer.fromJson<String>(json['label']),
+      amountMinor: serializer.fromJson<int>(json['amountMinor']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      accountId: serializer.fromJson<String?>(json['accountId']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'kind': serializer.toJson<int>(kind),
+      'label': serializer.toJson<String>(label),
+      'amountMinor': serializer.toJson<int>(amountMinor),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'accountId': serializer.toJson<String?>(accountId),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  PersonalFinanceFavorite copyWith({
+    String? id,
+    int? kind,
+    String? label,
+    int? amountMinor,
+    Value<String?> categoryId = const Value.absent(),
+    Value<String?> accountId = const Value.absent(),
+    int? sortOrder,
+    DateTime? createdAt,
+  }) => PersonalFinanceFavorite(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    label: label ?? this.label,
+    amountMinor: amountMinor ?? this.amountMinor,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    accountId: accountId.present ? accountId.value : this.accountId,
+    sortOrder: sortOrder ?? this.sortOrder,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  PersonalFinanceFavorite copyWithCompanion(
+    PersonalFinanceFavoritesCompanion data,
+  ) {
+    return PersonalFinanceFavorite(
+      id: data.id.present ? data.id.value : this.id,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      label: data.label.present ? data.label.value : this.label,
+      amountMinor: data.amountMinor.present
+          ? data.amountMinor.value
+          : this.amountMinor,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PersonalFinanceFavorite(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    kind,
+    label,
+    amountMinor,
+    categoryId,
+    accountId,
+    sortOrder,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PersonalFinanceFavorite &&
+          other.id == this.id &&
+          other.kind == this.kind &&
+          other.label == this.label &&
+          other.amountMinor == this.amountMinor &&
+          other.categoryId == this.categoryId &&
+          other.accountId == this.accountId &&
+          other.sortOrder == this.sortOrder &&
+          other.createdAt == this.createdAt);
+}
+
+class PersonalFinanceFavoritesCompanion
+    extends UpdateCompanion<PersonalFinanceFavorite> {
+  final Value<String> id;
+  final Value<int> kind;
+  final Value<String> label;
+  final Value<int> amountMinor;
+  final Value<String?> categoryId;
+  final Value<String?> accountId;
+  final Value<int> sortOrder;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const PersonalFinanceFavoritesCompanion({
+    this.id = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.label = const Value.absent(),
+    this.amountMinor = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PersonalFinanceFavoritesCompanion.insert({
+    required String id,
+    required int kind,
+    required String label,
+    required int amountMinor,
+    this.categoryId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       kind = Value(kind),
+       label = Value(label),
+       amountMinor = Value(amountMinor),
+       createdAt = Value(createdAt);
+  static Insertable<PersonalFinanceFavorite> custom({
+    Expression<String>? id,
+    Expression<int>? kind,
+    Expression<String>? label,
+    Expression<int>? amountMinor,
+    Expression<String>? categoryId,
+    Expression<String>? accountId,
+    Expression<int>? sortOrder,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (kind != null) 'kind': kind,
+      if (label != null) 'label': label,
+      if (amountMinor != null) 'amount_minor': amountMinor,
+      if (categoryId != null) 'category_id': categoryId,
+      if (accountId != null) 'account_id': accountId,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PersonalFinanceFavoritesCompanion copyWith({
+    Value<String>? id,
+    Value<int>? kind,
+    Value<String>? label,
+    Value<int>? amountMinor,
+    Value<String?>? categoryId,
+    Value<String?>? accountId,
+    Value<int>? sortOrder,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return PersonalFinanceFavoritesCompanion(
+      id: id ?? this.id,
+      kind: kind ?? this.kind,
+      label: label ?? this.label,
+      amountMinor: amountMinor ?? this.amountMinor,
+      categoryId: categoryId ?? this.categoryId,
+      accountId: accountId ?? this.accountId,
+      sortOrder: sortOrder ?? this.sortOrder,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<int>(kind.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (amountMinor.present) {
+      map['amount_minor'] = Variable<int>(amountMinor.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PersonalFinanceFavoritesCompanion(')
+          ..write('id: $id, ')
+          ..write('kind: $kind, ')
+          ..write('label: $label, ')
+          ..write('amountMinor: $amountMinor, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('accountId: $accountId, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4458,6 +5549,43 @@ class $AppSettingsTable extends AppSettings
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _financeTrackingStartAtMeta =
+      const VerificationMeta('financeTrackingStartAt');
+  @override
+  late final GeneratedColumn<DateTime> financeTrackingStartAt =
+      GeneratedColumn<DateTime>(
+        'finance_tracking_start_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _notifFinanceDailyEnabledMeta =
+      const VerificationMeta('notifFinanceDailyEnabled');
+  @override
+  late final GeneratedColumn<bool> notifFinanceDailyEnabled =
+      GeneratedColumn<bool>(
+        'notif_finance_daily_enabled',
+        aliasedName,
+        false,
+        type: DriftSqlType.bool,
+        requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("notif_finance_daily_enabled" IN (0, 1))',
+        ),
+        defaultValue: const Constant(false),
+      );
+  static const VerificationMeta _notifFinanceDailyHourMeta =
+      const VerificationMeta('notifFinanceDailyHour');
+  @override
+  late final GeneratedColumn<int> notifFinanceDailyHour = GeneratedColumn<int>(
+    'notif_finance_daily_hour',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(21),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4489,6 +5617,9 @@ class $AppSettingsTable extends AppSettings
     notifBackupReminderEnabled,
     notifBackupReminderDays,
     lastJsonExportAt,
+    financeTrackingStartAt,
+    notifFinanceDailyEnabled,
+    notifFinanceDailyHour,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4757,6 +5888,33 @@ class $AppSettingsTable extends AppSettings
         ),
       );
     }
+    if (data.containsKey('finance_tracking_start_at')) {
+      context.handle(
+        _financeTrackingStartAtMeta,
+        financeTrackingStartAt.isAcceptableOrUnknown(
+          data['finance_tracking_start_at']!,
+          _financeTrackingStartAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_finance_daily_enabled')) {
+      context.handle(
+        _notifFinanceDailyEnabledMeta,
+        notifFinanceDailyEnabled.isAcceptableOrUnknown(
+          data['notif_finance_daily_enabled']!,
+          _notifFinanceDailyEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notif_finance_daily_hour')) {
+      context.handle(
+        _notifFinanceDailyHourMeta,
+        notifFinanceDailyHour.isAcceptableOrUnknown(
+          data['notif_finance_daily_hour']!,
+          _notifFinanceDailyHourMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4882,6 +6040,18 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_json_export_at'],
       ),
+      financeTrackingStartAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}finance_tracking_start_at'],
+      ),
+      notifFinanceDailyEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}notif_finance_daily_enabled'],
+      )!,
+      notifFinanceDailyHour: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notif_finance_daily_hour'],
+      )!,
     );
   }
 
@@ -4921,6 +6091,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final bool notifBackupReminderEnabled;
   final int notifBackupReminderDays;
   final DateTime? lastJsonExportAt;
+  final DateTime? financeTrackingStartAt;
+  final bool notifFinanceDailyEnabled;
+  final int notifFinanceDailyHour;
   const AppSetting({
     required this.id,
     required this.defaultCurrencyCode,
@@ -4951,6 +6124,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     required this.notifBackupReminderEnabled,
     required this.notifBackupReminderDays,
     this.lastJsonExportAt,
+    this.financeTrackingStartAt,
+    required this.notifFinanceDailyEnabled,
+    required this.notifFinanceDailyHour,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5008,6 +6184,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     if (!nullToAbsent || lastJsonExportAt != null) {
       map['last_json_export_at'] = Variable<DateTime>(lastJsonExportAt);
     }
+    if (!nullToAbsent || financeTrackingStartAt != null) {
+      map['finance_tracking_start_at'] = Variable<DateTime>(
+        financeTrackingStartAt,
+      );
+    }
+    map['notif_finance_daily_enabled'] = Variable<bool>(
+      notifFinanceDailyEnabled,
+    );
+    map['notif_finance_daily_hour'] = Variable<int>(notifFinanceDailyHour);
     return map;
   }
 
@@ -5060,6 +6245,11 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastJsonExportAt: lastJsonExportAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastJsonExportAt),
+      financeTrackingStartAt: financeTrackingStartAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financeTrackingStartAt),
+      notifFinanceDailyEnabled: Value(notifFinanceDailyEnabled),
+      notifFinanceDailyHour: Value(notifFinanceDailyHour),
     );
   }
 
@@ -5122,6 +6312,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastJsonExportAt: serializer.fromJson<DateTime?>(
         json['lastJsonExportAt'],
       ),
+      financeTrackingStartAt: serializer.fromJson<DateTime?>(
+        json['financeTrackingStartAt'],
+      ),
+      notifFinanceDailyEnabled: serializer.fromJson<bool>(
+        json['notifFinanceDailyEnabled'],
+      ),
+      notifFinanceDailyHour: serializer.fromJson<int>(
+        json['notifFinanceDailyHour'],
+      ),
     );
   }
   @override
@@ -5167,6 +6366,13 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         notifBackupReminderDays,
       ),
       'lastJsonExportAt': serializer.toJson<DateTime?>(lastJsonExportAt),
+      'financeTrackingStartAt': serializer.toJson<DateTime?>(
+        financeTrackingStartAt,
+      ),
+      'notifFinanceDailyEnabled': serializer.toJson<bool>(
+        notifFinanceDailyEnabled,
+      ),
+      'notifFinanceDailyHour': serializer.toJson<int>(notifFinanceDailyHour),
     };
   }
 
@@ -5200,6 +6406,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     bool? notifBackupReminderEnabled,
     int? notifBackupReminderDays,
     Value<DateTime?> lastJsonExportAt = const Value.absent(),
+    Value<DateTime?> financeTrackingStartAt = const Value.absent(),
+    bool? notifFinanceDailyEnabled,
+    int? notifFinanceDailyHour,
   }) => AppSetting(
     id: id ?? this.id,
     defaultCurrencyCode: defaultCurrencyCode ?? this.defaultCurrencyCode,
@@ -5246,6 +6455,12 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     lastJsonExportAt: lastJsonExportAt.present
         ? lastJsonExportAt.value
         : this.lastJsonExportAt,
+    financeTrackingStartAt: financeTrackingStartAt.present
+        ? financeTrackingStartAt.value
+        : this.financeTrackingStartAt,
+    notifFinanceDailyEnabled:
+        notifFinanceDailyEnabled ?? this.notifFinanceDailyEnabled,
+    notifFinanceDailyHour: notifFinanceDailyHour ?? this.notifFinanceDailyHour,
   );
   AppSetting copyWithCompanion(AppSettingsCompanion data) {
     return AppSetting(
@@ -5334,6 +6549,15 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       lastJsonExportAt: data.lastJsonExportAt.present
           ? data.lastJsonExportAt.value
           : this.lastJsonExportAt,
+      financeTrackingStartAt: data.financeTrackingStartAt.present
+          ? data.financeTrackingStartAt.value
+          : this.financeTrackingStartAt,
+      notifFinanceDailyEnabled: data.notifFinanceDailyEnabled.present
+          ? data.notifFinanceDailyEnabled.value
+          : this.notifFinanceDailyEnabled,
+      notifFinanceDailyHour: data.notifFinanceDailyHour.present
+          ? data.notifFinanceDailyHour.value
+          : this.notifFinanceDailyHour,
     );
   }
 
@@ -5370,7 +6594,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('chartCurveStyle: $chartCurveStyle, ')
           ..write('notifBackupReminderEnabled: $notifBackupReminderEnabled, ')
           ..write('notifBackupReminderDays: $notifBackupReminderDays, ')
-          ..write('lastJsonExportAt: $lastJsonExportAt')
+          ..write('lastJsonExportAt: $lastJsonExportAt, ')
+          ..write('financeTrackingStartAt: $financeTrackingStartAt, ')
+          ..write('notifFinanceDailyEnabled: $notifFinanceDailyEnabled, ')
+          ..write('notifFinanceDailyHour: $notifFinanceDailyHour')
           ..write(')'))
         .toString();
   }
@@ -5406,6 +6633,9 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     notifBackupReminderEnabled,
     notifBackupReminderDays,
     lastJsonExportAt,
+    financeTrackingStartAt,
+    notifFinanceDailyEnabled,
+    notifFinanceDailyHour,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -5440,7 +6670,10 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.chartCurveStyle == this.chartCurveStyle &&
           other.notifBackupReminderEnabled == this.notifBackupReminderEnabled &&
           other.notifBackupReminderDays == this.notifBackupReminderDays &&
-          other.lastJsonExportAt == this.lastJsonExportAt);
+          other.lastJsonExportAt == this.lastJsonExportAt &&
+          other.financeTrackingStartAt == this.financeTrackingStartAt &&
+          other.notifFinanceDailyEnabled == this.notifFinanceDailyEnabled &&
+          other.notifFinanceDailyHour == this.notifFinanceDailyHour);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
@@ -5473,6 +6706,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<bool> notifBackupReminderEnabled;
   final Value<int> notifBackupReminderDays;
   final Value<DateTime?> lastJsonExportAt;
+  final Value<DateTime?> financeTrackingStartAt;
+  final Value<bool> notifFinanceDailyEnabled;
+  final Value<int> notifFinanceDailyHour;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.defaultCurrencyCode = const Value.absent(),
@@ -5503,6 +6739,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.notifBackupReminderEnabled = const Value.absent(),
     this.notifBackupReminderDays = const Value.absent(),
     this.lastJsonExportAt = const Value.absent(),
+    this.financeTrackingStartAt = const Value.absent(),
+    this.notifFinanceDailyEnabled = const Value.absent(),
+    this.notifFinanceDailyHour = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
@@ -5534,6 +6773,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.notifBackupReminderEnabled = const Value.absent(),
     this.notifBackupReminderDays = const Value.absent(),
     this.lastJsonExportAt = const Value.absent(),
+    this.financeTrackingStartAt = const Value.absent(),
+    this.notifFinanceDailyEnabled = const Value.absent(),
+    this.notifFinanceDailyHour = const Value.absent(),
   });
   static Insertable<AppSetting> custom({
     Expression<int>? id,
@@ -5565,6 +6807,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<bool>? notifBackupReminderEnabled,
     Expression<int>? notifBackupReminderDays,
     Expression<DateTime>? lastJsonExportAt,
+    Expression<DateTime>? financeTrackingStartAt,
+    Expression<bool>? notifFinanceDailyEnabled,
+    Expression<int>? notifFinanceDailyHour,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -5607,6 +6852,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (notifBackupReminderDays != null)
         'notif_backup_reminder_days': notifBackupReminderDays,
       if (lastJsonExportAt != null) 'last_json_export_at': lastJsonExportAt,
+      if (financeTrackingStartAt != null)
+        'finance_tracking_start_at': financeTrackingStartAt,
+      if (notifFinanceDailyEnabled != null)
+        'notif_finance_daily_enabled': notifFinanceDailyEnabled,
+      if (notifFinanceDailyHour != null)
+        'notif_finance_daily_hour': notifFinanceDailyHour,
     });
   }
 
@@ -5640,6 +6891,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Value<bool>? notifBackupReminderEnabled,
     Value<int>? notifBackupReminderDays,
     Value<DateTime?>? lastJsonExportAt,
+    Value<DateTime?>? financeTrackingStartAt,
+    Value<bool>? notifFinanceDailyEnabled,
+    Value<int>? notifFinanceDailyHour,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
@@ -5677,6 +6931,12 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       notifBackupReminderDays:
           notifBackupReminderDays ?? this.notifBackupReminderDays,
       lastJsonExportAt: lastJsonExportAt ?? this.lastJsonExportAt,
+      financeTrackingStartAt:
+          financeTrackingStartAt ?? this.financeTrackingStartAt,
+      notifFinanceDailyEnabled:
+          notifFinanceDailyEnabled ?? this.notifFinanceDailyEnabled,
+      notifFinanceDailyHour:
+          notifFinanceDailyHour ?? this.notifFinanceDailyHour,
     );
   }
 
@@ -5784,6 +7044,21 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (lastJsonExportAt.present) {
       map['last_json_export_at'] = Variable<DateTime>(lastJsonExportAt.value);
     }
+    if (financeTrackingStartAt.present) {
+      map['finance_tracking_start_at'] = Variable<DateTime>(
+        financeTrackingStartAt.value,
+      );
+    }
+    if (notifFinanceDailyEnabled.present) {
+      map['notif_finance_daily_enabled'] = Variable<bool>(
+        notifFinanceDailyEnabled.value,
+      );
+    }
+    if (notifFinanceDailyHour.present) {
+      map['notif_finance_daily_hour'] = Variable<int>(
+        notifFinanceDailyHour.value,
+      );
+    }
     return map;
   }
 
@@ -5820,7 +7095,10 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('chartCurveStyle: $chartCurveStyle, ')
           ..write('notifBackupReminderEnabled: $notifBackupReminderEnabled, ')
           ..write('notifBackupReminderDays: $notifBackupReminderDays, ')
-          ..write('lastJsonExportAt: $lastJsonExportAt')
+          ..write('lastJsonExportAt: $lastJsonExportAt, ')
+          ..write('financeTrackingStartAt: $financeTrackingStartAt, ')
+          ..write('notifFinanceDailyEnabled: $notifFinanceDailyEnabled, ')
+          ..write('notifFinanceDailyHour: $notifFinanceDailyHour')
           ..write(')'))
         .toString();
   }
@@ -8871,516 +10149,6 @@ class SubscriptionItemsCompanion extends UpdateCompanion<SubscriptionItem> {
   }
 }
 
-class $WalletAccountsTable extends WalletAccounts
-    with TableInfo<$WalletAccountsTable, WalletAccount> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $WalletAccountsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
-  @override
-  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
-    'emoji',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('💵'),
-  );
-  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
-    'currencyCode',
-  );
-  @override
-  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
-    'currency_code',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('DZD'),
-  );
-  static const VerificationMeta _balanceMinorMeta = const VerificationMeta(
-    'balanceMinor',
-  );
-  @override
-  late final GeneratedColumn<int> balanceMinor = GeneratedColumn<int>(
-    'balance_minor',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
-    'sortOrder',
-  );
-  @override
-  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
-    'sort_order',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    name,
-    emoji,
-    currencyCode,
-    balanceMinor,
-    sortOrder,
-    createdAt,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'wallet_accounts';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<WalletAccount> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('emoji')) {
-      context.handle(
-        _emojiMeta,
-        emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
-      );
-    }
-    if (data.containsKey('currency_code')) {
-      context.handle(
-        _currencyCodeMeta,
-        currencyCode.isAcceptableOrUnknown(
-          data['currency_code']!,
-          _currencyCodeMeta,
-        ),
-      );
-    }
-    if (data.containsKey('balance_minor')) {
-      context.handle(
-        _balanceMinorMeta,
-        balanceMinor.isAcceptableOrUnknown(
-          data['balance_minor']!,
-          _balanceMinorMeta,
-        ),
-      );
-    }
-    if (data.containsKey('sort_order')) {
-      context.handle(
-        _sortOrderMeta,
-        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  WalletAccount map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return WalletAccount(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      emoji: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}emoji'],
-      )!,
-      currencyCode: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}currency_code'],
-      )!,
-      balanceMinor: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}balance_minor'],
-      )!,
-      sortOrder: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}sort_order'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $WalletAccountsTable createAlias(String alias) {
-    return $WalletAccountsTable(attachedDatabase, alias);
-  }
-}
-
-class WalletAccount extends DataClass implements Insertable<WalletAccount> {
-  final String id;
-  final String name;
-  final String emoji;
-  final String currencyCode;
-  final int balanceMinor;
-  final int sortOrder;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  const WalletAccount({
-    required this.id,
-    required this.name,
-    required this.emoji,
-    required this.currencyCode,
-    required this.balanceMinor,
-    required this.sortOrder,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['name'] = Variable<String>(name);
-    map['emoji'] = Variable<String>(emoji);
-    map['currency_code'] = Variable<String>(currencyCode);
-    map['balance_minor'] = Variable<int>(balanceMinor);
-    map['sort_order'] = Variable<int>(sortOrder);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  WalletAccountsCompanion toCompanion(bool nullToAbsent) {
-    return WalletAccountsCompanion(
-      id: Value(id),
-      name: Value(name),
-      emoji: Value(emoji),
-      currencyCode: Value(currencyCode),
-      balanceMinor: Value(balanceMinor),
-      sortOrder: Value(sortOrder),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory WalletAccount.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return WalletAccount(
-      id: serializer.fromJson<String>(json['id']),
-      name: serializer.fromJson<String>(json['name']),
-      emoji: serializer.fromJson<String>(json['emoji']),
-      currencyCode: serializer.fromJson<String>(json['currencyCode']),
-      balanceMinor: serializer.fromJson<int>(json['balanceMinor']),
-      sortOrder: serializer.fromJson<int>(json['sortOrder']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'name': serializer.toJson<String>(name),
-      'emoji': serializer.toJson<String>(emoji),
-      'currencyCode': serializer.toJson<String>(currencyCode),
-      'balanceMinor': serializer.toJson<int>(balanceMinor),
-      'sortOrder': serializer.toJson<int>(sortOrder),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  WalletAccount copyWith({
-    String? id,
-    String? name,
-    String? emoji,
-    String? currencyCode,
-    int? balanceMinor,
-    int? sortOrder,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) => WalletAccount(
-    id: id ?? this.id,
-    name: name ?? this.name,
-    emoji: emoji ?? this.emoji,
-    currencyCode: currencyCode ?? this.currencyCode,
-    balanceMinor: balanceMinor ?? this.balanceMinor,
-    sortOrder: sortOrder ?? this.sortOrder,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  WalletAccount copyWithCompanion(WalletAccountsCompanion data) {
-    return WalletAccount(
-      id: data.id.present ? data.id.value : this.id,
-      name: data.name.present ? data.name.value : this.name,
-      emoji: data.emoji.present ? data.emoji.value : this.emoji,
-      currencyCode: data.currencyCode.present
-          ? data.currencyCode.value
-          : this.currencyCode,
-      balanceMinor: data.balanceMinor.present
-          ? data.balanceMinor.value
-          : this.balanceMinor,
-      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WalletAccount(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('emoji: $emoji, ')
-          ..write('currencyCode: $currencyCode, ')
-          ..write('balanceMinor: $balanceMinor, ')
-          ..write('sortOrder: $sortOrder, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    name,
-    emoji,
-    currencyCode,
-    balanceMinor,
-    sortOrder,
-    createdAt,
-    updatedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is WalletAccount &&
-          other.id == this.id &&
-          other.name == this.name &&
-          other.emoji == this.emoji &&
-          other.currencyCode == this.currencyCode &&
-          other.balanceMinor == this.balanceMinor &&
-          other.sortOrder == this.sortOrder &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
-}
-
-class WalletAccountsCompanion extends UpdateCompanion<WalletAccount> {
-  final Value<String> id;
-  final Value<String> name;
-  final Value<String> emoji;
-  final Value<String> currencyCode;
-  final Value<int> balanceMinor;
-  final Value<int> sortOrder;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  final Value<int> rowid;
-  const WalletAccountsCompanion({
-    this.id = const Value.absent(),
-    this.name = const Value.absent(),
-    this.emoji = const Value.absent(),
-    this.currencyCode = const Value.absent(),
-    this.balanceMinor = const Value.absent(),
-    this.sortOrder = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  WalletAccountsCompanion.insert({
-    required String id,
-    required String name,
-    this.emoji = const Value.absent(),
-    this.currencyCode = const Value.absent(),
-    this.balanceMinor = const Value.absent(),
-    this.sortOrder = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       name = Value(name),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt);
-  static Insertable<WalletAccount> custom({
-    Expression<String>? id,
-    Expression<String>? name,
-    Expression<String>? emoji,
-    Expression<String>? currencyCode,
-    Expression<int>? balanceMinor,
-    Expression<int>? sortOrder,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (name != null) 'name': name,
-      if (emoji != null) 'emoji': emoji,
-      if (currencyCode != null) 'currency_code': currencyCode,
-      if (balanceMinor != null) 'balance_minor': balanceMinor,
-      if (sortOrder != null) 'sort_order': sortOrder,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  WalletAccountsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? name,
-    Value<String>? emoji,
-    Value<String>? currencyCode,
-    Value<int>? balanceMinor,
-    Value<int>? sortOrder,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-    Value<int>? rowid,
-  }) {
-    return WalletAccountsCompanion(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      emoji: emoji ?? this.emoji,
-      currencyCode: currencyCode ?? this.currencyCode,
-      balanceMinor: balanceMinor ?? this.balanceMinor,
-      sortOrder: sortOrder ?? this.sortOrder,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (emoji.present) {
-      map['emoji'] = Variable<String>(emoji.value);
-    }
-    if (currencyCode.present) {
-      map['currency_code'] = Variable<String>(currencyCode.value);
-    }
-    if (balanceMinor.present) {
-      map['balance_minor'] = Variable<int>(balanceMinor.value);
-    }
-    if (sortOrder.present) {
-      map['sort_order'] = Variable<int>(sortOrder.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('WalletAccountsCompanion(')
-          ..write('id: $id, ')
-          ..write('name: $name, ')
-          ..write('emoji: $emoji, ')
-          ..write('currencyCode: $currencyCode, ')
-          ..write('balanceMinor: $balanceMinor, ')
-          ..write('sortOrder: $sortOrder, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $SavingsGoalsTable extends SavingsGoals
     with TableInfo<$SavingsGoalsTable, SavingsGoal> {
   @override
@@ -11332,8 +12100,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $QuickActionUsagesTable quickActionUsages =
       $QuickActionUsagesTable(this);
+  late final $WalletAccountsTable walletAccounts = $WalletAccountsTable(this);
   late final $PersonalFinanceEntriesTable personalFinanceEntries =
       $PersonalFinanceEntriesTable(this);
+  late final $PersonalFinanceFavoritesTable personalFinanceFavorites =
+      $PersonalFinanceFavoritesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $TransactionTemplatesTable transactionTemplates =
       $TransactionTemplatesTable(this);
@@ -11343,7 +12114,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $WishlistItemsTable wishlistItems = $WishlistItemsTable(this);
   late final $SubscriptionItemsTable subscriptionItems =
       $SubscriptionItemsTable(this);
-  late final $WalletAccountsTable walletAccounts = $WalletAccountsTable(this);
   late final $SavingsGoalsTable savingsGoals = $SavingsGoalsTable(this);
   late final $WalletLedgerEntriesTable walletLedgerEntries =
       $WalletLedgerEntriesTable(this);
@@ -11394,14 +12164,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ledgerTransactions,
     transactionTags,
     quickActionUsages,
+    walletAccounts,
     personalFinanceEntries,
+    personalFinanceFavorites,
     appSettings,
     transactionTemplates,
     auditLog,
     expenseCategories,
     wishlistItems,
     subscriptionItems,
-    walletAccounts,
     savingsGoals,
     walletLedgerEntries,
     managedCurrencies,
@@ -14175,6 +14946,605 @@ typedef $$QuickActionUsagesTableProcessedTableManager =
       QuickActionUsage,
       PrefetchHooks Function()
     >;
+typedef $$WalletAccountsTableCreateCompanionBuilder =
+    WalletAccountsCompanion Function({
+      required String id,
+      required String name,
+      Value<String> emoji,
+      Value<String> currencyCode,
+      Value<int> balanceMinor,
+      Value<int> sortOrder,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$WalletAccountsTableUpdateCompanionBuilder =
+    WalletAccountsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> emoji,
+      Value<String> currencyCode,
+      Value<int> balanceMinor,
+      Value<int> sortOrder,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$WalletAccountsTableReferences
+    extends BaseReferences<_$AppDatabase, $WalletAccountsTable, WalletAccount> {
+  $$WalletAccountsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $PersonalFinanceEntriesTable,
+    List<PersonalFinanceEntry>
+  >
+  _personalFinanceEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.personalFinanceEntries,
+        aliasName: $_aliasNameGenerator(
+          db.walletAccounts.id,
+          db.personalFinanceEntries.accountId,
+        ),
+      );
+
+  $$PersonalFinanceEntriesTableProcessedTableManager
+  get personalFinanceEntriesRefs {
+    final manager = $$PersonalFinanceEntriesTableTableManager(
+      $_db,
+      $_db.personalFinanceEntries,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _personalFinanceEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PersonalFinanceFavoritesTable,
+    List<PersonalFinanceFavorite>
+  >
+  _personalFinanceFavoritesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.personalFinanceFavorites,
+        aliasName: $_aliasNameGenerator(
+          db.walletAccounts.id,
+          db.personalFinanceFavorites.accountId,
+        ),
+      );
+
+  $$PersonalFinanceFavoritesTableProcessedTableManager
+  get personalFinanceFavoritesRefs {
+    final manager = $$PersonalFinanceFavoritesTableTableManager(
+      $_db,
+      $_db.personalFinanceFavorites,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _personalFinanceFavoritesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$WalletLedgerEntriesTable, List<WalletLedgerEntry>>
+  _walletLedgerEntriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.walletLedgerEntries,
+        aliasName: $_aliasNameGenerator(
+          db.walletAccounts.id,
+          db.walletLedgerEntries.accountId,
+        ),
+      );
+
+  $$WalletLedgerEntriesTableProcessedTableManager get walletLedgerEntriesRefs {
+    final manager = $$WalletLedgerEntriesTableTableManager(
+      $_db,
+      $_db.walletLedgerEntries,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _walletLedgerEntriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$WalletAccountsTableFilterComposer
+    extends Composer<_$AppDatabase, $WalletAccountsTable> {
+  $$WalletAccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get balanceMinor => $composableBuilder(
+    column: $table.balanceMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> personalFinanceEntriesRefs(
+    Expression<bool> Function($$PersonalFinanceEntriesTableFilterComposer f) f,
+  ) {
+    final $$PersonalFinanceEntriesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.personalFinanceEntries,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PersonalFinanceEntriesTableFilterComposer(
+                $db: $db,
+                $table: $db.personalFinanceEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> personalFinanceFavoritesRefs(
+    Expression<bool> Function($$PersonalFinanceFavoritesTableFilterComposer f)
+    f,
+  ) {
+    final $$PersonalFinanceFavoritesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.personalFinanceFavorites,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PersonalFinanceFavoritesTableFilterComposer(
+                $db: $db,
+                $table: $db.personalFinanceFavorites,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> walletLedgerEntriesRefs(
+    Expression<bool> Function($$WalletLedgerEntriesTableFilterComposer f) f,
+  ) {
+    final $$WalletLedgerEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.walletLedgerEntries,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletLedgerEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.walletLedgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$WalletAccountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $WalletAccountsTable> {
+  $$WalletAccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get balanceMinor => $composableBuilder(
+    column: $table.balanceMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$WalletAccountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $WalletAccountsTable> {
+  $$WalletAccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get emoji =>
+      $composableBuilder(column: $table.emoji, builder: (column) => column);
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get balanceMinor => $composableBuilder(
+    column: $table.balanceMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> personalFinanceEntriesRefs<T extends Object>(
+    Expression<T> Function($$PersonalFinanceEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$PersonalFinanceEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.personalFinanceEntries,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PersonalFinanceEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.personalFinanceEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> personalFinanceFavoritesRefs<T extends Object>(
+    Expression<T> Function($$PersonalFinanceFavoritesTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PersonalFinanceFavoritesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.personalFinanceFavorites,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PersonalFinanceFavoritesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.personalFinanceFavorites,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> walletLedgerEntriesRefs<T extends Object>(
+    Expression<T> Function($$WalletLedgerEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$WalletLedgerEntriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.walletLedgerEntries,
+          getReferencedColumn: (t) => t.accountId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$WalletLedgerEntriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.walletLedgerEntries,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$WalletAccountsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $WalletAccountsTable,
+          WalletAccount,
+          $$WalletAccountsTableFilterComposer,
+          $$WalletAccountsTableOrderingComposer,
+          $$WalletAccountsTableAnnotationComposer,
+          $$WalletAccountsTableCreateCompanionBuilder,
+          $$WalletAccountsTableUpdateCompanionBuilder,
+          (WalletAccount, $$WalletAccountsTableReferences),
+          WalletAccount,
+          PrefetchHooks Function({
+            bool personalFinanceEntriesRefs,
+            bool personalFinanceFavoritesRefs,
+            bool walletLedgerEntriesRefs,
+          })
+        > {
+  $$WalletAccountsTableTableManager(
+    _$AppDatabase db,
+    $WalletAccountsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$WalletAccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$WalletAccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$WalletAccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> emoji = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> balanceMinor = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => WalletAccountsCompanion(
+                id: id,
+                name: name,
+                emoji: emoji,
+                currencyCode: currencyCode,
+                balanceMinor: balanceMinor,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String> emoji = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> balanceMinor = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => WalletAccountsCompanion.insert(
+                id: id,
+                name: name,
+                emoji: emoji,
+                currencyCode: currencyCode,
+                balanceMinor: balanceMinor,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$WalletAccountsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                personalFinanceEntriesRefs = false,
+                personalFinanceFavoritesRefs = false,
+                walletLedgerEntriesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (personalFinanceEntriesRefs) db.personalFinanceEntries,
+                    if (personalFinanceFavoritesRefs)
+                      db.personalFinanceFavorites,
+                    if (walletLedgerEntriesRefs) db.walletLedgerEntries,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (personalFinanceEntriesRefs)
+                        await $_getPrefetchedData<
+                          WalletAccount,
+                          $WalletAccountsTable,
+                          PersonalFinanceEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WalletAccountsTableReferences
+                              ._personalFinanceEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WalletAccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).personalFinanceEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (personalFinanceFavoritesRefs)
+                        await $_getPrefetchedData<
+                          WalletAccount,
+                          $WalletAccountsTable,
+                          PersonalFinanceFavorite
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WalletAccountsTableReferences
+                              ._personalFinanceFavoritesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WalletAccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).personalFinanceFavoritesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (walletLedgerEntriesRefs)
+                        await $_getPrefetchedData<
+                          WalletAccount,
+                          $WalletAccountsTable,
+                          WalletLedgerEntry
+                        >(
+                          currentTable: table,
+                          referencedTable: $$WalletAccountsTableReferences
+                              ._walletLedgerEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$WalletAccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).walletLedgerEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$WalletAccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $WalletAccountsTable,
+      WalletAccount,
+      $$WalletAccountsTableFilterComposer,
+      $$WalletAccountsTableOrderingComposer,
+      $$WalletAccountsTableAnnotationComposer,
+      $$WalletAccountsTableCreateCompanionBuilder,
+      $$WalletAccountsTableUpdateCompanionBuilder,
+      (WalletAccount, $$WalletAccountsTableReferences),
+      WalletAccount,
+      PrefetchHooks Function({
+        bool personalFinanceEntriesRefs,
+        bool personalFinanceFavoritesRefs,
+        bool walletLedgerEntriesRefs,
+      })
+    >;
 typedef $$PersonalFinanceEntriesTableCreateCompanionBuilder =
     PersonalFinanceEntriesCompanion Function({
       required String id,
@@ -14184,6 +15554,7 @@ typedef $$PersonalFinanceEntriesTableCreateCompanionBuilder =
       Value<String> currencyCode,
       Value<String?> note,
       Value<String?> categoryId,
+      Value<String?> accountId,
       Value<String?> fromCurrencyJson,
       required DateTime createdAt,
       required DateTime updatedAt,
@@ -14198,11 +15569,48 @@ typedef $$PersonalFinanceEntriesTableUpdateCompanionBuilder =
       Value<String> currencyCode,
       Value<String?> note,
       Value<String?> categoryId,
+      Value<String?> accountId,
       Value<String?> fromCurrencyJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
     });
+
+final class $$PersonalFinanceEntriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PersonalFinanceEntriesTable,
+          PersonalFinanceEntry
+        > {
+  $$PersonalFinanceEntriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WalletAccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.walletAccounts.createAlias(
+        $_aliasNameGenerator(
+          db.personalFinanceEntries.accountId,
+          db.walletAccounts.id,
+        ),
+      );
+
+  $$WalletAccountsTableProcessedTableManager? get accountId {
+    final $_column = $_itemColumn<String>('account_id');
+    if ($_column == null) return null;
+    final manager = $$WalletAccountsTableTableManager(
+      $_db,
+      $_db.walletAccounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$PersonalFinanceEntriesTableFilterComposer
     extends Composer<_$AppDatabase, $PersonalFinanceEntriesTable> {
@@ -14262,6 +15670,29 @@ class $$PersonalFinanceEntriesTableFilterComposer
     column: $table.updatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  $$WalletAccountsTableFilterComposer get accountId {
+    final $$WalletAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PersonalFinanceEntriesTableOrderingComposer
@@ -14322,6 +15753,29 @@ class $$PersonalFinanceEntriesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  $$WalletAccountsTableOrderingComposer get accountId {
+    final $$WalletAccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PersonalFinanceEntriesTableAnnotationComposer
@@ -14370,6 +15824,29 @@ class $$PersonalFinanceEntriesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$WalletAccountsTableAnnotationComposer get accountId {
+    final $$WalletAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PersonalFinanceEntriesTableTableManager
@@ -14383,16 +15860,9 @@ class $$PersonalFinanceEntriesTableTableManager
           $$PersonalFinanceEntriesTableAnnotationComposer,
           $$PersonalFinanceEntriesTableCreateCompanionBuilder,
           $$PersonalFinanceEntriesTableUpdateCompanionBuilder,
-          (
-            PersonalFinanceEntry,
-            BaseReferences<
-              _$AppDatabase,
-              $PersonalFinanceEntriesTable,
-              PersonalFinanceEntry
-            >,
-          ),
+          (PersonalFinanceEntry, $$PersonalFinanceEntriesTableReferences),
           PersonalFinanceEntry,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool accountId})
         > {
   $$PersonalFinanceEntriesTableTableManager(
     _$AppDatabase db,
@@ -14425,6 +15895,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<String?> fromCurrencyJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -14437,6 +15908,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 currencyCode: currencyCode,
                 note: note,
                 categoryId: categoryId,
+                accountId: accountId,
                 fromCurrencyJson: fromCurrencyJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -14451,6 +15923,7 @@ class $$PersonalFinanceEntriesTableTableManager
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
                 Value<String?> fromCurrencyJson = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -14463,15 +15936,63 @@ class $$PersonalFinanceEntriesTableTableManager
                 currencyCode: currencyCode,
                 note: note,
                 categoryId: categoryId,
+                accountId: accountId,
                 fromCurrencyJson: fromCurrencyJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PersonalFinanceEntriesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (accountId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.accountId,
+                                referencedTable:
+                                    $$PersonalFinanceEntriesTableReferences
+                                        ._accountIdTable(db),
+                                referencedColumn:
+                                    $$PersonalFinanceEntriesTableReferences
+                                        ._accountIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
         ),
       );
 }
@@ -14486,16 +16007,414 @@ typedef $$PersonalFinanceEntriesTableProcessedTableManager =
       $$PersonalFinanceEntriesTableAnnotationComposer,
       $$PersonalFinanceEntriesTableCreateCompanionBuilder,
       $$PersonalFinanceEntriesTableUpdateCompanionBuilder,
-      (
-        PersonalFinanceEntry,
+      (PersonalFinanceEntry, $$PersonalFinanceEntriesTableReferences),
+      PersonalFinanceEntry,
+      PrefetchHooks Function({bool accountId})
+    >;
+typedef $$PersonalFinanceFavoritesTableCreateCompanionBuilder =
+    PersonalFinanceFavoritesCompanion Function({
+      required String id,
+      required int kind,
+      required String label,
+      required int amountMinor,
+      Value<String?> categoryId,
+      Value<String?> accountId,
+      Value<int> sortOrder,
+      required DateTime createdAt,
+      Value<int> rowid,
+    });
+typedef $$PersonalFinanceFavoritesTableUpdateCompanionBuilder =
+    PersonalFinanceFavoritesCompanion Function({
+      Value<String> id,
+      Value<int> kind,
+      Value<String> label,
+      Value<int> amountMinor,
+      Value<String?> categoryId,
+      Value<String?> accountId,
+      Value<int> sortOrder,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+final class $$PersonalFinanceFavoritesTableReferences
+    extends
         BaseReferences<
           _$AppDatabase,
-          $PersonalFinanceEntriesTable,
-          PersonalFinanceEntry
-        >,
-      ),
-      PersonalFinanceEntry,
-      PrefetchHooks Function()
+          $PersonalFinanceFavoritesTable,
+          PersonalFinanceFavorite
+        > {
+  $$PersonalFinanceFavoritesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $WalletAccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.walletAccounts.createAlias(
+        $_aliasNameGenerator(
+          db.personalFinanceFavorites.accountId,
+          db.walletAccounts.id,
+        ),
+      );
+
+  $$WalletAccountsTableProcessedTableManager? get accountId {
+    final $_column = $_itemColumn<String>('account_id');
+    if ($_column == null) return null;
+    final manager = $$WalletAccountsTableTableManager(
+      $_db,
+      $_db.walletAccounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PersonalFinanceFavoritesTableFilterComposer
+    extends Composer<_$AppDatabase, $PersonalFinanceFavoritesTable> {
+  $$PersonalFinanceFavoritesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$WalletAccountsTableFilterComposer get accountId {
+    final $$WalletAccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PersonalFinanceFavoritesTableOrderingComposer
+    extends Composer<_$AppDatabase, $PersonalFinanceFavoritesTable> {
+  $$PersonalFinanceFavoritesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get label => $composableBuilder(
+    column: $table.label,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$WalletAccountsTableOrderingComposer get accountId {
+    final $$WalletAccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PersonalFinanceFavoritesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PersonalFinanceFavoritesTable> {
+  $$PersonalFinanceFavoritesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+
+  GeneratedColumn<int> get amountMinor => $composableBuilder(
+    column: $table.amountMinor,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  $$WalletAccountsTableAnnotationComposer get accountId {
+    final $$WalletAccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.walletAccounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$WalletAccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.walletAccounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PersonalFinanceFavoritesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PersonalFinanceFavoritesTable,
+          PersonalFinanceFavorite,
+          $$PersonalFinanceFavoritesTableFilterComposer,
+          $$PersonalFinanceFavoritesTableOrderingComposer,
+          $$PersonalFinanceFavoritesTableAnnotationComposer,
+          $$PersonalFinanceFavoritesTableCreateCompanionBuilder,
+          $$PersonalFinanceFavoritesTableUpdateCompanionBuilder,
+          (PersonalFinanceFavorite, $$PersonalFinanceFavoritesTableReferences),
+          PersonalFinanceFavorite,
+          PrefetchHooks Function({bool accountId})
+        > {
+  $$PersonalFinanceFavoritesTableTableManager(
+    _$AppDatabase db,
+    $PersonalFinanceFavoritesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PersonalFinanceFavoritesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PersonalFinanceFavoritesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PersonalFinanceFavoritesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<int> kind = const Value.absent(),
+                Value<String> label = const Value.absent(),
+                Value<int> amountMinor = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PersonalFinanceFavoritesCompanion(
+                id: id,
+                kind: kind,
+                label: label,
+                amountMinor: amountMinor,
+                categoryId: categoryId,
+                accountId: accountId,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required int kind,
+                required String label,
+                required int amountMinor,
+                Value<String?> categoryId = const Value.absent(),
+                Value<String?> accountId = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PersonalFinanceFavoritesCompanion.insert(
+                id: id,
+                kind: kind,
+                label: label,
+                amountMinor: amountMinor,
+                categoryId: categoryId,
+                accountId: accountId,
+                sortOrder: sortOrder,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PersonalFinanceFavoritesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (accountId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.accountId,
+                                referencedTable:
+                                    $$PersonalFinanceFavoritesTableReferences
+                                        ._accountIdTable(db),
+                                referencedColumn:
+                                    $$PersonalFinanceFavoritesTableReferences
+                                        ._accountIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PersonalFinanceFavoritesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PersonalFinanceFavoritesTable,
+      PersonalFinanceFavorite,
+      $$PersonalFinanceFavoritesTableFilterComposer,
+      $$PersonalFinanceFavoritesTableOrderingComposer,
+      $$PersonalFinanceFavoritesTableAnnotationComposer,
+      $$PersonalFinanceFavoritesTableCreateCompanionBuilder,
+      $$PersonalFinanceFavoritesTableUpdateCompanionBuilder,
+      (PersonalFinanceFavorite, $$PersonalFinanceFavoritesTableReferences),
+      PersonalFinanceFavorite,
+      PrefetchHooks Function({bool accountId})
     >;
 typedef $$AppSettingsTableCreateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -14528,6 +16447,9 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<bool> notifBackupReminderEnabled,
       Value<int> notifBackupReminderDays,
       Value<DateTime?> lastJsonExportAt,
+      Value<DateTime?> financeTrackingStartAt,
+      Value<bool> notifFinanceDailyEnabled,
+      Value<int> notifFinanceDailyHour,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
@@ -14560,6 +16482,9 @@ typedef $$AppSettingsTableUpdateCompanionBuilder =
       Value<bool> notifBackupReminderEnabled,
       Value<int> notifBackupReminderDays,
       Value<DateTime?> lastJsonExportAt,
+      Value<DateTime?> financeTrackingStartAt,
+      Value<bool> notifFinanceDailyEnabled,
+      Value<int> notifFinanceDailyHour,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -14713,6 +16638,21 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<DateTime> get lastJsonExportAt => $composableBuilder(
     column: $table.lastJsonExportAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get financeTrackingStartAt => $composableBuilder(
+    column: $table.financeTrackingStartAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get notifFinanceDailyEnabled => $composableBuilder(
+    column: $table.notifFinanceDailyEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notifFinanceDailyHour => $composableBuilder(
+    column: $table.notifFinanceDailyHour,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -14870,6 +16810,21 @@ class $$AppSettingsTableOrderingComposer
     column: $table.lastJsonExportAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get financeTrackingStartAt => $composableBuilder(
+    column: $table.financeTrackingStartAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get notifFinanceDailyEnabled => $composableBuilder(
+    column: $table.notifFinanceDailyEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notifFinanceDailyHour => $composableBuilder(
+    column: $table.notifFinanceDailyHour,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -15023,6 +16978,21 @@ class $$AppSettingsTableAnnotationComposer
     column: $table.lastJsonExportAt,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get financeTrackingStartAt => $composableBuilder(
+    column: $table.financeTrackingStartAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get notifFinanceDailyEnabled => $composableBuilder(
+    column: $table.notifFinanceDailyEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get notifFinanceDailyHour => $composableBuilder(
+    column: $table.notifFinanceDailyHour,
+    builder: (column) => column,
+  );
 }
 
 class $$AppSettingsTableTableManager
@@ -15085,6 +17055,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> notifBackupReminderEnabled = const Value.absent(),
                 Value<int> notifBackupReminderDays = const Value.absent(),
                 Value<DateTime?> lastJsonExportAt = const Value.absent(),
+                Value<DateTime?> financeTrackingStartAt = const Value.absent(),
+                Value<bool> notifFinanceDailyEnabled = const Value.absent(),
+                Value<int> notifFinanceDailyHour = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -15115,6 +17088,9 @@ class $$AppSettingsTableTableManager
                 notifBackupReminderEnabled: notifBackupReminderEnabled,
                 notifBackupReminderDays: notifBackupReminderDays,
                 lastJsonExportAt: lastJsonExportAt,
+                financeTrackingStartAt: financeTrackingStartAt,
+                notifFinanceDailyEnabled: notifFinanceDailyEnabled,
+                notifFinanceDailyHour: notifFinanceDailyHour,
               ),
           createCompanionCallback:
               ({
@@ -15147,6 +17123,9 @@ class $$AppSettingsTableTableManager
                 Value<bool> notifBackupReminderEnabled = const Value.absent(),
                 Value<int> notifBackupReminderDays = const Value.absent(),
                 Value<DateTime?> lastJsonExportAt = const Value.absent(),
+                Value<DateTime?> financeTrackingStartAt = const Value.absent(),
+                Value<bool> notifFinanceDailyEnabled = const Value.absent(),
+                Value<int> notifFinanceDailyHour = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 defaultCurrencyCode: defaultCurrencyCode,
@@ -15177,6 +17156,9 @@ class $$AppSettingsTableTableManager
                 notifBackupReminderEnabled: notifBackupReminderEnabled,
                 notifBackupReminderDays: notifBackupReminderDays,
                 lastJsonExportAt: lastJsonExportAt,
+                financeTrackingStartAt: financeTrackingStartAt,
+                notifFinanceDailyEnabled: notifFinanceDailyEnabled,
+                notifFinanceDailyHour: notifFinanceDailyHour,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -16722,383 +18704,6 @@ typedef $$SubscriptionItemsTableProcessedTableManager =
       SubscriptionItem,
       PrefetchHooks Function()
     >;
-typedef $$WalletAccountsTableCreateCompanionBuilder =
-    WalletAccountsCompanion Function({
-      required String id,
-      required String name,
-      Value<String> emoji,
-      Value<String> currencyCode,
-      Value<int> balanceMinor,
-      Value<int> sortOrder,
-      required DateTime createdAt,
-      required DateTime updatedAt,
-      Value<int> rowid,
-    });
-typedef $$WalletAccountsTableUpdateCompanionBuilder =
-    WalletAccountsCompanion Function({
-      Value<String> id,
-      Value<String> name,
-      Value<String> emoji,
-      Value<String> currencyCode,
-      Value<int> balanceMinor,
-      Value<int> sortOrder,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<int> rowid,
-    });
-
-final class $$WalletAccountsTableReferences
-    extends BaseReferences<_$AppDatabase, $WalletAccountsTable, WalletAccount> {
-  $$WalletAccountsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static MultiTypedResultKey<$WalletLedgerEntriesTable, List<WalletLedgerEntry>>
-  _walletLedgerEntriesRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.walletLedgerEntries,
-        aliasName: $_aliasNameGenerator(
-          db.walletAccounts.id,
-          db.walletLedgerEntries.accountId,
-        ),
-      );
-
-  $$WalletLedgerEntriesTableProcessedTableManager get walletLedgerEntriesRefs {
-    final manager = $$WalletLedgerEntriesTableTableManager(
-      $_db,
-      $_db.walletLedgerEntries,
-    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _walletLedgerEntriesRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$WalletAccountsTableFilterComposer
-    extends Composer<_$AppDatabase, $WalletAccountsTable> {
-  $$WalletAccountsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get emoji => $composableBuilder(
-    column: $table.emoji,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get balanceMinor => $composableBuilder(
-    column: $table.balanceMinor,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get sortOrder => $composableBuilder(
-    column: $table.sortOrder,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  Expression<bool> walletLedgerEntriesRefs(
-    Expression<bool> Function($$WalletLedgerEntriesTableFilterComposer f) f,
-  ) {
-    final $$WalletLedgerEntriesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.walletLedgerEntries,
-      getReferencedColumn: (t) => t.accountId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$WalletLedgerEntriesTableFilterComposer(
-            $db: $db,
-            $table: $db.walletLedgerEntries,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$WalletAccountsTableOrderingComposer
-    extends Composer<_$AppDatabase, $WalletAccountsTable> {
-  $$WalletAccountsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get emoji => $composableBuilder(
-    column: $table.emoji,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get balanceMinor => $composableBuilder(
-    column: $table.balanceMinor,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get sortOrder => $composableBuilder(
-    column: $table.sortOrder,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$WalletAccountsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $WalletAccountsTable> {
-  $$WalletAccountsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get emoji =>
-      $composableBuilder(column: $table.emoji, builder: (column) => column);
-
-  GeneratedColumn<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get balanceMinor => $composableBuilder(
-    column: $table.balanceMinor,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get sortOrder =>
-      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  Expression<T> walletLedgerEntriesRefs<T extends Object>(
-    Expression<T> Function($$WalletLedgerEntriesTableAnnotationComposer a) f,
-  ) {
-    final $$WalletLedgerEntriesTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.walletLedgerEntries,
-          getReferencedColumn: (t) => t.accountId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$WalletLedgerEntriesTableAnnotationComposer(
-                $db: $db,
-                $table: $db.walletLedgerEntries,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$WalletAccountsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $WalletAccountsTable,
-          WalletAccount,
-          $$WalletAccountsTableFilterComposer,
-          $$WalletAccountsTableOrderingComposer,
-          $$WalletAccountsTableAnnotationComposer,
-          $$WalletAccountsTableCreateCompanionBuilder,
-          $$WalletAccountsTableUpdateCompanionBuilder,
-          (WalletAccount, $$WalletAccountsTableReferences),
-          WalletAccount,
-          PrefetchHooks Function({bool walletLedgerEntriesRefs})
-        > {
-  $$WalletAccountsTableTableManager(
-    _$AppDatabase db,
-    $WalletAccountsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$WalletAccountsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$WalletAccountsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$WalletAccountsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> emoji = const Value.absent(),
-                Value<String> currencyCode = const Value.absent(),
-                Value<int> balanceMinor = const Value.absent(),
-                Value<int> sortOrder = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => WalletAccountsCompanion(
-                id: id,
-                name: name,
-                emoji: emoji,
-                currencyCode: currencyCode,
-                balanceMinor: balanceMinor,
-                sortOrder: sortOrder,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                required String name,
-                Value<String> emoji = const Value.absent(),
-                Value<String> currencyCode = const Value.absent(),
-                Value<int> balanceMinor = const Value.absent(),
-                Value<int> sortOrder = const Value.absent(),
-                required DateTime createdAt,
-                required DateTime updatedAt,
-                Value<int> rowid = const Value.absent(),
-              }) => WalletAccountsCompanion.insert(
-                id: id,
-                name: name,
-                emoji: emoji,
-                currencyCode: currencyCode,
-                balanceMinor: balanceMinor,
-                sortOrder: sortOrder,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$WalletAccountsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({walletLedgerEntriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (walletLedgerEntriesRefs) db.walletLedgerEntries,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (walletLedgerEntriesRefs)
-                    await $_getPrefetchedData<
-                      WalletAccount,
-                      $WalletAccountsTable,
-                      WalletLedgerEntry
-                    >(
-                      currentTable: table,
-                      referencedTable: $$WalletAccountsTableReferences
-                          ._walletLedgerEntriesRefsTable(db),
-                      managerFromTypedResult: (p0) =>
-                          $$WalletAccountsTableReferences(
-                            db,
-                            table,
-                            p0,
-                          ).walletLedgerEntriesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.accountId == item.id),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$WalletAccountsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $WalletAccountsTable,
-      WalletAccount,
-      $$WalletAccountsTableFilterComposer,
-      $$WalletAccountsTableOrderingComposer,
-      $$WalletAccountsTableAnnotationComposer,
-      $$WalletAccountsTableCreateCompanionBuilder,
-      $$WalletAccountsTableUpdateCompanionBuilder,
-      (WalletAccount, $$WalletAccountsTableReferences),
-      WalletAccount,
-      PrefetchHooks Function({bool walletLedgerEntriesRefs})
-    >;
 typedef $$SavingsGoalsTableCreateCompanionBuilder =
     SavingsGoalsCompanion Function({
       required String id,
@@ -18522,10 +20127,17 @@ class $AppDatabaseManager {
       $$TransactionTagsTableTableManager(_db, _db.transactionTags);
   $$QuickActionUsagesTableTableManager get quickActionUsages =>
       $$QuickActionUsagesTableTableManager(_db, _db.quickActionUsages);
+  $$WalletAccountsTableTableManager get walletAccounts =>
+      $$WalletAccountsTableTableManager(_db, _db.walletAccounts);
   $$PersonalFinanceEntriesTableTableManager get personalFinanceEntries =>
       $$PersonalFinanceEntriesTableTableManager(
         _db,
         _db.personalFinanceEntries,
+      );
+  $$PersonalFinanceFavoritesTableTableManager get personalFinanceFavorites =>
+      $$PersonalFinanceFavoritesTableTableManager(
+        _db,
+        _db.personalFinanceFavorites,
       );
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
@@ -18539,8 +20151,6 @@ class $AppDatabaseManager {
       $$WishlistItemsTableTableManager(_db, _db.wishlistItems);
   $$SubscriptionItemsTableTableManager get subscriptionItems =>
       $$SubscriptionItemsTableTableManager(_db, _db.subscriptionItems);
-  $$WalletAccountsTableTableManager get walletAccounts =>
-      $$WalletAccountsTableTableManager(_db, _db.walletAccounts);
   $$SavingsGoalsTableTableManager get savingsGoals =>
       $$SavingsGoalsTableTableManager(_db, _db.savingsGoals);
   $$WalletLedgerEntriesTableTableManager get walletLedgerEntries =>

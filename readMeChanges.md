@@ -6,9 +6,33 @@ Newest entries at the top. See [AGENTS.md](AGENTS.md) for how this file is maint
 
 | Version | Date | Type |
 |---------|------|------|
+| [Finance System Overhaul](#unreleased--2026-08-06--major) | 2026-08-06 | Major |
 | [Finance Analytics Depth](#unreleased--2026-06-16--minor) | 2026-06-16 | Minor |
 | [Unreleased](#unreleased--2026-06-15--minor) | 2026-06-15 | Minor (polish backlog) |
 | Finance UX Phase 2 | 2026-06-15 | Major |
+
+---
+
+## [Unreleased] — 2026-08-06 — Major
+
+**Summary:** Account-linked expenses/gains with Pocket default, period-based history, quick logging, favorites, wallet history, sticky form sheets.
+
+**Plan:** Finance System Overhaul
+
+**In scope:**
+- `accountId` on personal finance entries; auto wallet balance sync on add/edit/delete
+- Rename default wallet Cash → Pocket (`wallet-cash`)
+- Period filters: Last 7 days, Last week; history list follows selected period
+- Analytics tracking start date (`financeTrackingStartAt`) — stats only, history unchanged
+- Quick \| Full toggle in expense/gain drop-up (amount required; category + note optional in Quick)
+- Personal finance favorites — one-tap chips
+- Daily finance logging reminder notification + Settings toggle/time
+- Full wallet account history screen (`/finance/wallet/:accountId`)
+- Shared sticky-footer bottom sheet on all add/edit forms
+- DB schema v15 (`personal_finance_favorites`, `notif_finance_daily_*`)
+
+**Not in scope:**
+- App UX Phase 2 (nav cleanup, global search, sync unification, ledger filter parity)
 
 ---
 

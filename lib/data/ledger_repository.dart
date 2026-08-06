@@ -12,6 +12,11 @@ import '../utils/client_list_prefs.dart';
 import '../utils/exchange_rate.dart';
 import '../utils/subscription_schedule.dart';
 
+/// Default wallet when no account is chosen on a personal finance entry.
+const kDefaultPocketAccountId = 'wallet-cash';
+
+const _personalFinanceWalletSource = 'personal_finance';
+
 class LifetimeTotals {
   const LifetimeTotals({
     required this.totalDebtsMinor,
@@ -217,6 +222,7 @@ class LedgerRepository {
     String? currencyCode,
     String? note,
     String? categoryId,
+    String? accountId,
     DateTime? createdAt,
     FromCurrencySnapshot? fromCurrency,
   }) async {
@@ -224,25 +230,35 @@ class LedgerRepository {
     final at = createdAt?.toUtc() ?? now;
     final defaultCode = await defaultCurrencyCode();
     final id = _uuid.v4();
+    final resolvedAccount = accountId ?? kDefaultPocketAccountId;
     await _db.into(_db.personalFinanceEntries).insert(
           PersonalFinanceEntriesCompanion.insert(
             id: id,
             kind: kind.index,
             title: title.trim(),
             amountMinor: amountMinor,
-            currencyCode: Value(defaultCode),
+            currencyCode: Value(currencyCode ?? defaultCode),
             fromCurrencyJson: Value(fromCurrency?.toJsonString()),
             note: Value(_normalizeNullable(note)),
             categoryId: Value(categoryId),
+            accountId: Value(resolvedAccount),
             createdAt: at,
             updatedAt: now,
           ),
         );
+    await _syncPersonalFinanceWallet(
+      entryId: id,
+      kind: kind,
+      amountMinor: amountMinor,
+      accountId: resolvedAccount,
+      note: title.trim(),
+      fromCurrency: fromCurrency,
+    );
     await logAction(
       kind == PersonalFinanceKind.expense ? 'create_expense' : 'create_gain',
       'finance',
       id,
-      detail: {'title': title.trim(), 'amountMinor': amountMinor},
+      detail: {'title': title.trim(), 'amountMinor': amountMinor, 'accountId': resolvedAccount},
     );
   }
 
@@ -253,6 +269,7 @@ class LedgerRepository {
     String? currencyCode,
     String? note,
     String? categoryId,
+    String? accountId,
     bool clearCategory = false,
     DateTime? createdAt,
     FromCurrencySnapshot? fromCurrency,
@@ -261,7 +278,19 @@ class LedgerRepository {
     final existing = await (_db.select(_db.personalFinanceEntries)
           ..where((e) => e.id.equals(id)))
         .getSingleOrNull();
+    if (existing == null) return;
+
+    if (await _hasPersonalFinanceWalletSync(id)) {
+      await _reversePersonalFinanceWallet(
+        entryId: id,
+        kind: PersonalFinanceKind.fromInt(existing.kind),
+        amountMinor: existing.amountMinor,
+        accountId: existing.accountId ?? kDefaultPocketAccountId,
+      );
+    }
+
     final now = DateTime.now().toUtc();
+    final resolvedAccount = accountId ?? existing.accountId ?? kDefaultPocketAccountId;
     await (_db.update(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).write(
           PersonalFinanceEntriesCompanion(
             title: Value(title.trim()),
@@ -274,16 +303,26 @@ class LedgerRepository {
                     : Value(fromCurrency.toJsonString()),
             note: Value(_normalizeNullable(note)),
             categoryId: clearCategory ? const Value(null) : Value(categoryId),
+            accountId: Value(resolvedAccount),
             updatedAt: Value(now),
             createdAt: createdAt == null ? const Value.absent() : Value(createdAt.toUtc()),
           ),
         );
-    final kind = existing?.kind ?? PersonalFinanceKind.expense.index;
+
+    await _syncPersonalFinanceWallet(
+      entryId: id,
+      kind: PersonalFinanceKind.fromInt(existing.kind),
+      amountMinor: amountMinor,
+      accountId: resolvedAccount,
+      note: title.trim(),
+      fromCurrency: fromCurrency,
+    );
+
     await logAction(
-      kind == PersonalFinanceKind.expense.index ? 'update_expense' : 'update_gain',
+      existing.kind == PersonalFinanceKind.expense.index ? 'update_expense' : 'update_gain',
       'finance',
       id,
-      detail: {'title': title.trim(), 'amountMinor': amountMinor},
+      detail: {'title': title.trim(), 'amountMinor': amountMinor, 'accountId': resolvedAccount},
     );
   }
 
@@ -291,6 +330,14 @@ class LedgerRepository {
     final existing = await (_db.select(_db.personalFinanceEntries)
           ..where((e) => e.id.equals(id)))
         .getSingleOrNull();
+    if (existing != null && await _hasPersonalFinanceWalletSync(id)) {
+      await _reversePersonalFinanceWallet(
+        entryId: id,
+        kind: PersonalFinanceKind.fromInt(existing.kind),
+        amountMinor: existing.amountMinor,
+        accountId: existing.accountId ?? kDefaultPocketAccountId,
+      );
+    }
     await (_db.delete(_db.personalFinanceEntries)..where((e) => e.id.equals(id))).go();
     if (existing != null) {
       await logAction(
@@ -302,6 +349,140 @@ class LedgerRepository {
         detail: {'title': existing.title},
       );
     }
+  }
+
+  Future<bool> _hasPersonalFinanceWalletSync(String entryId) async {
+    final row = await (_db.select(_db.walletLedgerEntries)
+          ..where(
+            (e) =>
+                e.referenceId.equals(entryId) &
+                e.source.equals(_personalFinanceWalletSource),
+          )
+          ..limit(1))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  Future<void> _syncPersonalFinanceWallet({
+    required String entryId,
+    required PersonalFinanceKind kind,
+    required int amountMinor,
+    required String accountId,
+    String? note,
+    FromCurrencySnapshot? fromCurrency,
+  }) async {
+    final delta = kind == PersonalFinanceKind.expense ? -amountMinor : amountMinor;
+    if (delta == 0) return;
+    await adjustWalletDelta(
+      accountId,
+      delta,
+      note: note,
+      source: _personalFinanceWalletSource,
+      referenceId: entryId,
+      fromCurrency: fromCurrency,
+    );
+  }
+
+  Future<void> _reversePersonalFinanceWallet({
+    required String entryId,
+    required PersonalFinanceKind kind,
+    required int amountMinor,
+    required String accountId,
+  }) async {
+    final delta = kind == PersonalFinanceKind.expense ? amountMinor : -amountMinor;
+    if (delta == 0) return;
+    await adjustWalletDelta(
+      accountId,
+      delta,
+      note: 'Reversed',
+      source: _personalFinanceWalletSource,
+      referenceId: entryId,
+    );
+  }
+
+  Stream<List<PersonalFinanceFavorite>> watchPersonalFinanceFavorites(
+    PersonalFinanceKind kind,
+  ) {
+    return (_db.select(_db.personalFinanceFavorites)
+          ..where((f) => f.kind.equals(kind.index))
+          ..orderBy([
+            (f) => OrderingTerm.asc(f.sortOrder),
+            (f) => OrderingTerm.asc(f.label),
+          ]))
+        .watch();
+  }
+
+  Future<void> upsertPersonalFinanceFavorite({
+    String? id,
+    required PersonalFinanceKind kind,
+    required String label,
+    required int amountMinor,
+    String? categoryId,
+    String? accountId,
+    int sortOrder = 0,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final favId = id ?? _uuid.v4();
+    await _db.into(_db.personalFinanceFavorites).insertOnConflictUpdate(
+          PersonalFinanceFavoritesCompanion.insert(
+            id: favId,
+            kind: kind.index,
+            label: label.trim(),
+            amountMinor: amountMinor,
+            categoryId: Value(categoryId),
+            accountId: Value(accountId ?? kDefaultPocketAccountId),
+            sortOrder: Value(sortOrder),
+            createdAt: now,
+          ),
+        );
+  }
+
+  Future<void> deletePersonalFinanceFavorite(String id) async {
+    await (_db.delete(_db.personalFinanceFavorites)..where((f) => f.id.equals(id))).go();
+  }
+
+  Future<void> logPersonalFinanceFavorite(PersonalFinanceFavorite fav) async {
+    await addPersonalFinanceEntry(
+      kind: PersonalFinanceKind.fromInt(fav.kind),
+      title: fav.label,
+      amountMinor: fav.amountMinor,
+      categoryId: fav.categoryId,
+      accountId: fav.accountId,
+    );
+  }
+
+  Future<void> setFinanceTrackingStartAt(DateTime? startAt) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(
+            financeTrackingStartAt: Value(startAt?.toUtc()),
+          ),
+        );
+    await logAction(
+      'finance_tracking_start',
+      'settings',
+      '1',
+      silent: true,
+      detail: {'startAt': startAt?.toUtc().toIso8601String()},
+    );
+  }
+
+  Future<void> saveFinanceDailyReminderSettings({
+    required bool enabled,
+    required int hour,
+  }) async {
+    await (_db.update(_db.appSettings)..where((s) => s.id.equals(1))).write(
+          AppSettingsCompanion(
+            notifFinanceDailyEnabled: Value(enabled),
+            notifFinanceDailyHour: Value(hour.clamp(0, 23)),
+          ),
+        );
+    await logAction(
+      'settings_finance_daily_reminder',
+      'settings',
+      '1',
+      silent: true,
+      detail: {'enabled': enabled, 'hour': hour},
+    );
   }
 
   Future<String> exportAllClientsWithTransactionsJson() async {
@@ -374,6 +555,16 @@ class LedgerRepository {
     final personalFinanceJson = clientId == null
         ? await _personalFinanceExportRows(categoriesById: categoriesById)
         : <Map<String, dynamic>>[];
+
+    final pfFavorites = clientId == null
+        ? await (_db.select(_db.personalFinanceFavorites)
+              ..orderBy([
+                (f) => OrderingTerm.asc(f.kind),
+                (f) => OrderingTerm.asc(f.sortOrder),
+              ]))
+            .get()
+        : <PersonalFinanceFavorite>[];
+    final appSettingsRow = clientId == null ? await getAppSettings() : null;
 
     final defaultCode = await defaultCurrencyCode();
     final managedCurrencies = clientId == null
@@ -543,6 +734,24 @@ class LedgerRepository {
                   'createdAt': g.createdAt.toIso8601String(),
                 })
             .toList(),
+      if (clientId == null && pfFavorites.isNotEmpty)
+        'personalFinanceFavorites': pfFavorites
+            .map(
+              (f) => {
+                'id': f.id,
+                'kind': f.kind,
+                'label': f.label,
+                'amountMinor': f.amountMinor,
+                'categoryId': f.categoryId,
+                'accountId': f.accountId,
+                'sortOrder': f.sortOrder,
+                'createdAt': f.createdAt.toIso8601String(),
+              },
+            )
+            .toList(),
+      if (clientId == null && appSettingsRow?.financeTrackingStartAt != null)
+        'financeTrackingStartAt':
+            appSettingsRow!.financeTrackingStartAt!.toIso8601String(),
     };
   }
 
@@ -571,6 +780,7 @@ class LedgerRepository {
             'categoryName': e.categoryId == null
                 ? null
                 : categoriesById[e.categoryId]?.name,
+            'accountId': e.accountId,
             'createdAt': e.createdAt.toIso8601String(),
             'updatedAt': e.updatedAt.toIso8601String(),
           },
@@ -1781,11 +1991,42 @@ class LedgerRepository {
                   fromCurrencyJson: Value(row.fromCurrencyJson),
                   note: Value(row.note),
                   categoryId: Value(resolvedCategoryId),
+                  accountId: Value(row.accountId ?? kDefaultPocketAccountId),
                   createdAt: row.createdAt,
                   updatedAt: row.updatedAt,
                 ),
                 mode: InsertMode.insertOrReplace,
               );
+        }
+      }
+
+      final importedFavorites = _tryParsePersonalFinanceFavoritesFromJson(rawJson);
+      if (importedFavorites != null) {
+        for (final fav in importedFavorites) {
+          await _db.into(_db.personalFinanceFavorites).insertOnConflictUpdate(
+                PersonalFinanceFavoritesCompanion.insert(
+                  id: fav.id.isEmpty ? _uuid.v4() : fav.id,
+                  kind: fav.kind,
+                  label: fav.label,
+                  amountMinor: fav.amountMinor,
+                  categoryId: Value(fav.categoryId),
+                  accountId: Value(fav.accountId ?? kDefaultPocketAccountId),
+                  sortOrder: Value(fav.sortOrder),
+                  createdAt: fav.createdAt,
+                ),
+              );
+        }
+      }
+
+      final trackingStartRaw = () {
+        final dynamic root = jsonDecode(rawJson);
+        if (root is! Map) return null;
+        return root['financeTrackingStartAt']?.toString();
+      }();
+      if (trackingStartRaw != null && trackingStartRaw.isNotEmpty) {
+        final trackingStart = DateTime.tryParse(trackingStartRaw)?.toUtc();
+        if (trackingStart != null) {
+          await setFinanceTrackingStartAt(trackingStart);
         }
       }
 
@@ -1973,6 +2214,16 @@ class LedgerRepository {
   ) {
     return _tryParseV9Section<_ImportedPersonalFinancePayload>(
       rawJson, 'personalFinance', _ImportedPersonalFinancePayload.fromMap);
+  }
+
+  List<_ImportedPersonalFinanceFavoritePayload>? _tryParsePersonalFinanceFavoritesFromJson(
+    String rawJson,
+  ) {
+    return _tryParseV9Section<_ImportedPersonalFinanceFavoritePayload>(
+      rawJson,
+      'personalFinanceFavorites',
+      _ImportedPersonalFinanceFavoritePayload.fromMap,
+    );
   }
 
   /// Generic optional-section parser for v9 additions.
@@ -2880,6 +3131,7 @@ class _ImportedPersonalFinancePayload {
     required this.fromCurrencyJson,
     required this.note,
     required this.categoryName,
+    required this.accountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -2893,6 +3145,7 @@ class _ImportedPersonalFinancePayload {
   final String? note;
   /// Human-readable category name carried across exports (v2+). Null in v1 exports.
   final String? categoryName;
+  final String? accountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -2933,8 +3186,52 @@ class _ImportedPersonalFinancePayload {
       fromCurrencyJson: fromCurrencyJson,
       note: map['note']?.toString(),
       categoryName: map['categoryName']?.toString(),
+      accountId: map['accountId']?.toString(),
       createdAt: createdAt,
       updatedAt: updatedAt,
+    );
+  }
+}
+
+class _ImportedPersonalFinanceFavoritePayload {
+  const _ImportedPersonalFinanceFavoritePayload({
+    required this.id,
+    required this.kind,
+    required this.label,
+    required this.amountMinor,
+    required this.categoryId,
+    required this.accountId,
+    required this.sortOrder,
+    required this.createdAt,
+  });
+
+  final String id;
+  final int kind;
+  final String label;
+  final int amountMinor;
+  final String? categoryId;
+  final String? accountId;
+  final int sortOrder;
+  final DateTime createdAt;
+
+  factory _ImportedPersonalFinanceFavoritePayload.fromMap(Map<String, dynamic> map) {
+    final kind = (map['kind'] as num?)?.toInt();
+    final amountMinor = (map['amountMinor'] as num?)?.toInt();
+    final label = (map['label'] ?? '').toString().trim();
+    if (kind == null || amountMinor == null || amountMinor <= 0 || label.isEmpty) {
+      throw const FormatException('Personal finance favorite has missing required fields');
+    }
+    final createdAt =
+        DateTime.tryParse((map['createdAt'] ?? '').toString())?.toUtc() ?? DateTime.now().toUtc();
+    return _ImportedPersonalFinanceFavoritePayload(
+      id: (map['id'] ?? '').toString().trim(),
+      kind: kind,
+      label: label,
+      amountMinor: amountMinor,
+      categoryId: map['categoryId']?.toString(),
+      accountId: map['accountId']?.toString(),
+      sortOrder: (map['sortOrder'] as num?)?.toInt() ?? 0,
+      createdAt: createdAt,
     );
   }
 }

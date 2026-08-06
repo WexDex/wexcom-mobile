@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/db/app_database.dart';
+import '../../data/ledger_repository.dart';
 import '../../data/ledger_types.dart';
 import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
@@ -14,44 +15,14 @@ import '../../utils/subscription_schedule.dart';
 import '../../widgets/currency_amount_input.dart';
 import '../dashboard/dashboard_charts.dart';
 import 'expense_categories_screen.dart';
+import 'finance_period.dart';
+import 'personal_finance_editor.dart';
 import 'wallet_tab.dart';
 import 'wishlist_wallet_sheet.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Period type for analytics / chart selector
-// ─────────────────────────────────────────────────────────────────────────────
-
-enum _FinancePeriod { thisWeek, thisMonth, lastMonth, custom }
-
-/// Computes inclusive (start, end) date-range from a [_FinancePeriod].
-/// For [_FinancePeriod.custom] supply [customStart] / [customEnd];
-/// fallback is the current month.
-({DateTime start, DateTime end}) _periodRange(
-  _FinancePeriod period, {
-  DateTime? customStart,
-  DateTime? customEnd,
-}) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  switch (period) {
-    case _FinancePeriod.thisWeek:
-      final weekStart = today.subtract(Duration(days: today.weekday - 1));
-      return (start: weekStart, end: today.add(const Duration(hours: 23, minutes: 59, seconds: 59)));
-    case _FinancePeriod.thisMonth:
-      return (
-        start: DateTime(now.year, now.month, 1),
-        end: today.add(const Duration(hours: 23, minutes: 59, seconds: 59)),
-      );
-    case _FinancePeriod.lastMonth:
-      final lastMonth = DateTime(now.year, now.month - 1, 1);
-      final lastMonthEnd = DateTime(now.year, now.month, 1).subtract(const Duration(seconds: 1));
-      return (start: lastMonth, end: lastMonthEnd);
-    case _FinancePeriod.custom:
-      final s = customStart ?? DateTime(now.year, now.month, 1);
-      final e = customEnd ?? today.add(const Duration(hours: 23, minutes: 59, seconds: 59));
-      return (start: s, end: e.isAfter(s) ? e : s);
-  }
-}
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Period helpers â€” see finance_period.dart
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Computes window start for a category's budget period.
 DateTime _budgetWindowStart(ExpenseCategory cat) {
@@ -86,7 +57,7 @@ class PersonalFinanceScreen extends ConsumerStatefulWidget {
 class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  _FinancePeriod _period = _FinancePeriod.thisMonth;
+  FinancePeriod _period = FinancePeriod.thisMonth;
   DateTime? _customStart;
   DateTime? _customEnd;
 
@@ -127,293 +98,53 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
 
   Future<void> _openEditor(PersonalFinanceEntry? existing) async {
     final kind = existing != null ? PersonalFinanceKind.fromInt(existing.kind) : _kind;
+    final result = await openPersonalFinanceEditor(
+      context: context,
+      ref: ref,
+      kind: kind,
+      existing: existing,
+    );
+    if (result == null || !mounted) return;
+
     final currency = await ref.read(defaultCurrencyProvider.future);
     final repo = ref.read(ledgerRepositoryProvider);
-    final foreign = await repo.foreignCurrencyEditorContext();
-    if (!mounted) return;
-
-    final categories = ref
-        .read(expenseCategoriesProvider(kind == PersonalFinanceKind.expense ? 'expense' : 'gain'))
-        .valueOrNull ?? [];
-
-    final titleCtrl = TextEditingController(text: existing?.title ?? '');
-    final amountCtrl = TextEditingController(
-      text: existing != null ? '${existing.amountMinor}' : '',
-    );
-    final noteCtrl = TextEditingController(text: existing?.note ?? '');
-    final initialSnap = FromCurrencySnapshot.fromJsonString(existing?.fromCurrencyJson);
-    FromCurrencySnapshot? fromSnap = initialSnap;
-    final amountKey = GlobalKey<CurrencyAmountInputState>();
-    final color = kind == PersonalFinanceKind.expense
-        ? AppTheme.personalExpense
-        : AppTheme.personalGain;
-
-    String? selectedCategoryId = existing?.categoryId;
-
-    var dayLocal = existing != null
-        ? DateTime(
-            existing.createdAt.toLocal().year,
-            existing.createdAt.toLocal().month,
-            existing.createdAt.toLocal().day,
-          )
-        : DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
-
-    final saved = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusLg)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setModal) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 16,
-                bottom: MediaQuery.viewInsetsOf(ctx).bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            existing == null
-                                ? (kind == PersonalFinanceKind.expense ? 'New expense' : 'New gain')
-                                : (kind == PersonalFinanceKind.expense ? 'Edit expense' : 'Edit gain'),
-                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx, false),
-                          icon: const Icon(Icons.close),
-                          color: AppTheme.mutedFg,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    // Date picker
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Date'),
-                      subtitle: Text(
-                        DateFormat.yMMMEd().format(dayLocal),
-                        style: TextStyle(color: color, fontWeight: FontWeight.w600),
-                      ),
-                      trailing: FilledButton.tonalIcon(
-                        onPressed: () async {
-                          final p = await showDatePicker(
-                            context: ctx,
-                            initialDate: dayLocal,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2100),
-                          );
-                          if (p != null) {
-                            setModal(() {
-                              dayLocal = DateTime(p.year, p.month, p.day);
-                            });
-                          }
-                        },
-                        icon: const Icon(Icons.calendar_month_rounded, size: 20),
-                        label: const Text('Change'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: titleCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Title',
-                        hintText: 'What was it?',
-                      ),
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: 12),
-                    CurrencyAmountInput(
-                      key: amountKey,
-                      defaultCurrencyCode: currency,
-                      amountMinorController: amountCtrl,
-                      currencyCodes: foreign.codes,
-                      rates: foreign.rates,
-                      initialSnapshot: initialSnap,
-                      onSnapshotChanged: (s) => fromSnap = s,
-                    ),
-                    // Category chips
-                    if (categories.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        'Category',
-                        style: Theme.of(ctx).textTheme.labelMedium?.copyWith(
-                          color: AppTheme.mutedFg,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            // "None" chip
-                            Padding(
-                              padding: const EdgeInsets.only(right: 6),
-                              child: ChoiceChip(
-                                label: const Text('None'),
-                                selected: selectedCategoryId == null,
-                                onSelected: (_) => setModal(() => selectedCategoryId = null),
-                              ),
-                            ),
-                            ...categories.map((cat) {
-                              final catColor = _hexColor(cat.colorHex);
-                              final isSelected = selectedCategoryId == cat.id;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: ChoiceChip(
-                                  avatar: Icon(
-                                    categoryIconData(cat.iconCodePoint),
-                                    size: 16,
-                                    color: isSelected ? catColor : AppTheme.mutedFg,
-                                  ),
-                                  label: Text(cat.name),
-                                  selected: isSelected,
-                                  selectedColor: catColor.withValues(alpha: 0.2),
-                                  side: BorderSide(
-                                    color: isSelected
-                                        ? catColor
-                                        : AppTheme.mutedFg.withValues(alpha: 0.3),
-                                  ),
-                                  checkmarkColor: catColor,
-                                  onSelected: (_) =>
-                                      setModal(() => selectedCategoryId = cat.id),
-                                ),
-                              );
-                            }),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: noteCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Note',
-                        hintText: 'Optional',
-                      ),
-                      maxLines: 3,
-                      textCapitalization: TextCapitalization.sentences,
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton(
-                      onPressed: () {
-                        fromSnap = amountKey.currentState?.buildSnapshot();
-                        final minor =
-                            MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
-                        final title = titleCtrl.text.trim();
-                        if (title.isEmpty) {
-                          Navigator.pop(ctx, false);
-                          return;
-                        }
-                        final foreignOn =
-                            amountKey.currentState?.foreignModeEnabled ?? false;
-                        if (foreignOn && (minor == null || minor <= 0)) {
-                          ScaffoldMessenger.of(ctx).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Set an exchange rate in Tags → Currencies, '
-                                'then enter the foreign or default amount',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        if (minor == null || minor <= 0) {
-                          Navigator.pop(ctx, false);
-                          return;
-                        }
-                        Navigator.pop(ctx, true);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: color,
-                        foregroundColor: Colors.black87,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: Text(existing == null ? 'Add' : 'Save changes'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+    final createdAt = personalFinanceCreatedAtUtcForSave(
+      existing: existing,
+      dayLocal: result.dayLocal,
     );
 
-    if (saved == true) {
-      fromSnap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
-      final minor = MoneyFormat.parseMinorUnits(amountCtrl.text, fractionDigits: 0);
-      final title = titleCtrl.text.trim();
-      final note = noteCtrl.text.trim();
-      if (minor != null && minor > 0 && title.isNotEmpty) {
-        final createdAt = _createdAtUtcForSave(existing: existing, dayLocal: dayLocal);
-        final repo = ref.read(ledgerRepositoryProvider);
-        if (existing == null) {
-          await repo.addPersonalFinanceEntry(
-            kind: kind,
-            title: title,
-            amountMinor: minor,
-            currencyCode: currency,
-            note: note.isEmpty ? null : note,
-            categoryId: selectedCategoryId,
-            createdAt: createdAt,
-            fromCurrency: fromSnap,
-          );
-        } else {
-          await repo.updatePersonalFinanceEntry(
-            id: existing.id,
-            title: title,
-            amountMinor: minor,
-            currencyCode: currency,
-            note: note.isEmpty ? null : note,
-            categoryId: selectedCategoryId,
-            clearCategory: selectedCategoryId == null,
-            createdAt: createdAt,
-            fromCurrency: fromSnap,
-            clearFromCurrency: fromSnap == null,
-          );
-        }
-      }
-    }
-    titleCtrl.dispose();
-    amountCtrl.dispose();
-    noteCtrl.dispose();
-  }
-
-  static DateTime _createdAtUtcForSave({
-    PersonalFinanceEntry? existing,
-    required DateTime dayLocal,
-  }) {
-    final now = DateTime.now();
     if (existing == null) {
-      return DateTime(
-        dayLocal.year, dayLocal.month, dayLocal.day,
-        now.hour, now.minute, now.second,
-      ).toUtc();
+      await repo.addPersonalFinanceEntry(
+        kind: kind,
+        title: result.title,
+        amountMinor: result.amountMinor,
+        currencyCode: currency,
+        note: result.note,
+        categoryId: result.categoryId,
+        accountId: result.accountId,
+        createdAt: createdAt,
+        fromCurrency: result.fromCurrency,
+      );
+    } else {
+      await repo.updatePersonalFinanceEntry(
+        id: existing.id,
+        title: result.title,
+        amountMinor: result.amountMinor,
+        currencyCode: currency,
+        note: result.note,
+        categoryId: result.categoryId,
+        accountId: result.accountId,
+        clearCategory: result.categoryId == null,
+        createdAt: createdAt,
+        fromCurrency: result.fromCurrency,
+        clearFromCurrency: result.fromCurrency == null,
+      );
     }
-    final old = existing.createdAt.toLocal();
-    return DateTime(
-      dayLocal.year, dayLocal.month, dayLocal.day,
-      old.hour, old.minute, old.second, old.millisecond, old.microsecond,
-    ).toUtc();
   }
-
   @override
   Widget build(BuildContext context) {
+    final settings = ref.watch(appSettingsProvider).valueOrNull;
+    final trackingStart = settings?.financeTrackingStartAt;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Finance'),
@@ -450,6 +181,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             period: _period,
             customStart: _customStart,
             customEnd: _customEnd,
+            trackingStartAt: trackingStart,
             onPeriodChanged: (p, s, e) =>
                 setState(() { _period = p; _customStart = s; _customEnd = e; }),
             onOpenEditor: _openEditor,
@@ -459,6 +191,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
             period: _period,
             customStart: _customStart,
             customEnd: _customEnd,
+            trackingStartAt: trackingStart,
             onPeriodChanged: (p, s, e) =>
                 setState(() { _period = p; _customStart = s; _customEnd = e; }),
             onOpenEditor: _openEditor,
@@ -956,9 +689,9 @@ abstract final class _NotificationHelper {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Expense / Gain tab body
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Groups entries newest-day first; within a day, newest first.
 Map<DateTime, List<PersonalFinanceEntry>> _groupByDay(List<PersonalFinanceEntry> entries) {
@@ -985,13 +718,15 @@ class _FinanceTabBody extends ConsumerStatefulWidget {
     required this.onOpenEditor,
     this.customStart,
     this.customEnd,
+    this.trackingStartAt,
   });
 
   final PersonalFinanceKind kind;
-  final _FinancePeriod period;
+  final FinancePeriod period;
   final DateTime? customStart;
   final DateTime? customEnd;
-  final void Function(_FinancePeriod, DateTime?, DateTime?) onPeriodChanged;
+  final DateTime? trackingStartAt;
+  final void Function(FinancePeriod, DateTime?, DateTime?) onPeriodChanged;
   final Future<void> Function(PersonalFinanceEntry? existing) onOpenEditor;
 
   @override
@@ -1012,7 +747,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
     );
     if (range != null) {
       widget.onPeriodChanged(
-        _FinancePeriod.custom,
+        FinancePeriod.custom,
         DateTime(range.start.year, range.start.month, range.start.day),
         DateTime(range.end.year, range.end.month, range.end.day, 23, 59, 59),
       );
@@ -1035,17 +770,18 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
         : AppTheme.personalGain;
     final categories = categoriesAsync.valueOrNull ?? [];
 
-    final range = _periodRange(
+    final range = financePeriodRange(
       widget.period,
       customStart: widget.customStart,
       customEnd: widget.customEnd,
+      trackingStartAt: widget.trackingStartAt,
     );
 
     return entriesAsync.when(
       data: (allEntries) {
         final otherEntries = otherEntriesAsync.valueOrNull ?? [];
 
-        // ── Period filtering ──────────────────────────────────────────────
+        // â”€â”€ Period filtering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         final inRange = allEntries.where((e) {
           final local = e.createdAt.toLocal();
           return !local.isBefore(range.start) && !local.isAfter(range.end);
@@ -1056,7 +792,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
           return !local.isBefore(range.start) && !local.isAfter(range.end);
         }).toList();
 
-        // ── Previous period for trend ─────────────────────────────────────
+        // â”€â”€ Previous period for trend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         final duration = range.end.difference(range.start);
         final prevEnd = range.start.subtract(const Duration(seconds: 1));
         final prevStart = prevEnd.subtract(duration);
@@ -1069,14 +805,14 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
         final totalPrev = prevInRange.fold<int>(0, (a, e) => a + e.amountMinor);
         final otherTotal = otherInRange.fold<int>(0, (a, e) => a + e.amountMinor);
 
-        // ── Per-category spend for the period ─────────────────────────────
+        // â”€â”€ Per-category spend for the period â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         final spendByCat = <String, int>{};
         for (final e in inRange) {
           final key = e.categoryId ?? '__none__';
           spendByCat[key] = (spendByCat[key] ?? 0) + e.amountMinor;
         }
 
-        // ── Budget window spend (per-category period, independent) ────────
+        // â”€â”€ Budget window spend (per-category period, independent) â”€â”€â”€â”€â”€â”€â”€â”€
         final budgetCats =
             categories.where((c) => c.budgetMinorPerMonth != null && c.budgetMinorPerMonth! > 0);
         final budgetSpend = <String, int>{};
@@ -1090,23 +826,26 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
           }
         }
 
-        // ── Apply category filter for history list ────────────────────────
-        final filteredEntries = _filterCategoryId == null
-            ? allEntries
-            : allEntries.where((e) => e.categoryId == _filterCategoryId).toList();
-        final grouped = _groupByDay(filteredEntries);
+        // â”€â”€ Apply category filter for history list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        final historyEntries = inRange.where((e) {
+          if (_filterCategoryId != null && e.categoryId != _filterCategoryId) {
+            return false;
+          }
+          return true;
+        }).toList();
+        final grouped = _groupByDay(historyEntries);
         final sortedDays = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
-        // ── Chart: use the period range for daily points ──────────────────
+        // â”€â”€ Chart: use the period range for daily points â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         final dayCount = duration.inDays.clamp(1, 90) + 1;
         final daily = buildPersonalDailyPoints(inRange, dayCount);
 
-        // ── Stats ─────────────────────────────────────────────────────────
+        // â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         final days = duration.inDays + 1;
         final dailyAvg = days > 0 ? totalRange ~/ days : 0;
         final weeklyAvg = days >= 7 ? (totalRange / (days / 7)).round() : totalRange;
 
-        // ── Top category ──────────────────────────────────────────────────
+        // â”€â”€ Top category â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         String? topCatId;
         int topCatAmount = 0;
         spendByCat.forEach((id, amt) {
@@ -1125,7 +864,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
-            // ── Budget progress bars ────────────────────────────────────────
+            // â”€â”€ Budget progress bars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (widget.kind == PersonalFinanceKind.expense && budgetCats.isNotEmpty) ...[
               ...budgetCats.map((cat) {
                 final spent = budgetSpend[cat.id] ?? 0;
@@ -1154,7 +893,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
                                       style: Theme.of(context).textTheme.labelMedium),
                                 ),
                                 Text(
-                                  '${MoneyFormat.formatMinor(spent, code)} / ${MoneyFormat.formatMinor(budget, code)} · ${_budgetPeriodWindowLabel(cat)}',
+                                  '${MoneyFormat.formatMinor(spent, code)} / ${MoneyFormat.formatMinor(budget, code)} Â· ${_budgetPeriodWindowLabel(cat)}',
                                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                         color: barColor,
                                         fontWeight: FontWeight.w700,
@@ -1182,22 +921,26 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
               const Divider(height: 20),
             ],
 
-            // ── Period selector ─────────────────────────────────────────────
+            // â”€â”€ Period selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _PeriodSelector(
               selected: widget.period,
               customStart: widget.customStart,
               customEnd: widget.customEnd,
               onSelected: (p) {
-                if (p == _FinancePeriod.custom) {
+                if (p == FinancePeriod.custom) {
                   _openCustomPicker();
                 } else {
                   widget.onPeriodChanged(p, null, null);
                 }
               },
             ),
+            const SizedBox(height: 8),
+            _TrackingStartChip(trackingStartAt: widget.trackingStartAt),
+            const SizedBox(height: 8),
+            _FinanceFavoritesRow(kind: widget.kind),
             const SizedBox(height: 12),
 
-            // ── Stat row ───────────────────────────────────────────────────
+            // ── Stat row ──
             Row(
               children: [
                 Expanded(
@@ -1227,7 +970,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
             ),
             const SizedBox(height: 10),
 
-            // ── Trend card ─────────────────────────────────────────────────
+            // â”€â”€ Trend card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _TrendCard(
               current: totalRange,
               previous: totalPrev,
@@ -1237,7 +980,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
             ),
             const SizedBox(height: 10),
 
-            // ── Expenses vs Gains comparison bar ───────────────────────────
+            // â”€â”€ Expenses vs Gains comparison bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _ComparisonBar(
               expenseTotal: widget.kind == PersonalFinanceKind.expense ? totalRange : otherTotal,
               gainTotal: widget.kind == PersonalFinanceKind.gain ? totalRange : otherTotal,
@@ -1245,7 +988,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
             ),
             const SizedBox(height: 20),
 
-            // ── Chart ──────────────────────────────────────────────────────
+            // â”€â”€ Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             ChartCard(
               title: widget.kind == PersonalFinanceKind.expense
                   ? 'Spending per day'
@@ -1258,7 +1001,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
               ),
             ),
 
-            // ── Top category highlight ─────────────────────────────────────
+            // â”€â”€ Top category highlight â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (topCat != null) ...[
               const SizedBox(height: 16),
               _TopCategoryCard(
@@ -1269,7 +1012,7 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
               ),
             ],
 
-            // ── Category breakdown list ─────────────────────────────────────
+            // â”€â”€ Category breakdown list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (categories.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
@@ -1294,25 +1037,25 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
               ),
             ],
 
-            // ── History header ─────────────────────────────────────────────
+            // â”€â”€ History header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const SizedBox(height: 24),
             Row(
               children: [
                 Text('History', style: Theme.of(context).textTheme.titleMedium),
                 const Spacer(),
                 Text(
-                  '${filteredEntries.length} ${filteredEntries.length == 1 ? 'entry' : 'entries'}',
+                  '${historyEntries.length} ${historyEntries.length == 1 ? 'entry' : 'entries'}',
                   style: TextStyle(color: AppTheme.mutedFg, fontSize: 13),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              'All time · newest first · tap to edit',
+              '${financePeriodLabel(widget.period, customStart: widget.customStart, customEnd: widget.customEnd)} · newest first · tap to edit',
               style: TextStyle(color: AppTheme.mutedFg, fontSize: 12),
             ),
             const SizedBox(height: 12),
-            if (filteredEntries.isEmpty)
+            if (historyEntries.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Center(
@@ -1379,19 +1122,10 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
 }
 
 String _periodLabel(
-  _FinancePeriod period,
+  FinancePeriod period,
   DateTime? customStart,
   DateTime? customEnd,
-) {
-  return switch (period) {
-    _FinancePeriod.thisWeek => 'This week',
-    _FinancePeriod.thisMonth => 'This month',
-    _FinancePeriod.lastMonth => 'Last month',
-    _FinancePeriod.custom => customStart != null && customEnd != null
-        ? '${DateFormat.MMMd().format(customStart)} – ${DateFormat.MMMd().format(customEnd)}'
-        : 'Custom',
-  };
-}
+) => financePeriodLabel(period, customStart: customStart, customEnd: customEnd);
 
 Future<void> _confirmDelete(
   BuildContext context,
@@ -1419,9 +1153,9 @@ Future<void> _confirmDelete(
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Wishlist tab
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _WishlistTabBody extends ConsumerWidget {
   const _WishlistTabBody({
@@ -1460,7 +1194,7 @@ class _WishlistTabBody extends ConsumerWidget {
                             size: 18, color: AppTheme.brandSecondary),
                         const SizedBox(width: 8),
                         Text(
-                          '${items.length} item${items.length == 1 ? '' : 's'} · ${MoneyFormat.formatMinor(total, code)}',
+                          '${items.length} item${items.length == 1 ? '' : 's'} Â· ${MoneyFormat.formatMinor(total, code)}',
                           style: text.labelMedium?.copyWith(color: AppTheme.mutedFg),
                         ),
                       ],
@@ -1487,7 +1221,7 @@ class _WishlistTabBody extends ConsumerWidget {
                 if (subs.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text('No subscriptions yet — tap + to add',
+                    child: Text('No subscriptions yet â€” tap + to add',
                         style: text.bodySmall?.copyWith(color: AppTheme.mutedFg)),
                   )
                 else
@@ -1623,14 +1357,13 @@ class _WishlistItemCard extends ConsumerWidget {
       currencyCode: item.currencyCode,
       note: item.note,
       categoryId: item.categoryId,
+      accountId: kDefaultPocketAccountId,
+      fromCurrency: FromCurrencySnapshot.fromJsonString(item.fromCurrencyJson),
     );
     if (!context.mounted) return;
-    await showWishlistWalletSheet(context: context, ref: ref, item: item);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('"${item.title}" marked purchased')),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('"${item.title}" marked purchased')),
+    );
   }
 }
 
@@ -1843,9 +1576,9 @@ class _SubscriptionItemCard extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Shared sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _DaySectionHeader extends StatelessWidget {
   const _DaySectionHeader({
@@ -2064,9 +1797,9 @@ class _MiniStatCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Period selector
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _PeriodSelector extends StatelessWidget {
   const _PeriodSelector({
@@ -2076,17 +1809,17 @@ class _PeriodSelector extends StatelessWidget {
     this.customEnd,
   });
 
-  final _FinancePeriod selected;
-  final ValueChanged<_FinancePeriod> onSelected;
+  final FinancePeriod selected;
+  final ValueChanged<FinancePeriod> onSelected;
   final DateTime? customStart;
   final DateTime? customEnd;
 
   @override
   Widget build(BuildContext context) {
-    final customLabel = selected == _FinancePeriod.custom &&
+    final customLabel = selected == FinancePeriod.custom &&
             customStart != null &&
             customEnd != null
-        ? '${DateFormat.MMMd().format(customStart!)}–${DateFormat.MMMd().format(customEnd!)}'
+        ? '${DateFormat.MMMd().format(customStart!)}â€“${DateFormat.MMMd().format(customEnd!)}'
         : 'Custom';
 
     return SingleChildScrollView(
@@ -2094,27 +1827,39 @@ class _PeriodSelector extends StatelessWidget {
       child: Row(
         children: [
           _PeriodChip(
+            label: 'Last 7 days',
+            selected: selected == FinancePeriod.last7Days,
+            onTap: () => onSelected(FinancePeriod.last7Days),
+          ),
+          const SizedBox(width: 6),
+          _PeriodChip(
             label: 'This week',
-            selected: selected == _FinancePeriod.thisWeek,
-            onTap: () => onSelected(_FinancePeriod.thisWeek),
+            selected: selected == FinancePeriod.thisWeek,
+            onTap: () => onSelected(FinancePeriod.thisWeek),
+          ),
+          const SizedBox(width: 6),
+          _PeriodChip(
+            label: 'Last week',
+            selected: selected == FinancePeriod.lastWeek,
+            onTap: () => onSelected(FinancePeriod.lastWeek),
           ),
           const SizedBox(width: 6),
           _PeriodChip(
             label: 'This month',
-            selected: selected == _FinancePeriod.thisMonth,
-            onTap: () => onSelected(_FinancePeriod.thisMonth),
+            selected: selected == FinancePeriod.thisMonth,
+            onTap: () => onSelected(FinancePeriod.thisMonth),
           ),
           const SizedBox(width: 6),
           _PeriodChip(
             label: 'Last month',
-            selected: selected == _FinancePeriod.lastMonth,
-            onTap: () => onSelected(_FinancePeriod.lastMonth),
+            selected: selected == FinancePeriod.lastMonth,
+            onTap: () => onSelected(FinancePeriod.lastMonth),
           ),
           const SizedBox(width: 6),
           _PeriodChip(
             label: customLabel,
-            selected: selected == _FinancePeriod.custom,
-            onTap: () => onSelected(_FinancePeriod.custom),
+            selected: selected == FinancePeriod.custom,
+            onTap: () => onSelected(FinancePeriod.custom),
             icon: Icons.date_range_rounded,
           ),
         ],
@@ -2173,9 +1918,9 @@ class _PeriodChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Trend card
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _TrendCard extends StatelessWidget {
   const _TrendCard({
@@ -2224,7 +1969,7 @@ class _TrendCard extends StatelessWidget {
             ),
           ),
           if (noComparison)
-            Text('— no data', style: TextStyle(color: AppTheme.mutedFg, fontSize: 12))
+            Text('â€” no data', style: TextStyle(color: AppTheme.mutedFg, fontSize: 12))
           else ...[
             Icon(arrow, size: 18, color: trendColor),
             const SizedBox(width: 4),
@@ -2243,9 +1988,9 @@ class _TrendCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Expenses vs Gains comparison bar
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _ComparisonBar extends StatelessWidget {
   const _ComparisonBar({
@@ -2311,7 +2056,7 @@ class _ComparisonBar extends StatelessWidget {
             children: [
               Text('Net: ', style: TextStyle(color: AppTheme.mutedFg, fontSize: 12)),
               Text(
-                net >= 0 ? '+$netLabel' : '−$netLabel',
+                net >= 0 ? '+$netLabel' : 'âˆ’$netLabel',
                 style: TextStyle(
                     color: netColor, fontSize: 12, fontWeight: FontWeight.w700),
               ),
@@ -2323,9 +2068,9 @@ class _ComparisonBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Top category card
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _TopCategoryCard extends StatelessWidget {
   const _TopCategoryCard({
@@ -2390,9 +2135,9 @@ class _TopCategoryCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Category breakdown list
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _CategoryBreakdownList extends StatelessWidget {
   const _CategoryBreakdownList({
@@ -2513,9 +2258,9 @@ class _CategoryBreakdownList extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Category detail sheet
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _CategoryDetailSheet extends ConsumerStatefulWidget {
   const _CategoryDetailSheet({
@@ -2575,7 +2320,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
       builder: (ctx, scrollCtrl) {
         return Column(
           children: [
-            // ── Header ──────────────────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 16, 0),
               child: Row(
@@ -2598,7 +2343,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
                               fontSize: 18),
                         ),
                         Text(
-                          '${MoneyFormat.formatMinor(periodTotal, code)}  ·  $pct% of total',
+                          '${MoneyFormat.formatMinor(periodTotal, code)}  Â·  $pct% of total',
                           style: TextStyle(color: AppTheme.mutedFg, fontSize: 12),
                         ),
                       ],
@@ -2611,7 +2356,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
                 ],
               ),
             ),
-            // ── Mini chart ───────────────────────────────────────────────
+            // â”€â”€ Mini chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             if (periodEntries.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -2624,7 +2369,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
                   ),
                 ),
               ),
-            // ── All entries toggle ───────────────────────────────────────
+            // â”€â”€ All entries toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
               child: Row(
@@ -2649,7 +2394,7 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
               ),
             ),
             const Divider(height: 1),
-            // ── Entry list ───────────────────────────────────────────────
+            // â”€â”€ Entry list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Expanded(
               child: shownEntries.isEmpty
                   ? Center(
@@ -2682,6 +2427,109 @@ class _CategoryDetailSheetState extends ConsumerState<_CategoryDetailSheet> {
           ],
         );
       },
+    );
+  }
+}
+
+class _TrackingStartChip extends ConsumerWidget {
+  const _TrackingStartChip({this.trackingStartAt});
+
+  final DateTime? trackingStartAt;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final label = trackingStartAt == null
+        ? 'Start counting from today'
+        : 'Counting since ${DateFormat.MMMd().format(trackingStartAt!.toLocal())}';
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ActionChip(
+        avatar: Icon(
+          trackingStartAt == null ? Icons.play_arrow_rounded : Icons.date_range_rounded,
+          size: 18,
+        ),
+        label: Text(label),
+        onPressed: () async {
+          final repo = ref.read(ledgerRepositoryProvider);
+          if (trackingStartAt != null) {
+            final clear = await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text('Tracking start date'),
+                content: const Text('Clear the analytics start date or pick a new one?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Pick date'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ),
+            );
+            if (clear == true) {
+              await repo.setFinanceTrackingStartAt(null);
+              return;
+            }
+            if (clear != false) return;
+          }
+          final today = DateTime.now();
+          final picked = await showDatePicker(
+            context: context,
+            initialDate: trackingStartAt?.toLocal() ?? today,
+            firstDate: DateTime(2020),
+            lastDate: today,
+          );
+          if (picked != null) {
+            await repo.setFinanceTrackingStartAt(
+              DateTime(picked.year, picked.month, picked.day),
+            );
+          }
+        },
+      ),
+    );
+  }
+}
+
+class _FinanceFavoritesRow extends ConsumerWidget {
+  const _FinanceFavoritesRow({required this.kind});
+
+  final PersonalFinanceKind kind;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final favoritesAsync = ref.watch(personalFinanceFavoritesProvider(kind));
+    final favorites = favoritesAsync.valueOrNull ?? [];
+    if (favorites.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Favorites',
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(color: AppTheme.mutedFg),
+        ),
+        const SizedBox(height: 6),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final fav in favorites)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    label: Text('${fav.label} · ${MoneyFormat.formatMinor(fav.amountMinor, 'DZD')}'),
+                    onPressed: () =>
+                        ref.read(ledgerRepositoryProvider).logPersonalFinanceFavorite(fav),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -7,6 +7,7 @@ import '../features/clients/archived_clients_screen.dart';
 import '../features/clients/client_detail_screen.dart';
 import '../features/clients/client_list_screen.dart';
 import '../features/finance/personal_finance_screen.dart';
+import '../features/finance/wallet_account_history_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/settings/audit_log_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -169,6 +170,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings/audit-log',
         name: 'audit-log',
         pageBuilder: (context, state) => _detailPage(state, const AuditLogScreen()),
+      ),
+      GoRoute(
+        path: '/finance/wallet/:accountId',
+        name: 'wallet-history',
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['accountId']!;
+          return _detailPage(state, WalletAccountHistoryScreen(accountId: id));
+        },
       ),
       GoRoute(
         path: '/analytics',

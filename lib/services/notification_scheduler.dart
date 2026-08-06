@@ -30,6 +30,14 @@ Future<void> refreshScheduledNotifications(LedgerRepository repo) async {
   } else {
     await NotificationService.cancelBackupReminder();
   }
+
+  if (s.notifFinanceDailyEnabled) {
+    await NotificationService.scheduleFinanceDailyReminder(
+      hourOfDay: s.notifFinanceDailyHour,
+    );
+  } else {
+    await NotificationService.cancelFinanceDailyReminder();
+  }
 }
 
 Future<void> runNotificationChecks(LedgerRepository repo) async {

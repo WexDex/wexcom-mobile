@@ -132,6 +132,11 @@ final clientOverdueProvider =
   return repo.hasOverdueDebt(clientId, days);
 });
 
+final personalFinanceFavoritesProvider =
+    StreamProvider.autoDispose.family<List<PersonalFinanceFavorite>, PersonalFinanceKind>((ref, kind) {
+  return ref.watch(ledgerRepositoryProvider).watchPersonalFinanceFavorites(kind);
+});
+
 final personalFinanceEntriesProvider = StreamProvider.autoDispose
     .family<List<PersonalFinanceEntry>, PersonalFinanceKind>((ref, kind) {
   return ref.watch(ledgerRepositoryProvider).watchPersonalFinanceEntries(kind);
@@ -175,6 +180,11 @@ final wishlistItemsProvider = StreamProvider.autoDispose
 
 final walletAccountsProvider = StreamProvider.autoDispose<List<WalletAccount>>((ref) {
   return ref.watch(ledgerRepositoryProvider).watchWalletAccounts();
+});
+
+final walletLedgerProvider =
+    StreamProvider.autoDispose.family<List<WalletLedgerEntry>, String>((ref, accountId) {
+  return ref.watch(ledgerRepositoryProvider).watchWalletLedger(accountId);
 });
 
 final savingsGoalsProvider = StreamProvider.autoDispose<List<SavingsGoal>>((ref) {

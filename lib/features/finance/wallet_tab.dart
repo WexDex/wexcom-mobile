@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/db/app_database.dart';
@@ -256,7 +257,14 @@ class _AccountSection extends ConsumerWidget {
             if (estimate != null)
               Text(estimate, style: text.labelSmall?.copyWith(color: AppTheme.mutedFg)),
             const SizedBox(height: 8),
-            FilledButton.tonal(onPressed: onAdjust, child: const Text('Adjust balance')),
+            FilledButton.tonal(
+              onPressed: onAdjust,
+              child: const Text('Adjust balance'),
+            ),
+            TextButton(
+              onPressed: () => context.push('/finance/wallet/${account.id}'),
+              child: const Text('See all history'),
+            ),
             if (ledger.isNotEmpty) ...[
               const Divider(height: 20),
               Text('History', style: text.labelMedium?.copyWith(color: AppTheme.mutedFg)),

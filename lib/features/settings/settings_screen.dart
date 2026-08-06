@@ -511,6 +511,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
         _NotifRow(
+          icon: Icons.receipt_long_outlined,
+          title: 'Daily finance reminder',
+          subtitle: 'Remind you to log expenses and gains',
+          value: s.notifFinanceDailyEnabled,
+          onChanged: (v) async {
+            await ref.read(ledgerRepositoryProvider).saveFinanceDailyReminderSettings(
+                  enabled: v,
+                  hour: s.notifFinanceDailyHour,
+                );
+            await refreshScheduledNotifications(ref.read(ledgerRepositoryProvider));
+          },
+          onTest: () async {
+            await NotificationService.showInactivityReminder(daysSinceLast: 0);
+            _showTestSnack();
+          },
+        ),
+        if (s.notifFinanceDailyEnabled)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Reminder time: ${s.notifFinanceDailyHour}:00'),
+            trailing: IconButton(
+              icon: const Icon(Icons.schedule),
+              onPressed: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay(hour: s.notifFinanceDailyHour, minute: 0),
+                );
+                if (picked != null) {
+                  await ref.read(ledgerRepositoryProvider).saveFinanceDailyReminderSettings(
+                        enabled: true,
+                        hour: picked.hour,
+                      );
+                  await refreshScheduledNotifications(ref.read(ledgerRepositoryProvider));
+                }
+              },
+            ),
+          ),
+        _NotifRow(
           icon: Icons.cloud_done_outlined,
           title: 'Cloud sync notification',
           subtitle: 'Notify after a successful backup upload',

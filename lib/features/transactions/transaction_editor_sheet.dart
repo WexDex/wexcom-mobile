@@ -147,10 +147,14 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
         ),
         child: Form(
           key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.88,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               Row(
                 children: [
                   Expanded(
@@ -172,6 +176,11 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 style: TextStyle(color: AppTheme.mutedFg, fontSize: 13),
               ),
               const SizedBox(height: 12),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
               Row(
                 children: [
                   Expanded(
@@ -453,6 +462,10 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
                 ),
               ],
               const SizedBox(height: 20),
+                    ],
+                  ),
+                ),
+              ),
               FilledButton(
                 onPressed: _busy
                     ? null
@@ -486,6 +499,7 @@ class _TransactionEditorSheetState extends State<TransactionEditorSheet> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

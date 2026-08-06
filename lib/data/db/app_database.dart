@@ -136,9 +136,27 @@ class PersonalFinanceEntries extends Table {
   TextColumn get note => text().nullable()();
   /// FK to ExpenseCategories (nullable — pre-existing entries have no category)
   TextColumn get categoryId => text().nullable()();
+  /// FK to WalletAccounts — null treated as Pocket (`wallet-cash`) in UI
+  TextColumn get accountId => text().nullable().references(WalletAccounts, #id)();
   TextColumn get fromCurrencyJson => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Pinned one-tap expense / gain shortcuts.
+class PersonalFinanceFavorites extends Table {
+  TextColumn get id => text()();
+  /// 0 = expense, 1 = gain
+  IntColumn get kind => integer()();
+  TextColumn get label => text()();
+  IntColumn get amountMinor => integer()();
+  TextColumn get categoryId => text().nullable()();
+  TextColumn get accountId => text().nullable().references(WalletAccounts, #id)();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -320,6 +338,12 @@ class AppSettings extends Table {
       integer().withDefault(const Constant(30))();
   DateTimeColumn get lastJsonExportAt => dateTime().nullable()();
 
+  // Finance tracking (v15)
+  DateTimeColumn get financeTrackingStartAt => dateTime().nullable()();
+  BoolColumn get notifFinanceDailyEnabled =>
+      boolean().withDefault(const Constant(false))();
+  IntColumn get notifFinanceDailyHour => integer().withDefault(const Constant(21))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -333,6 +357,7 @@ class AppSettings extends Table {
     TransactionTags,
     QuickActionUsages,
     PersonalFinanceEntries,
+    PersonalFinanceFavorites,
     AppSettings,
     TransactionTemplates,
     AuditLog,
@@ -350,7 +375,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -507,6 +532,16 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(expenseCategories, expenseCategories.budgetCustomDays);
             await m.addColumn(subscriptionItems, subscriptionItems.warnBeforeDays);
           }
+          if (from < 15) {
+            await m.addColumn(personalFinanceEntries, personalFinanceEntries.accountId);
+            await m.createTable(personalFinanceFavorites);
+            await m.addColumn(appSettings, appSettings.financeTrackingStartAt);
+            await m.addColumn(appSettings, appSettings.notifFinanceDailyEnabled);
+            await m.addColumn(appSettings, appSettings.notifFinanceDailyHour);
+            await customStatement(
+              "UPDATE wallet_accounts SET name = 'Pocket', emoji = '👛' WHERE id = 'wallet-cash'",
+            );
+          }
         },
       );
 
@@ -591,8 +626,8 @@ class AppDatabase extends _$AppDatabase {
     await into(walletAccounts).insertOnConflictUpdate(
       WalletAccountsCompanion.insert(
         id: 'wallet-cash',
-        name: 'Cash',
-        emoji: const Value('💵'),
+        name: 'Pocket',
+        emoji: const Value('👛'),
         balanceMinor: const Value(0),
         sortOrder: const Value(0),
         createdAt: now,

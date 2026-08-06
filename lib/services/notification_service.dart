@@ -233,6 +233,41 @@ class NotificationService {
     } catch (_) {}
   }
 
+  // ── Daily finance logging reminder ─────────────────────────────────────
+
+  static Future<void> scheduleFinanceDailyReminder({required int hourOfDay}) async {
+    if (!_initialized) return;
+    try {
+      await _plugin.cancel(9);
+      final now = tz.TZDateTime.now(tz.local);
+      var scheduled =
+          tz.TZDateTime(tz.local, now.year, now.month, now.day, hourOfDay);
+      if (scheduled.isBefore(now)) {
+        scheduled = scheduled.add(const Duration(days: 1));
+      }
+      await _plugin.zonedSchedule(
+        9,
+        'Log today\'s spending?',
+        'Tap to add an expense or gain',
+        scheduled,
+        _details(_channelActivity, 'Finance Reminders'),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        payload: '/finance?tab=expenses',
+      );
+    } catch (e) {
+      debugPrint('scheduleFinanceDailyReminder error: $e');
+    }
+  }
+
+  static Future<void> cancelFinanceDailyReminder() async {
+    try {
+      await _plugin.cancel(9);
+    } catch (_) {}
+  }
+
   static Future<void> showBackupReminder({
     required int daysSinceLastExport,
     bool neverExported = false,
