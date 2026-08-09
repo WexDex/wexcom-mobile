@@ -26,12 +26,20 @@ class CloudServerStatus {
   final DateTime? serverTime;
 
   factory CloudServerStatus.fromJson(Map<String, dynamic> json) {
+    final latest = json['latest_snapshot'];
+    final Map<String, dynamic>? snap =
+        latest is Map<String, dynamic> ? latest : null;
     return CloudServerStatus(
       ok: json['ok'] == true,
       version: json['version']?.toString(),
-      lastUploadAt: _parseDate(json['last_upload_at']),
-      fileSizeBytes: (json['file_size_bytes'] as num?)?.toInt() ?? 0,
-      dbReady: json['db_ready'] == true,
+      lastUploadAt: _parseDate(json['last_upload_at']) ??
+          (snap != null ? _parseDate(snap['uploaded_at']) : null),
+      fileSizeBytes: (json['file_size_bytes'] as num?)?.toInt() ??
+          (snap != null ? (snap['size_bytes'] as num?)?.toInt() : null) ??
+          0,
+      dbReady: json['db_ready'] == true ||
+          snap != null ||
+          (json['snapshot_count'] as num? ?? 0) > 0,
       serverTime: _parseDate(json['server_time']),
     );
   }
@@ -137,11 +145,19 @@ class CloudSyncService {
         }
 
         final json = _decodeJson(body);
-        final uploadedAt = DateTime.tryParse(json['uploaded_at']?.toString() ?? '')?.toLocal();
+        final snap = json['snapshot'];
+        final Map<String, dynamic>? snapshot =
+            snap is Map<String, dynamic> ? snap : null;
+        final uploadedAt = DateTime.tryParse(
+              json['uploaded_at']?.toString() ??
+                  snapshot?['uploaded_at']?.toString() ??
+                  '',
+            )?.toLocal();
         return CloudSyncResult.success(
           message: 'Uploaded successfully',
-          sha256: json['sha256']?.toString(),
-          sizeBytes: (json['size_bytes'] as num?)?.toInt(),
+          sha256: json['sha256']?.toString() ?? snapshot?['sha256']?.toString(),
+          sizeBytes: (json['size_bytes'] as num?)?.toInt() ??
+              (snapshot?['size_bytes'] as num?)?.toInt(),
           uploadedAt: uploadedAt ?? DateTime.now(),
         );
       } finally {

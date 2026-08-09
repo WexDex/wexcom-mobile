@@ -2,6 +2,23 @@
 
 Newest entries at the top. See [AGENTS.md](AGENTS.md) for how this file is maintained.
 
+## [Unreleased] — 2026-08-07 — Major
+
+**Summary:** New LAN-only Express + Electron cloud host (`cloud_host/`) with desktop UI, QR setup, and Flutter sync compatibility fix.
+
+**Plan:** Express Electron Cloud Host
+
+**In scope:**
+- `cloud_host/` — Express server matching Dart `cloud_server` v2 API (snapshots, clients, v9 data routes)
+- Electron UI: start/stop, settings, logs, QR code, Windows Firewall prompt, snapshot management
+- `CloudSyncService` parses `latest_snapshot` / `snapshot` response objects
+- Correct SQLite column names (`full_name`, `archived_at`) for data endpoints
+
+**Not in scope:**
+- Internet/public access, HTTPS, port forwarding
+- Replacing Dart `cloud_server/` (kept as fallback)
+- Periodic sync migration off legacy `SyncService`
+
 ## Version index
 
 | Version | Date | Type |

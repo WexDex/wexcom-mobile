@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <title>Wexcom Cloud Host</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <h1>Wexcom Cloud Host</h1>
+      <span class="badge" id="statusBadge">Stopped</span>
+    </div>
+    <button type="button" id="toggleBtn" class="btn btn-primary">Start server</button>
+  </header>
+
+  <main class="grid">
+    <section class="card lan-card">
+      <h2>LAN connection</h2>
+      <p class="hint">Phone and PC must be on the same Wi‑Fi.</p>
+      <div class="lan-row">
+        <code id="lanUrl">—</code>
+        <button type="button" id="copyUrlBtn" class="btn btn-sm">Copy URL</button>
+      </div>
+      <p id="lanIpHint" class="muted"></p>
+      <div class="qr-wrap">
+        <img id="qrImg" alt="QR code for LAN URL" width="200" height="200" hidden>
+        <p id="qrPlaceholder" class="muted">Start server to show QR code</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <label>Port <input type="number" id="portInput" min="1024" max="65535" value="8787"></label>
+      <label>Username <input type="text" id="userInput" autocomplete="username"></label>
+      <label>Password <input type="password" id="passInput" autocomplete="current-password"></label>
+      <label class="dir-row">
+        Data directory
+        <div class="dir-input">
+          <input type="text" id="dataDirInput" readonly>
+          <button type="button" id="pickDirBtn" class="btn btn-sm">Browse</button>
+        </div>
+      </label>
+      <label class="checkbox"><input type="checkbox" id="autoStartInput"> Start server on launch</label>
+      <button type="button" id="saveBtn" class="btn">Save settings</button>
+    </section>
+
+    <section class="card stats-card">
+      <h2>Backup status</h2>
+      <dl>
+        <dt>Snapshots</dt><dd id="snapshotCount">0</dd>
+        <dt>Latest upload</dt><dd id="latestUpload">—</dd>
+        <dt>Latest size</dt><dd id="latestSize">—</dd>
+      </dl>
+      <div class="actions">
+        <button type="button" id="refreshBtn" class="btn btn-sm">Refresh</button>
+        <button type="button" id="openFolderBtn" class="btn btn-sm">Open snapshots folder</button>
+      </div>
+    </section>
+
+    <section class="card snapshots-card">
+      <h2>Snapshots</h2>
+      <ul id="snapshotList" class="snapshot-list"></ul>
+    </section>
+
+    <section class="card logs-card">
+      <div class="logs-header">
+        <h2>Logs</h2>
+        <button type="button" id="clearLogsBtn" class="btn btn-sm">Clear</button>
+      </div>
+      <pre id="logView"></pre>
+    </section>
+  </main>
+
+  <dialog id="firewallDialog">
+    <form method="dialog">
+      <h3>Windows Firewall</h3>
+      <p>Allow inbound connections on this port so your phone can reach the server on your LAN?</p>
+      <div class="dialog-actions">
+        <button type="button" id="firewallSkipBtn" class="btn">Not now</button>
+        <button type="button" id="firewallAllowBtn" class="btn btn-primary">Allow</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+release/
+dist/
+
+# Local data
+data/
+test-upload.sqlite
+downloaded.sqlite
+scripts/test-upload.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
