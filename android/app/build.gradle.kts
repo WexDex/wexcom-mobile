@@ -40,6 +40,51 @@ android {
     }
 }
 
+fun releaseApkFileName(originalName: String, variantName: String): String {
+  val abi = Regex("""^app-(.+)-release\.apk$""")
+    .matchEntire(originalName)
+    ?.groupValues
+    ?.getOrNull(1)
+  return when {
+    abi != null -> "WexCom-$abi.apk"
+    variantName == "release" -> "WexCom.apk"
+    else -> "WexCom-$variantName.apk"
+  }
+}
+
+// Flutter copies to outputs/flutter-apk/ after assemble — rename there too.
+androidComponents {
+    onVariants { variant ->
+        val capitalizedName = variant.name.replaceFirstChar { it.uppercase() }
+        val renameTask = tasks.register("renameApk$capitalizedName") {
+            doLast {
+                val outputDirs = listOf(
+                    layout.buildDirectory.dir("outputs/flutter-apk").get().asFile,
+                    layout.buildDirectory.dir("outputs/apk/${variant.name}").get().asFile,
+                )
+                outputDirs.forEach { dir ->
+                    if (!dir.exists()) return@forEach
+                    dir.listFiles()
+                        ?.filter { it.isFile && it.extension == "apk" }
+                        ?.forEach { apk ->
+                            val newName = releaseApkFileName(apk.name, variant.name)
+                            val dest = java.io.File(dir, newName)
+                            if (apk.absolutePath != dest.absolutePath) {
+                                apk.copyTo(dest, overwrite = true)
+                                apk.delete()
+                            }
+                        }
+                }
+            }
+        }
+        afterEvaluate {
+            tasks.named("assemble$capitalizedName").configure {
+                finalizedBy(renameTask)
+            }
+        }
+    }
+}
+
 flutter {
     source = "../.."
 }
