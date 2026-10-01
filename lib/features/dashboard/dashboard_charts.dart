@@ -125,7 +125,7 @@ List<LedgerDailyPoint> buildLedgerDailyPointsForRange(
       .toList();
 }
 
-/// End-of-day totals from replayed client balances (sign: negative ⇒ they owe you).
+/// End-of-day totals from replayed client balances (sign: positive ⇒ they pay you).
 class CurrentBalancePoint {
   const CurrentBalancePoint({
     required this.label,
@@ -178,10 +178,10 @@ List<CurrentBalancePoint> buildCurrentBalancePointsForRange(
     var theyOwe = 0;
     var youOwe = 0;
     for (final v in bal.values) {
-      if (v < 0) {
-        theyOwe += -v;
-      } else if (v > 0) {
-        youOwe += v;
+      if (v > 0) {
+        theyOwe += v;
+      } else if (v < 0) {
+        youOwe += -v;
       }
     }
     return CurrentBalancePoint(
@@ -965,8 +965,8 @@ class _CurrentBalanceLineChartState extends State<CurrentBalanceLineChart>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SeriesFilterChips(
-          labelA: 'They owe you',
-          labelB: 'You owe them',
+          labelA: 'They pay you',
+          labelB: 'I pay them',
           colorA: AppTheme.balanceReceivable,
           colorB: AppTheme.ledgerDebt,
           showA: _showTheyOwe,
@@ -986,8 +986,8 @@ class _CurrentBalanceLineChartState extends State<CurrentBalanceLineChart>
           detailBuilder: (i) => widget.detailBuilder(i, widget.interactiveCurrencyCode),
           footer: _footerLegend(
             context,
-            'They owe you',
-            'You owe them',
+            'They pay you',
+            'I pay them',
             AppTheme.balanceReceivable,
             AppTheme.ledgerDebt,
             widget.points,

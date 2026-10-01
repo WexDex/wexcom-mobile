@@ -348,3 +348,25 @@ DateTime personalFinanceCreatedAtUtcForSave({
     old.microsecond,
   ).toUtc();
 }
+
+/// Opens the editor for a new expense/gain and saves it.
+Future<void> addPersonalFinanceEntryFlow(
+  BuildContext context,
+  WidgetRef ref,
+  PersonalFinanceKind kind,
+) async {
+  final result = await openPersonalFinanceEditor(context: context, ref: ref, kind: kind);
+  if (result == null) return;
+  final currency = await ref.read(defaultCurrencyProvider.future);
+  await ref.read(ledgerRepositoryProvider).addPersonalFinanceEntry(
+        kind: kind,
+        title: result.title,
+        amountMinor: result.amountMinor,
+        currencyCode: currency,
+        note: result.note,
+        categoryId: result.categoryId,
+        accountId: result.accountId,
+        createdAt: personalFinanceCreatedAtUtcForSave(dayLocal: result.dayLocal),
+        fromCurrency: result.fromCurrency,
+      );
+}

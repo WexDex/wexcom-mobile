@@ -2,6 +2,26 @@
 
 Newest entries at the top. See [AGENTS.md](AGENTS.md) for how this file is maintained.
 
+## [Unreleased] — 2026-10-01 — Major
+
+**Summary:** Cashflow Home dashboard, 4-tab navigation (Home · Clients · Finance · More), "They pay you / I pay them" wording, and a rebuilt wallet with coloured Add / Remove / Set history.
+
+**Plan:** Home dashboard and 4-tab navigation (Phase 1 + Phase 2)
+
+**In scope:**
+- Bottom nav reduced to Home · Clients · Finance · More; Ledger, Tags and Settings are pushed pages (More tab links to them); notification / widget launches land on Home then push
+- Balance copy: positive balance = "They pay you" (green), negative = "I pay them" (red); dashboard chart replay and Analytics labels corrected
+- Home rebuilt: onboarding checklist, attention strip (slow payers, bills due ≤ 3 days, budgets ≥ 90%), client split, quick add (Expense / Gain / Client tx), this month expenses vs gains with category split, spending pulse (last 7 days and last week vs previous), wallet hub, upcoming bills + month calendar sheet, budgets, savings goals, recent clients and recent finance
+- Wallet: Set records the real delta (`amountMinor = |new − old|`) and shows amber; Add green, Remove red; set dialog previews before → after; unified history sub-window (all accounts or one, period filters, day groups)
+- Category totals bar + chips on Finance Expenses / Gains
+- Android quick widget shows They pay you / I pay them / Wallet line; refreshed when clients or wallets change
+- Removed unused `DashboardScreen` and the Home exchange-rates card
+
+**Not in scope:**
+- Persisting onboarding "Hide" across restarts (session only; no migration)
+- Wallet total converted across currencies on the widget (default-currency accounts only)
+- Forecasting / projected balance
+
 ## [Unreleased] — 2026-08-07 — Major
 
 **Summary:** New LAN-only Express + Electron cloud host (`cloud_host/`) with desktop UI, QR setup, and Flutter sync compatibility fix.

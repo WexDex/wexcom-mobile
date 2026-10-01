@@ -16,6 +16,7 @@ import '../../widgets/currency_amount_input.dart';
 import '../dashboard/dashboard_charts.dart';
 import 'expense_categories_screen.dart';
 import 'finance_period.dart';
+import 'finance_summary.dart';
 import 'personal_finance_editor.dart';
 import 'wallet_tab.dart';
 import 'wishlist_wallet_sheet.dart';
@@ -69,6 +70,12 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
       if (mounted) setState(() {});
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _applyInitialTab());
+  }
+
+  @override
+  void didUpdateWidget(covariant PersonalFinanceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTabKey != widget.initialTabKey) _applyInitialTab();
   }
 
   void _applyInitialTab() {
@@ -971,6 +978,15 @@ class _FinanceTabBodyState extends ConsumerState<_FinanceTabBody> {
             const SizedBox(height: 10),
 
             // â”€â”€ Trend card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            CategoryBreakdown(
+              totals: categoryTotals(inRange, categories, range.start, range.end),
+              currencyCode: code,
+              selectedId: _filterCategoryId,
+              onTap: (t) => setState(() {
+                _filterCategoryId = _filterCategoryId == t.id ? null : t.id;
+              }),
+            ),
+            const SizedBox(height: 10),
             _TrendCard(
               current: totalRange,
               previous: totalPrev,

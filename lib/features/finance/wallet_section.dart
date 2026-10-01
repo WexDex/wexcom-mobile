@@ -3,11 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/db/app_database.dart';
-import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/money.dart';
-import '../../widgets/currency_amount_input.dart';
+import 'wallet_balance_actions.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared wallet summary widgets (Finance → Wallet tab)
@@ -236,7 +235,7 @@ class _AccountTile extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.payments_outlined, size: 18),
             tooltip: 'Adjust balance',
-            onPressed: () => _editBalance(context, ref, account, account.currencyCode),
+            onPressed: () => openWalletBalanceAction(context, ref, account: account),
           ),
           IconButton(
             icon: Icon(Icons.delete_outline, size: 18, color: AppTheme.ledgerDebt),
@@ -422,63 +421,6 @@ class _GoalTile extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // Dialogs for account / goal editors
 // ─────────────────────────────────────────────────────────────────────────────
-
-Future<void> _editBalance(
-    BuildContext context, WidgetRef ref, WalletAccount account, String defaultCode) async {
-  final repo = ref.read(ledgerRepositoryProvider);
-  final foreign = await repo.foreignCurrencyEditorContext();
-  final previewCtrl = TextEditingController(text: '${account.balanceMinor}');
-  final amountKey = GlobalKey<CurrencyAmountInputState>();
-  FromCurrencySnapshot? fromSnap;
-
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text('${account.emoji} ${account.name}'),
-      content: SingleChildScrollView(
-        child: account.currencyCode == defaultCode
-            ? TextField(
-                controller: previewCtrl,
-                autofocus: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: InputDecoration(labelText: 'Balance ($defaultCode)'),
-              )
-            : CurrencyAmountInput(
-                key: amountKey,
-                defaultCurrencyCode: defaultCode,
-                amountMinorController: previewCtrl,
-                currencyCodes: foreign.codes,
-                rates: foreign.rates,
-                fixedInputCurrency: account.currencyCode,
-                showForeignToggle: false,
-                onSnapshotChanged: (s) => fromSnap = s,
-              ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Update')),
-      ],
-    ),
-  );
-  if (ok == true && context.mounted) {
-    int? val;
-    if (account.currencyCode == defaultCode) {
-      val = int.tryParse(previewCtrl.text.trim());
-    } else {
-      final snap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
-      val = snap != null ? snap.amount.round() : int.tryParse(previewCtrl.text.trim());
-    }
-    if (val != null) {
-      await repo.adjustAccountBalance(
-        account.id,
-        val,
-        fromCurrency: fromSnap,
-      );
-    }
-  }
-  previewCtrl.dispose();
-}
 
 Future<void> _openAccountEditor(
     BuildContext context, WidgetRef ref, WalletAccount? existing, String code) async {

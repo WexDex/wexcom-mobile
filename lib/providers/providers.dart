@@ -5,6 +5,7 @@ import '../data/ledger_repository.dart';
 import '../data/ledger_types.dart';
 import '../services/contacts_service.dart';
 import '../services/sync_service.dart';
+import '../utils/balance_display.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -191,6 +192,17 @@ final savingsGoalsProvider = StreamProvider.autoDispose<List<SavingsGoal>>((ref)
   return ref.watch(ledgerRepositoryProvider).watchSavingsGoals();
 });
 
+/// Sum of wallet accounts converted to the default currency at current FX.
+final walletTotalProvider = FutureProvider.autoDispose<int>((ref) async {
+  final repo = ref.watch(ledgerRepositoryProvider);
+  final wallets = ref.watch(walletAccountsProvider).valueOrNull ?? [];
+  var total = 0;
+  for (final a in wallets) {
+    total += await repo.convertWalletToDefaultMinor(a.balanceMinor, a.currencyCode);
+  }
+  return total;
+});
+
 /// Net worth = sum(wallet at current FX) + receivables − payables
 final netWorthProvider = FutureProvider.autoDispose<int>((ref) async {
   final repo = ref.watch(ledgerRepositoryProvider);
@@ -200,13 +212,7 @@ final netWorthProvider = FutureProvider.autoDispose<int>((ref) async {
   for (final a in wallets) {
     walletTotal += await repo.convertWalletToDefaultMinor(a.balanceMinor, a.currencyCode);
   }
-  var receivable = 0;
-  var payable = 0;
-  for (final c in clients) {
-    if (c.balanceMinor > 0) receivable += c.balanceMinor;
-    if (c.balanceMinor < 0) payable += -c.balanceMinor;
-  }
-  return walletTotal + receivable - payable;
+  return walletTotal + ClientBalanceTotals.fromClients(clients).netMinor;
 });
 
 final allWalletLedgerProvider = StreamProvider.autoDispose<List<WalletLedgerEntry>>((ref) {

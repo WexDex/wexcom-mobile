@@ -52,9 +52,9 @@ fun releaseApkFileName(originalName: String, variantName: String): String {
   }
 }
 
-// Flutter copies to outputs/flutter-apk/ after assemble — rename there too.
+// Release-only: renaming/deleting APKs breaks `flutter run` (expects app-debug.apk).
 androidComponents {
-    onVariants { variant ->
+    onVariants(selector().withBuildType("release")) { variant ->
         val capitalizedName = variant.name.replaceFirstChar { it.uppercase() }
         val renameTask = tasks.register("renameApk$capitalizedName") {
             doLast {
@@ -68,7 +68,7 @@ androidComponents {
                         ?.filter { it.isFile && it.extension == "apk" }
                         ?.forEach { apk ->
                             val newName = releaseApkFileName(apk.name, variant.name)
-                            val dest = java.io.File(dir, newName)
+                            val dest = dir.resolve(newName)
                             if (apk.absolutePath != dest.absolutePath) {
                                 apk.copyTo(dest, overwrite = true)
                                 apk.delete()

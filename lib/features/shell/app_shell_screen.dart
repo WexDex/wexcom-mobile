@@ -43,11 +43,6 @@ class AppShellScreen extends ConsumerWidget {
             selectedIcon: Icon(Icons.people_rounded),
             label: 'Clients',
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long_rounded),
-            label: 'Ledger',
-          ),
           NavigationDestination(
             icon: _BadgedIcon(
               icon: Icons.account_balance_wallet_outlined,
@@ -60,14 +55,9 @@ class AppShellScreen extends ConsumerWidget {
             label: 'Finance',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.label_outline),
-            selectedIcon: Icon(Icons.label_rounded),
-            label: 'Tags',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+            icon: Icon(Icons.menu_rounded),
+            selectedIcon: Icon(Icons.menu_open_rounded),
+            label: 'More',
           ),
         ],
       ),

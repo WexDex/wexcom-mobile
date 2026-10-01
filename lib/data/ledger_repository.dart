@@ -2753,7 +2753,7 @@ class LedgerRepository {
               id: _uuid.v4(),
               accountId: id,
               opType: opType,
-              amountMinor: newBalanceMinor,
+              amountMinor: (newBalanceMinor - before).abs(),
               balanceBeforeMinor: before,
               balanceAfterMinor: newBalanceMinor,
               note: Value(note),

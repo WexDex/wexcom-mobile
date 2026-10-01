@@ -16,8 +16,10 @@ class WexcomQuickWidgetProvider : HomeWidgetProvider() {
         appWidgetIds: IntArray,
         widgetData: SharedPreferences,
     ) {
+        val summary = widgetData.getString("summary_label", null) ?: "Open the app to load totals"
         appWidgetIds.forEach { widgetId ->
             val views = RemoteViews(context.packageName, R.layout.wexcom_quick_widget).apply {
+                setTextViewText(R.id.summary_label, summary)
                 setOnClickPendingIntent(
                     R.id.btn_new_tx,
                     HomeWidgetLaunchIntent.getActivity(

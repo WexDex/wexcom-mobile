@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 
 import '../../data/db/app_database.dart';
-import '../../models/from_currency_snapshot.dart';
 import '../../providers/providers.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/chart_curve.dart';
 import '../../utils/exchange_rate.dart';
 import '../../utils/money.dart';
-import '../../widgets/currency_amount_input.dart';
+import 'wallet_balance_actions.dart';
+import 'wallet_history.dart';
 import 'wallet_section.dart';
 
 class WalletTabBody extends ConsumerStatefulWidget {
@@ -105,7 +103,7 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
                   account: a,
                   defaultCode: defaultCode,
                   ledger: ledger.where((e) => e.accountId == a.id).toList(),
-                  onAdjust: () => _walletOps(context, ref, a, defaultCode),
+                  onAdjust: () => openWalletBalanceAction(context, ref, account: a),
                 )),
           ],
         );
@@ -115,99 +113,6 @@ class _WalletTabBodyState extends ConsumerState<WalletTabBody> {
     );
   }
 
-  Future<void> _walletOps(
-    BuildContext context,
-    WidgetRef ref,
-    WalletAccount account,
-    String defaultCode,
-  ) async {
-    final action = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.add),
-              title: const Text('Add to balance'),
-              onTap: () => Navigator.pop(ctx, 'add'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.remove),
-              title: const Text('Remove from balance'),
-              onTap: () => Navigator.pop(ctx, 'remove'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('Set balance'),
-              onTap: () => Navigator.pop(ctx, 'set'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (action == null || !context.mounted) return;
-
-    final repo = ref.read(ledgerRepositoryProvider);
-    final foreign = await repo.foreignCurrencyEditorContext();
-    if (!context.mounted) return;
-
-    final previewCtrl = TextEditingController();
-    final amountKey = GlobalKey<CurrencyAmountInputState>();
-    FromCurrencySnapshot? fromSnap;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(switch (action) {
-          'add' => 'Add amount',
-          'remove' => 'Remove amount',
-          _ => 'Set balance',
-        }),
-        content: SingleChildScrollView(
-          child: account.currencyCode == defaultCode
-              ? TextField(
-                  controller: previewCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(helperText: defaultCode),
-                )
-              : CurrencyAmountInput(
-                  key: amountKey,
-                  defaultCurrencyCode: defaultCode,
-                  amountMinorController: previewCtrl,
-                  currencyCodes: foreign.codes,
-                  rates: foreign.rates,
-                  fixedInputCurrency: account.currencyCode,
-                  showForeignToggle: false,
-                  onSnapshotChanged: (s) => fromSnap = s,
-                ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-
-    int minor;
-    if (account.currencyCode == defaultCode) {
-      minor = MoneyFormat.parseMinorUnits(previewCtrl.text, fractionDigits: 0) ?? 0;
-    } else {
-      final snap = amountKey.currentState?.buildSnapshot() ?? fromSnap;
-      minor = snap != null ? snap.amount.round() : 0;
-    }
-    previewCtrl.dispose();
-    if (minor <= 0) return;
-    switch (action) {
-      case 'add':
-        await repo.adjustWalletDelta(account.id, minor, fromCurrency: fromSnap);
-      case 'remove':
-        await repo.adjustWalletDelta(account.id, -minor, fromCurrency: fromSnap);
-      default:
-        await repo.adjustAccountBalance(account.id, minor, fromCurrency: fromSnap);
-    }
-  }
 }
 
 class _AccountSection extends ConsumerWidget {
@@ -262,42 +167,13 @@ class _AccountSection extends ConsumerWidget {
               child: const Text('Adjust balance'),
             ),
             TextButton(
-              onPressed: () => context.push('/finance/wallet/${account.id}'),
+              onPressed: () => openWalletHistorySheet(context, accountId: account.id),
               child: const Text('See all history'),
             ),
             if (ledger.isNotEmpty) ...[
               const Divider(height: 20),
-              Text('History', style: text.labelMedium?.copyWith(color: AppTheme.mutedFg)),
-              ...ledger.take(8).map((e) {
-                final snap = FromCurrencySnapshot.fromJsonString(e.fromCurrencyJson);
-                final op = e.opType;
-                return ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(
-                    op == 'increase'
-                        ? Icons.add_circle_outline
-                        : op == 'decrease'
-                            ? Icons.remove_circle_outline
-                            : Icons.swap_horiz,
-                    size: 18,
-                  ),
-                  title: Text(
-                    '$op ${MoneyFormat.formatMinor(e.amountMinor, account.currencyCode)}',
-                    style: text.bodySmall,
-                  ),
-                  subtitle: Text(
-                    '${MoneyFormat.formatMinor(e.balanceBeforeMinor, account.currencyCode)} → '
-                    '${MoneyFormat.formatMinor(e.balanceAfterMinor, account.currencyCode)}'
-                    '${snap != null ? ' · ${snap.formatPrimary()}' : ''}',
-                    style: text.labelSmall?.copyWith(color: AppTheme.mutedFg),
-                  ),
-                  trailing: Text(
-                    DateFormat.MMMd().format(e.createdAt.toLocal()),
-                    style: text.labelSmall,
-                  ),
-                );
-              }),
+              Text('Recent', style: text.labelMedium?.copyWith(color: AppTheme.mutedFg)),
+              ...ledger.take(3).map((e) => WalletEntryTile(entry: e, account: account, dense: true)),
             ],
           ],
         ),

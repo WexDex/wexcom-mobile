@@ -234,16 +234,7 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
           final filtered = clients.where(_matches).toList();
           filtered.sort(_compareClients);
 
-          // Summary header numbers
-          int receivableMinor = 0;
-          int payableMinor = 0;
-          for (final c in clients) {
-            if (c.balanceMinor > 0) {
-              receivableMinor += c.balanceMinor;
-            } else if (c.balanceMinor < 0) {
-              payableMinor += -c.balanceMinor;
-            }
-          }
+          final totals = ClientBalanceTotals.fromClients(clients);
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -251,8 +242,8 @@ class _ClientListScreenState extends ConsumerState<ClientListScreen> {
               // ── Summary header strip ──────────────────────────────────────
               _ClientsSummaryHeader(
                 activeCount: clients.length,
-                receivableMinor: receivableMinor,
-                payableMinor: payableMinor,
+                receivableMinor: totals.theyPayYouMinor,
+                payableMinor: totals.iPayThemMinor,
                 currencyCode: code,
               ),
               // ── Search bar ───────────────────────────────────────────────
@@ -683,7 +674,7 @@ class _ClientsSummaryHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _MiniStatChip(
-              label: 'Recv: ${MoneyFormat.formatMinor(receivableMinor, currencyCode)}',
+              label: 'They pay: ${MoneyFormat.formatMinor(receivableMinor, currencyCode)}',
               icon: Icons.arrow_downward_rounded,
               color: AppTheme.balanceReceivable,
             ),
@@ -691,7 +682,7 @@ class _ClientsSummaryHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: _MiniStatChip(
-              label: 'Owe: ${MoneyFormat.formatMinor(payableMinor, currencyCode)}',
+              label: 'I pay: ${MoneyFormat.formatMinor(payableMinor, currencyCode)}',
               icon: Icons.arrow_upward_rounded,
               color: AppTheme.ledgerDebt,
             ),
@@ -967,7 +958,7 @@ class _ClientCard extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(height: 2),
-                              // "They owe you" / "You owe them" label
+                              // "They pay you" / "I pay them" label
                               Text(
                                 phrase,
                                 style: text.labelSmall?.copyWith(

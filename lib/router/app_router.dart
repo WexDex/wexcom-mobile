@@ -9,6 +9,7 @@ import '../features/clients/client_list_screen.dart';
 import '../features/finance/personal_finance_screen.dart';
 import '../features/finance/wallet_account_history_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/more/more_screen.dart';
 import '../features/settings/audit_log_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/settings/tag_editor_screen.dart';
@@ -52,6 +53,21 @@ Page<void> _detailPage(GoRouterState state, Widget child) {
       );
     },
   );
+}
+
+/// Locations that are pushed over the tab shell rather than being tabs.
+const _pushedPaths = {'/transactions', '/tags', '/settings', '/analytics', '/archived'};
+
+/// Opens [location] from outside the widget tree (notifications, home widget).
+/// Pushed pages land on top of Home so Back returns into the app.
+void openAppLocation(GoRouter router, String location) {
+  final path = Uri.parse(location).path;
+  if (!_pushedPaths.contains(path) && !path.startsWith('/client/')) {
+    router.go(location);
+    return;
+  }
+  router.go('/home');
+  WidgetsBinding.instance.addPostFrameCallback((_) => router.push(location));
 }
 
 final goRouterProvider = Provider<GoRouter>((ref) {
@@ -108,15 +124,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/transactions',
-                name: 'transactions',
-                pageBuilder: (context, state) => _tabPage(state, const TransactionsScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
                 path: '/finance',
                 name: 'finance',
                 pageBuilder: (context, state) => _tabPage(
@@ -131,22 +138,28 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/tags',
-                name: 'tags',
-                pageBuilder: (context, state) => _tabPage(state, const TagEditorScreen()),
-              ),
-            ],
-          ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/settings',
-                name: 'settings',
-                pageBuilder: (context, state) => _tabPage(state, const SettingsScreen()),
+                path: '/more',
+                name: 'more',
+                pageBuilder: (context, state) => _tabPage(state, const MoreScreen()),
               ),
             ],
           ),
         ],
+      ),
+      GoRoute(
+        path: '/transactions',
+        name: 'transactions',
+        pageBuilder: (context, state) => _detailPage(state, const TransactionsScreen()),
+      ),
+      GoRoute(
+        path: '/tags',
+        name: 'tags',
+        pageBuilder: (context, state) => _detailPage(state, const TagEditorScreen()),
+      ),
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        pageBuilder: (context, state) => _detailPage(state, const SettingsScreen()),
       ),
       GoRoute(
         path: '/archived',

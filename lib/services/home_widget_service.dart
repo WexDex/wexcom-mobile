@@ -7,6 +7,8 @@ import 'package:home_widget/home_widget.dart';
 import '../data/db/app_database.dart';
 import '../data/ledger_repository.dart';
 import '../data/ledger_types.dart';
+import '../utils/balance_display.dart';
+import '../utils/money.dart';
 import 'notification_service.dart';
 
 /// Background entry point for interactive widget taps (no UI).
@@ -61,6 +63,22 @@ class HomeWidgetService {
 
     final defaultCode = await repo.defaultCurrencyCode();
     await HomeWidget.saveWidgetData('default_currency', defaultCode);
+
+    final clients = await repo.watchActiveClients().first;
+    final totals = ClientBalanceTotals.fromClients(clients);
+    final wallets = await repo.watchWalletAccounts().first;
+    final walletMinor = wallets
+        .where((w) => w.currencyCode == defaultCode)
+        .fold<int>(0, (s, w) => s + w.balanceMinor);
+    await HomeWidget.saveWidgetData('they_pay_you_minor', totals.theyPayYouMinor);
+    await HomeWidget.saveWidgetData('i_pay_them_minor', totals.iPayThemMinor);
+    await HomeWidget.saveWidgetData('wallet_minor', walletMinor);
+    await HomeWidget.saveWidgetData(
+      'summary_label',
+      'They pay you ${MoneyFormat.formatMinor(totals.theyPayYouMinor, defaultCode)}'
+          ' · I pay them ${MoneyFormat.formatMinor(totals.iPayThemMinor, defaultCode)}\n'
+          'Wallet ${MoneyFormat.formatMinor(walletMinor, defaultCode)}',
+    );
 
     final currencies = await repo.watchManagedCurrencies().first;
     for (final c in currencies) {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ class WexcomDebtApp extends ConsumerStatefulWidget {
 class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
   bool _checkedContactsPermission = false;
   PeriodicSync? _periodicSync;
+  Timer? _widgetSyncTimer;
 
   @override
   void initState() {
@@ -55,7 +57,7 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
   Future<void> _bootstrapApp() async {
     final repo = ref.read(ledgerRepositoryProvider);
     final router = ref.read(goRouterProvider);
-    setNotificationRouteHandler(router.go);
+    setNotificationRouteHandler((location) => openAppLocation(router, location));
     await NotificationService.handleLaunchNotification();
     final s = await repo.getAppSettings();
     if (s != null) {
@@ -70,9 +72,11 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
         onLaunch: (uri) {
           final router = ref.read(goRouterProvider);
           if (uri.host == 'transactions') {
-            router.go(Uri(path: '/transactions', queryParameters: uri.queryParameters).toString());
+            openAppLocation(
+                router, Uri(path: '/transactions', queryParameters: uri.queryParameters).toString());
           } else if (uri.host == 'tags') {
-            router.go(Uri(path: '/tags', queryParameters: uri.queryParameters).toString());
+            openAppLocation(
+                router, Uri(path: '/tags', queryParameters: uri.queryParameters).toString());
           }
         },
       );
@@ -82,6 +86,7 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
   @override
   void dispose() {
     _periodicSync?.dispose();
+    _widgetSyncTimer?.cancel();
     super.dispose();
   }
 
@@ -97,8 +102,19 @@ class _WexcomDebtAppState extends ConsumerState<WexcomDebtApp> {
     }
   }
 
+  void _scheduleWidgetSync() {
+    _widgetSyncTimer?.cancel();
+    _widgetSyncTimer = Timer(const Duration(seconds: 2), () {
+      HomeWidgetService.syncWidgetData(ref.read(ledgerRepositoryProvider));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (Platform.isAndroid) {
+      ref.listen(activeClientsProvider, (_, __) => _scheduleWidgetSync());
+      ref.listen(walletAccountsProvider, (_, __) => _scheduleWidgetSync());
+    }
     final router = ref.watch(goRouterProvider);
     return MaterialApp.router(
       title: 'Debt ledger',

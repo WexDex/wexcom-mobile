@@ -454,7 +454,7 @@ class _DebtPaymentsTab extends StatelessWidget {
           children: [
             Expanded(
               child: HudStatCard(
-                label: 'Owed to you',
+                label: 'Debt added',
                 displayText: MoneyFormat.formatMinor(totalOwedToYou, code),
                 numericValue: totalOwedToYou.toDouble(),
                 color: AppTheme.balanceReceivable,
@@ -464,7 +464,7 @@ class _DebtPaymentsTab extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: HudStatCard(
-                label: 'You owe',
+                label: 'Payments in',
                 displayText: MoneyFormat.formatMinor(totalYouOwe, code),
                 numericValue: totalYouOwe.toDouble(),
                 color: AppTheme.ledgerDebt,
@@ -475,7 +475,7 @@ class _DebtPaymentsTab extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         HudStatCard(
-          label: 'Net balance',
+          label: 'Net change',
           displayText: MoneyFormat.formatMinor(totalOwedToYou - totalYouOwe, code),
           numericValue: (totalOwedToYou - totalYouOwe).toDouble(),
           color: AppTheme.receivableAccent,
@@ -491,7 +491,7 @@ class _DebtPaymentsTab extends StatelessWidget {
         else ...[
           ChartCard(
             title: 'Current balances (end of day)',
-            subtitle: 'Replay of active ledger: "they owe you" vs "you owe them"',
+            subtitle: 'Replay of active ledger: "they pay you" vs "I pay them"',
             child: _AxisLabelled(
               child: CurrentBalanceLineChart(
                 points: currentBal,
@@ -499,8 +499,8 @@ class _DebtPaymentsTab extends StatelessWidget {
                 detailBuilder: (i, c) {
                   final p = currentBal[i];
                   return '${_fmtDay(p.day)}\n'
-                      'They owe you: ${MoneyFormat.formatMinor(p.theyOweYouMinor, c)}\n'
-                      'You owe them: ${MoneyFormat.formatMinor(p.youOweThemMinor, c)}';
+                      'They pay you: ${MoneyFormat.formatMinor(p.theyOweYouMinor, c)}\n'
+                      'I pay them: ${MoneyFormat.formatMinor(p.youOweThemMinor, c)}';
                 },
               ),
             ),
@@ -962,7 +962,7 @@ class _DeepAnalyticsTab extends StatelessWidget {
         if (topClients.isNotEmpty) ...[
           ChartCard(
             title: 'Top clients by balance',
-            subtitle: 'Cyan = they owe you · Red = you owe them',
+            subtitle: 'Green = they pay you · Red = I pay them',
             accentColor: AppTheme.balanceReceivable,
             child: TopClientsBarChart(points: topClients, currencyCode: code),
           ),
