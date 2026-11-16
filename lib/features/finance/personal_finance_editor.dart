@@ -315,9 +315,7 @@ Future<PersonalFinanceEditorResult?> openPersonalFinanceEditor({
     ),
   );
 
-  titleCtrl.dispose();
-  amountCtrl.dispose();
-  noteCtrl.dispose();
+  disposeTextControllersAfterSheet([titleCtrl, amountCtrl, noteCtrl]);
   return result;
 }
 

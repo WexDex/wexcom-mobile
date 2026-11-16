@@ -1,7 +1,19 @@
 allprojects {
     repositories {
         google()
-        mavenCentral()
+        maven { url = uri("https://repo1.maven.org/maven2/") }
+        maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+    }
+}
+
+subprojects {
+    buildscript {
+        repositories {
+            google()
+            maven { url = uri("https://repo1.maven.org/maven2/") }
+            maven { url = uri("https://maven-central.storage-download.googleapis.com/maven2/") }
+            gradlePluginPortal()
+        }
     }
 }
 

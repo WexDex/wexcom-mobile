@@ -2,6 +2,32 @@
 
 Newest entries at the top. See [AGENTS.md](AGENTS.md) for how this file is maintained.
 
+## [Unreleased] — 2026-11-15 — Minor
+
+**Summary:** Bulk text import — paste or load `.txt`, preview parsed expenses/gains/client txs, then save.
+
+**Plan:** Bulk text import (paste / file)
+
+**In scope:**
+- Line grammar: amount + title; flags `d:` `cat:` `w:`; `@` client lines; sign rules for personal/client
+- More tab section with examples + **Open import**; Finance AppBar shortcut; route `/finance/bulk-import`
+- Compose → preview (edit/remove rows) → confirm batch save via ledger repository
+- Parser unit tests in `test/finance_bulk_line_parser_test.dart`
+
+**Not in scope:** Foreign currency per line; client tags/due dates; persisted drafts
+
+## [Unreleased] — 2026-11-15 — Minor
+
+**Summary:** Fix red-screen assertion when saving a new Finance expense/gain after the editor sheet closes.
+
+**Plan:** Finance editor dispose timing
+
+**In scope:**
+- Defer `TextEditingController.dispose` until after the modal sheet unmounts (`disposeTextControllersAfterSheet` in `scrollable_form_sheet.dart`)
+- Personal finance editor + wishlist/subscription sheets on Finance tab use the helper
+
+**Not in scope:** Other modal editors elsewhere in the app (same pattern can be applied if needed)
+
 ## [Unreleased] — 2026-10-01 — Major
 
 **Summary:** Cashflow Home dashboard, 4-tab navigation (Home · Clients · Finance · More), "They pay you / I pay them" wording, and a rebuilt wallet with coloured Add / Remove / Set history.

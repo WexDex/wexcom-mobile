@@ -465,7 +465,7 @@ Future<void> _openAccountEditor(
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: selectedCurrency,
+                initialValue: selectedCurrency,
                 decoration: const InputDecoration(labelText: 'Currency'),
                 items: currencyCodes
                     .map(
@@ -484,7 +484,7 @@ Future<void> _openAccountEditor(
                 TextField(
                   controller: balCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Opening balance (${selectedCurrency})',
+                    labelText: 'Opening balance ($selectedCurrency)',
                     helperText: 'Amount in minor units',
                   ),
                   keyboardType: TextInputType.number,

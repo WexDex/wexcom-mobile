@@ -32,6 +32,22 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+
+# Android / Gradle outputs (Flutter also uses /build/ at repo root)
+android/build/
+android/.gradle/
+android/**/reports/
+.cxx/
+
+# Release binaries & local drop folders
+releases/
+release/
+*.apk
+*.aab
+WexCom*.apk
+
+# JVM crash / heap dumps from Gradle
+*.hprof
 /server/.env^
 /server/wexcom-server.sqlite
 

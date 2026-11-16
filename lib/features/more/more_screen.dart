@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../theme/app_theme.dart';
+import '../finance/bulk_import/bulk_import_more_section.dart';
 
 /// Fourth tab: less-frequent destinations, each opened as a pushed page.
 class MoreScreen extends StatelessWidget {
@@ -40,6 +41,7 @@ class MoreScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
         children: [
+          const BulkImportMoreSection(),
           tile(Icons.receipt_long_rounded, AppTheme.receivableAccent, 'Ledger',
               'Every client transaction, filterable', '/transactions'),
           tile(Icons.label_rounded, AppTheme.brandSecondary, 'Tags',

@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/db/app_database.dart';
@@ -13,6 +14,7 @@ import '../../utils/money.dart';
 import '../../services/notification_service.dart';
 import '../../utils/subscription_schedule.dart';
 import '../../widgets/currency_amount_input.dart';
+import '../../widgets/scrollable_form_sheet.dart';
 import '../dashboard/dashboard_charts.dart';
 import 'expense_categories_screen.dart';
 import 'finance_period.dart';
@@ -156,6 +158,11 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
       appBar: AppBar(
         title: const Text('Finance'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.text_snippet_outlined),
+            tooltip: 'Import lines',
+            onPressed: () => context.push('/finance/bulk-import'),
+          ),
           IconButton(
             icon: const Icon(Icons.category_outlined),
             tooltip: 'Manage categories',
@@ -423,9 +430,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
         }
       }
     }
-    titleCtrl.dispose();
-    amountCtrl.dispose();
-    noteCtrl.dispose();
+    disposeTextControllersAfterSheet([titleCtrl, amountCtrl, noteCtrl]);
   }
 
   Future<void> _openSubscriptionEditor(SubscriptionItem? existing) async {
@@ -525,7 +530,7 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
                 const SizedBox(height: 12),
                 if (scheduleType == SubscriptionScheduleType.dayOfMonth)
                   DropdownButtonFormField<int>(
-                    value: billingDay.clamp(1, 31),
+                    initialValue: billingDay.clamp(1, 31),
                     decoration: const InputDecoration(labelText: 'Billing day'),
                     items: List.generate(
                       31,
@@ -661,11 +666,13 @@ class _PersonalFinanceScreenState extends ConsumerState<PersonalFinanceScreen>
         }
       }
     }
-    titleCtrl.dispose();
-    amountCtrl.dispose();
-    noteCtrl.dispose();
-    rollingCtrl.dispose();
-    warnCtrl.dispose();
+    disposeTextControllersAfterSheet([
+      titleCtrl,
+      amountCtrl,
+      noteCtrl,
+      rollingCtrl,
+      warnCtrl,
+    ]);
   }
 }
 

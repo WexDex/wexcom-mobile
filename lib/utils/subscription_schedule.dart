@@ -1,4 +1,5 @@
 /// Subscription billing schedule helpers.
+library;
 
 enum SubscriptionScheduleType {
   dayOfMonth('day_of_month'),

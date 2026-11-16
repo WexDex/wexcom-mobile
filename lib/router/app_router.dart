@@ -6,6 +6,7 @@ import '../features/analytics/analytics_screen.dart';
 import '../features/clients/archived_clients_screen.dart';
 import '../features/clients/client_detail_screen.dart';
 import '../features/clients/client_list_screen.dart';
+import '../features/finance/bulk_import/finance_bulk_import_flow.dart';
 import '../features/finance/personal_finance_screen.dart';
 import '../features/finance/wallet_account_history_screen.dart';
 import '../features/home/home_screen.dart';
@@ -183,6 +184,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         path: '/settings/audit-log',
         name: 'audit-log',
         pageBuilder: (context, state) => _detailPage(state, const AuditLogScreen()),
+      ),
+      GoRoute(
+        path: '/finance/bulk-import',
+        name: 'finance-bulk-import',
+        pageBuilder: (context, state) => _detailPage(state, const FinanceBulkImportScreen()),
       ),
       GoRoute(
         path: '/finance/wallet/:accountId',

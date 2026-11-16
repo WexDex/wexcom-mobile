@@ -267,7 +267,7 @@ class CurrencyAmountInputState extends State<CurrencyAmountInput> {
         if (showForeignFields) ...[
           if (widget.fixedInputCurrency == null)
             DropdownButtonFormField<String>(
-              value: _selectedCode,
+              initialValue: _selectedCode,
               decoration: const InputDecoration(labelText: 'Currency'),
               items: _allCodes
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))

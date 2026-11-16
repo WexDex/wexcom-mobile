@@ -113,3 +113,17 @@ Future<T?> showScrollableFormSheet<T>({
     builder: builder,
   );
 }
+
+/// Disposes [controllers] on the next frame after a modal sheet closes.
+///
+/// Call this instead of [TextEditingController.dispose] right after
+/// [showModalBottomSheet] / [showScrollableFormSheet] returns. Disposing
+/// synchronously can trigger `'_dependents.isEmpty': is not true` while sheet
+/// fields are still unmounting.
+void disposeTextControllersAfterSheet(Iterable<TextEditingController> controllers) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    for (final c in controllers) {
+      c.dispose();
+    }
+  });
+}
